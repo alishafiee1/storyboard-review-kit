@@ -9,7 +9,7 @@ Set STORYBOARD_KIT_REPO=owner/name to use a fork."""
 import io, os, re, shutil, sys, time, urllib.request, zipfile
 
 REPO = os.environ.get("STORYBOARD_KIT_REPO", "alishafiee1/storyboard-review-kit")
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(globals().get("__file__") or "tools/update.py")))  # (no __file__ when started with python -c)
 IGNORE = [".env", ".engine-backup/", "audio/", "__pycache__/", "*.tmp"]
 
 
