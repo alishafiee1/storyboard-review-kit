@@ -1,0 +1,8 @@
+# Files that python tools/update.py replaces in every project (nothing else is ever touched).
+review.html
+click-for-review.bat
+tools/serve.py
+tools/tts.py
+tools/voices.py
+tools/update.py
+VERSION

@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://alishafiee1.github.io/storyboard-review-kit/sitemap.xml

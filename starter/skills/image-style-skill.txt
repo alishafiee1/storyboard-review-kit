@@ -1,0 +1,2 @@
+Write your picture style here (one paragraph, English). The same text goes at the START of every Flow prompt.
+Example: Hand-drawn watercolor illustration, 16:9, soft paper texture, bold ink outlines, warm light.
