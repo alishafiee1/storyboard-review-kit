@@ -11,6 +11,17 @@ from serve import ROOT, spoken_lines  # noqa: E402
 from voices import load_key, read_catalog  # noqa: E402
 
 PCM_ONLY = ("google/", "heygen/")  # these models answer raw 24 kHz pcm, the others answer mp3
+# A line's tone (Persian words from story.txt) becomes an ElevenLabs v3/v4 audio tag in front of the English text, e.g. «[whispers] ...».
+# First match wins. Only English lines on elevenlabs/eleven-v* models get a tag (other models would read the tag aloud).
+TONE_TAGS = [("یواشکی", "[whispers]"), ("آهسته", "[whispers]"), ("طلبکار", "[annoyed]"), ("شرمنده", "[sheepishly]"), ("خنده", "[chuckles]"),
+             ("نگران", "[worried]"), ("شیطون", "[mischievously]"), ("شوخ", "[playfully]")]
+
+
+def style_text(text, tone, lang, model):
+    if lang != "en" or not model.startswith("elevenlabs/eleven-v"):
+        return text
+    tag = next((t for k, t in TONE_TAGS if k in (tone or "")), "")
+    return f"{tag} {text}" if tag else text
 
 
 def synth(model, voice, text, key):
@@ -65,7 +76,7 @@ def make(items, lang, force=False, workers=4, on_done=None):
         err = ""
         for attempt in range(4):
             try:
-                data = synth(it["model"], it["voice"], it["spoken"], key)
+                data = synth(it["model"], it["voice"], style_text(it["spoken"], it.get("tone", ""), lang, it["model"]), key)
                 tmp = mp3 + ".tmp"
                 open(tmp, "wb").write(data)
                 os.replace(tmp, mp3)
