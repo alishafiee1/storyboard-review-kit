@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.7.0
+- One config file for voices: `voices/voice-config.json` (models, voices per model, tones). Built automatically from an existing `voices/catalog.txt` the first time; «Refresh voice list» merges the API list into it and keeps your own fields (accent, gender, note, tested, tags). `catalog.txt` stays as the raw list.
+- Tones come from that file (`fa` name, `match` aliases, English `tag`): `tools/tts.py` no longer has a built-in list, sends up to 2 tags per line, and warns (page alert + terminal) about a tone that is not in the file instead of silently sending nothing. A tone with an empty tag (e.g. «عادی») is known and sends nothing.
+- Page: tone menu lists the config tones; unknown tones are red (line, speakers tab, banner); the scene model menu marks models that lack a speaker's voice.
+- Fix: a voice name with `-` or `.` (Deepgram, AssemblyAI, MAI voices…) broke the `speaker:` line and could not be saved from the page.
+- New `tools/voice_test.py`: makes the same sentence with chosen models, voices and tones (shows the cost first, nothing is made without `--yes`); `audio/_tests/index.html` lets you mark 👍 / 👎, saved into the config.
+
 ## 1.6.2
 - Floating play button redrawn: crisp SVG play/pause icons exactly centered, soft gradient, press feedback and a pulse while playing.
 - Page CSS reformatted (one declaration per line, shared colour tokens); visible keyboard focus rings; larger invisible hit areas for the small buttons; tiny 11px labels raised to 12px; reduced-motion support; aria-labels on icon-only buttons.

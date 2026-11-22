@@ -24,7 +24,7 @@ MARKER = re.compile(r"^\[(IMG\d{3})\]$")
 KEYLINE = re.compile(r"^([a-z][a-z-]*):\s?(.*)$")
 PHEADER = re.compile(r"^=== ([A-Za-z0-9_]+) ===$")
 SPEECH = ("say",)
-SPK = re.compile(r"^speaker:\s*(.*?)\s*\|\s*(#[0-9a-fA-F]{6})\s*(?:\|\s*([A-Za-z0-9_]*)\s*)?(?:\|\s*(.*?)\s*)?$")
+SPK = re.compile(r"^speaker:\s*(.*?)\s*\|\s*(#[0-9a-fA-F]{6})\s*(?:\|\s*([A-Za-z0-9_.:-]*)\s*)?(?:\|\s*(.*?)\s*)?$")
 PALETTE = ["#1565c0", "#ef6c00", "#2e7d32", "#8e24aa", "#c62828", "#00838f", "#6d4c41", "#ad1457", "#558b2f", "#4527a0", "#f9a825", "#37474f"]
 VOICE_LIST = ["george", "charlie", "sarah", "adam", "alice", "bella", "bill", "brian", "callum", "chris", "daniel", "eric", "harry", "jessica", "laura", "liam", "lily", "matilda", "river", "roger", "will"]
 CONTENT = ("act",) + SPEECH
@@ -375,7 +375,7 @@ def project():
         scenes.append(dict(id=sc["id"], title=sc["title"], time=sc["time"], env=sc["env"], issues=sc["issues"],
                            warnings=sc["warnings"], model=sc["model"], fx=sc["fx"], voice_stale=sorted(sc["voice_stale"]), blocks=sc["blocks"]))
     return dict(name=os.path.basename(ROOT), scenes=scenes, refs=refs, speakers=parse_speakers(lines), voices=VOICE_LIST,
-                tts=dict(default=dm, catalog=cat, job=JOB, **voices.status()), time=datetime.datetime.now().isoformat(timespec="seconds"))
+                tts=dict(default=dm, catalog=cat, tones=voices.tones_for_page(), job=JOB, **voices.status()), time=datetime.datetime.now().isoformat(timespec="seconds"))
 
 
 # ---------------------------------------------------------------- edits (all raw-line based, nothing else in the file is touched)
@@ -731,7 +731,7 @@ def replace_prompt(lines, id_, old, new):
 
 # ---------------------------------------------------------------- server
 # ---------------------------------------------------------------- voice jobs (network; they do not hold the file lock while they wait)
-JOB = dict(state="idle", scene="", done=0, total=0, errors=[])
+JOB = dict(state="idle", scene="", done=0, total=0, errors=[], warnings=[])
 
 
 def api_refresh(d):
@@ -777,7 +777,7 @@ def regen_job(scene):
                 JOB["errors"].append(f"{id_}: {st[7:]}")
         for lg, items in todo:
             before = len(JOB["errors"])
-            tts.make(items, lg, force=True, on_done=tick)
+            tts.make(items, lg, force=True, on_done=tick, warnings=JOB["warnings"])
             if len(JOB["errors"]) == before:
                 with LOCK:
                     lines = read_lines(STORY)
@@ -795,7 +795,7 @@ def api_regen(d):
         raise ValueError("bad scene")
     if JOB["state"] == "running":
         raise ValueError("یک بازسازی دیگر در حال انجام است")
-    JOB.update(state="running", scene=scene, done=0, total=0, errors=[])
+    JOB.update(state="running", scene=scene, done=0, total=0, errors=[], warnings=[])
     threading.Thread(target=regen_job, args=(scene,), daemon=True).start()
     return {"ok": True}
 
@@ -881,7 +881,7 @@ class H(http.server.SimpleHTTPRequestHandler):
             color, voice = d.get("color"), d.get("voice")
             if color is not None and not re.fullmatch(r"#[0-9a-fA-F]{6}", str(color)):
                 raise ValueError("bad color")
-            if voice is not None and not re.fullmatch(r"[A-Za-z0-9_]{0,30}", str(voice)):
+            if voice is not None and not re.fullmatch(r"[A-Za-z0-9_.:-]{0,60}", str(voice)):
                 raise ValueError("bad voice")
             tone = d.get("tone")
             tone = None if tone is None else clean_tone(tone)
@@ -907,6 +907,10 @@ class H(http.server.SimpleHTTPRequestHandler):
                 set_default_model(lines, model)
                 mark_stale(lines, speech_scenes(lines, own_model=False))
             write_lines(STORY, lines)
+        elif path == "/api/voicetest":  # what you heard in audio/_tests/index.html: a voice, a tone, or the model's tag support
+            import voices
+            voices.mark_test(model=str(d.get("model", "")), voice=d.get("voice") or None, tone=d.get("tone") or None,
+                             result=str(d.get("result", "")), tags=d.get("tags"))
         elif path == "/api/delete":
             if not re.fullmatch(r"scene-\d{2}", str(d["scene"])):
                 raise ValueError("bad scene")

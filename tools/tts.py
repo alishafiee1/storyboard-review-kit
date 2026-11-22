@@ -8,20 +8,24 @@ import concurrent.futures as cf, json, os, subprocess, sys, time, urllib.error, 
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from serve import ROOT, spoken_lines  # noqa: E402
-from voices import load_key, read_catalog  # noqa: E402
+import voices  # noqa: E402
+from voices import load_key  # noqa: E402
 
 PCM_ONLY = ("google/", "heygen/")  # these models answer raw 24 kHz pcm, the others answer mp3
-# A line's tone (Persian words from story.txt) becomes an ElevenLabs v3/v4 audio tag in front of the English text, e.g. «[whispers] ...».
-# First match wins. Only English lines on elevenlabs/eleven-v* models get a tag (other models would read the tag aloud).
-TONE_TAGS = [("یواشکی", "[whispers]"), ("آهسته", "[whispers]"), ("طلبکار", "[annoyed]"), ("شرمنده", "[sheepishly]"), ("خنده", "[chuckles]"),
-             ("نگران", "[worried]"), ("شیطون", "[mischievously]"), ("شوخ", "[playfully]")]
+# A line's tone (Persian words from story.txt) becomes up to two audio tags in front of the English text, e.g. «[whispers] ...».
+# The tones, their tags and which models take tags all live in voices/voice-config.json (see tools/voices.py).
 
 
-def style_text(text, tone, lang, model):
-    if lang != "en" or not model.startswith("elevenlabs/eleven-v"):
+def style_text(text, tone, lang, model, warn=None):
+    """Tag + text. An unknown tone is reported through warn(tone) instead of being ignored silently."""
+    if not (tone or "").strip():
         return text
-    tag = next((t for k, t in TONE_TAGS if k in (tone or "")), "")
-    return f"{tag} {text}" if tag else text
+    tags, known = voices.tone_tags(tone)
+    if not known and warn:
+        warn(tone)
+    if lang != "en" or not tags or not voices.model_takes_tags(model):
+        return text
+    return " ".join(tags) + " " + text
 
 
 def synth(model, voice, text, key):
@@ -50,15 +54,19 @@ def synth(model, voice, text, key):
 
 
 def voice_problem(model, voice):
-    """A text when the catalogue knows this model's voices and the voice is not one of them."""
-    m = next((x for x in read_catalog() if x["id"] == model), None)
-    if m and m["voices"] and voice not in [v["name"] for v in m["voices"]]:
-        return "مدل %s صدای «%s» را ندارد" % (model, voice)
-    return ""
+    """A text when the config knows this model's voices and the voice is not one of them."""
+    return voices.known_voice(model, voice)
 
 
-def make(items, lang, force=False, workers=4, on_done=None):
-    """items = spoken_lines() entries. Returns {id: 'ok' | 'cached' | 'FAILED ...'}."""
+def make(items, lang, force=False, workers=4, on_done=None, warnings=None):
+    """items = spoken_lines() entries. Returns {id: 'ok' | 'cached' | 'FAILED ...'}. Unknown tones are appended (once each) to warnings."""
+    warnings = warnings if warnings is not None else []
+
+    def warn(tone):
+        msg = "لحن «%s» توی voices/voice-config.json نیست؛ بدون برچسب ساخته شد" % tone
+        if msg not in warnings:
+            warnings.append(msg)
+
     key = load_key()
     out_dir = os.path.join(ROOT, "audio", lang)
     os.makedirs(out_dir, exist_ok=True)
@@ -76,7 +84,7 @@ def make(items, lang, force=False, workers=4, on_done=None):
         err = ""
         for attempt in range(4):
             try:
-                data = synth(it["model"], it["voice"], style_text(it["spoken"], it.get("tone", ""), lang, it["model"]), key)
+                data = synth(it["model"], it["voice"], style_text(it["spoken"], it.get("tone", ""), lang, it["model"], warn), key)
                 tmp = mp3 + ".tmp"
                 open(tmp, "wb").write(data)
                 os.replace(tmp, mp3)
@@ -102,5 +110,8 @@ if __name__ == "__main__":
     only = [a for a in sys.argv[1:] if a not in ("fa", "en")]
     items = [i for i in spoken_lines(lang) if not only or i["id"] in only]
     print(len(items), "lines, lang", lang, flush=True)
-    res = make(items, lang, force=bool(os.environ.get("TTS_FORCE")), on_done=lambda i, s: s != "cached" and print(i, s, flush=True))
+    warns = []
+    res = make(items, lang, force=bool(os.environ.get("TTS_FORCE")), on_done=lambda i, s: s != "cached" and print(i, s, flush=True), warnings=warns)
+    for w in warns:
+        print("⚠", w)
     print("done:", sum(v == "ok" for v in res.values()), "made,", sum(v.startswith("FAILED") for v in res.values()), "failed")

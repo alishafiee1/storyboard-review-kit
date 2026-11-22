@@ -40,7 +40,7 @@ python tools/update.py --check  # only tells you if a newer version exists
 Replaced files are copied to `.engine-backup/` first. To add the updater to a project that does not have it yet, copy `tools/update.py` from this repository into the project's `tools/` folder once.
 
 ## Voice-over setup (optional)
-Create a `.env` file next to `review.html` with one line `OPENROUTER_API_KEY=...` (it is git-ignored), then press "Refresh voice list" in the **Voices & speakers** tab, or run `python tools/voices.py`. Pick a voice per speaker and a model per scene; press "Rebuild voice" on a scene to generate it. Nothing is generated (and nothing is charged) until you press a button.
+Create a `.env` file next to `review.html` with one line `OPENROUTER_API_KEY=...` (it is git-ignored), then press "Refresh voice list" in the **Voices & speakers** tab, or run `python tools/voices.py`. Pick a voice per speaker and a model per scene; press "Rebuild voice" on a scene to generate it. Nothing is generated (and nothing is charged) until you press a button. Tones (the Persian word after a speaker's name, e.g. `علی (مرموز)`) are mapped to English audio tags in `voices/voice-config.json`; to hear which models, voices and tones work, run `python tools/voice_test.py` (it shows the cost first; add `--yes` to generate).
 
 ## Folder layout
 | Path | What |
@@ -51,7 +51,8 @@ Create a `.env` file next to `review.html` with one line `OPENROUTER_API_KEY=...
 | `images/refs/`, `images/scenes/` | reference images and generated pictures (`IMG001_....jpg`) |
 | `prompts/video-prompts.txt` | one image-to-video prompt per picture (the picture is the first frame) |
 | `videos/` | generated clips, named after the picture (`videos/clips/IMG008_race.mp4`) |
-| `voices/catalog.txt` | voices and models your key can use |
+| `voices/voice-config.json` | models, voices per model and tones (English tags); built from `catalog.txt`, your notes survive a refresh |
+| `voices/catalog.txt` | raw list of voices and models your key can use |
 | `audio/fa`, `audio/en` | generated narration |
 | `subtitles/` | `fa.srt` and `en.srt` made from the scenario |
 | `skills/` | writing rules for image prompts (used by AI coding assistants) |

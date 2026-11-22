@@ -1,17 +1,39 @@
 # -*- coding: utf-8 -*-
-"""Voice catalogue: asks OpenRouter which speech models and voices this key can use and writes voices/catalog.txt.
-Usage:  python tools/voices.py            (check the key, refresh voices/catalog.txt)
+"""Voice configuration: models, voices and tones in ONE json file, voices/voice-config.json (safe to commit, edit by hand if you like).
+  models : id -> {name, price, tags: yes|no|unknown, tested, note}      tags = does the model obey audio tags like [whispers]
+  voices : model id -> voice name -> {accent, gender?, note?, tested?}  accent / gender / note / tested are yours: a refresh never erases them
+  tones  : [{id, fa, match[], tag, tests{model: good|bad}}]            fa = the Persian name shown in the page and written in story.txt,
+                                                                       match = other Persian words that mean the same, tag = English audio tag ("" = no tag)
+Usage:  python tools/voices.py     (check the key, refresh the model and voice lists; voices/catalog.txt is rewritten as the raw list)
 Key:    OPENROUTER_API_KEY in the environment, or in a .env file next to review.html (.env is git-ignored; never put the key in story.txt).
-Format of voices/catalog.txt (plain text, safe to commit):
-  model: <id> | <price per 1000 input units, USD> | <name>
-  voice: <name> | <accent / language, or ؟ when the API does not say>
-An accent written by hand (anything but ؟) survives the next refresh."""
-import datetime, json, os, re, sys, urllib.error, urllib.request
+The first time the file is needed it is built from an existing voices/catalog.txt (if any) plus the default tones below."""
+import datetime, json, os, re, sys, threading, urllib.error, urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CATALOG = os.path.join(ROOT, "voices", "catalog.txt")
+CONFIG = os.path.join(ROOT, "voices", "voice-config.json")
 API = "https://openrouter.ai/api/v1"
 UNKNOWN = "؟"
+LOCK = threading.RLock()
+TAG_PREFIX = "elevenlabs/eleven-v"  # models of this family obey audio tags unless the config says "no"
+MAX_TAGS = 2
+
+# Starting tones (only used to create voice-config.json; after that the json is yours). tag "" = a known tone that sends nothing.
+DEFAULT_TONES = [
+    dict(id="whisper", fa="آهسته", match=["یواشکی", "نجوا"], tag="[whispers]"),
+    dict(id="annoyed", fa="طلبکار", match=[], tag="[annoyed]"),
+    dict(id="sheepish", fa="شرمنده", match=[], tag="[sheepishly]"),
+    dict(id="laugh", fa="خنده", match=["خندان"], tag="[chuckles]"),
+    dict(id="worried", fa="نگران", match=[], tag="[worried]"),
+    dict(id="mischievous", fa="شیطون", match=[], tag="[mischievously]"),
+    dict(id="playful", fa="شوخ", match=["بازیگوش"], tag="[playfully]"),
+    dict(id="mysterious", fa="مرموز", match=["رازآلود"], tag="[mysteriously]"),
+    dict(id="scared", fa="ترسیده", match=["ترس"], tag="[scared]"),
+    dict(id="surprised", fa="با تعجب", match=["متعجب", "تعجب"], tag="[surprised]"),
+    dict(id="curious", fa="کنجکاو", match=["پرسشی"], tag="[curious]"),
+    dict(id="thoughtful", fa="متفکر", match=["فکور"], tag="[thoughtful]"),
+    dict(id="neutral", fa="عادی", match=["توصیفی", "طبیعی", "صمیمی", "گرم"], tag=""),
+]
 
 
 def load_key():
@@ -41,28 +63,155 @@ def accent(voice):
     return m.group(1) if m else UNKNOWN
 
 
+# ---------------------------------------------------------------- the json file
+def _model(name, price="", old=None):
+    m = dict(name=name, price=price, tags="unknown", tested="", note="")
+    m.update({k: v for k, v in (old or {}).items() if k in ("tags", "tested", "note")})
+    return m
+
+
+def _from_catalog_txt():
+    """Old plain-text catalogue -> (models, voices); {} when there is none."""
+    models, voices, cur = {}, {}, None
+    if os.path.exists(CATALOG):
+        for l in open(CATALOG, encoding="utf-8"):
+            l = l.rstrip("\n")
+            if l.startswith("model:"):
+                p = [x.strip() for x in l[6:].split("|")]
+                cur = p[0]
+                models[cur] = _model(p[2] if len(p) > 2 else cur, p[1] if len(p) > 1 else "")
+                voices[cur] = {}
+            elif l.startswith("voice:") and cur:
+                p = [x.strip() for x in l[6:].split("|")]
+                voices[cur][p[0]] = dict(accent=p[1] if len(p) > 1 and p[1] else UNKNOWN)
+    return models, voices
+
+
+def _dump(cfg):
+    """Readable json: one line per model, voice and tone (a plain json.dumps would need ~5 lines per voice)."""
+    j = lambda v: json.dumps(v, ensure_ascii=False)
+    out = ['{', '  "version": 1,', '  "models": {']
+    out.append(",\n".join("    %s: %s" % (j(k), j(v)) for k, v in sorted(cfg["models"].items())))
+    out += ['  },', '  "voices": {']
+    blocks = []
+    for mid, vs in sorted(cfg["voices"].items()):
+        body = ",\n".join("      %s: %s" % (j(n), j(v)) for n, v in vs.items())
+        blocks.append("    %s: {%s}" % (j(mid), ("\n" + body + "\n    ") if body else ""))
+    out.append(",\n".join(blocks))
+    out += ['  },', '  "tones": [']
+    out.append(",\n".join("    " + j(t) for t in cfg["tones"]))
+    out += ['  ]', '}', '']
+    return "\n".join(out)
+
+
+def save_config(cfg):
+    with LOCK:
+        os.makedirs(os.path.dirname(CONFIG), exist_ok=True)
+        tmp = CONFIG + ".tmp"
+        open(tmp, "w", encoding="utf-8", newline="\n").write(_dump(cfg))
+        os.replace(tmp, CONFIG)
+
+
+def load_config():
+    """The config dict. Built (and saved) from voices/catalog.txt + the default tones the first time."""
+    with LOCK:
+        if os.path.exists(CONFIG):
+            try:
+                cfg = json.load(open(CONFIG, encoding="utf-8"))
+                for k, empty in (("models", {}), ("voices", {}), ("tones", [])):
+                    cfg.setdefault(k, empty)
+                return cfg
+            except ValueError as e:
+                raise ValueError("voices/voice-config.json خراب است (%s)؛ درستش کن یا پاکش کن تا دوباره ساخته شود" % e)
+        models, voices = _from_catalog_txt()
+        cfg = dict(version=1, models=models, voices=voices, tones=[dict(t, tests={}) for t in DEFAULT_TONES])
+        save_config(cfg)
+        return cfg
+
+
+# ---------------------------------------------------------------- reading it
 def read_catalog():
-    """[{id, price, name, voices:[{name, accent}]}] ([] when the file does not exist yet)."""
-    out = []
-    if not os.path.exists(CATALOG):
-        return out
-    for l in open(CATALOG, encoding="utf-8"):
-        l = l.rstrip("\n")
-        if l.startswith("model:"):
-            p = [x.strip() for x in l[6:].split("|")]
-            out.append(dict(id=p[0], price=p[1] if len(p) > 1 else "", name=p[2] if len(p) > 2 else p[0], voices=[]))
-        elif l.startswith("voice:") and out:
-            p = [x.strip() for x in l[6:].split("|")]
-            out[-1]["voices"].append(dict(name=p[0], accent=p[1] if len(p) > 1 and p[1] else UNKNOWN))
+    """[{id, price, name, tags, tested, voices:[{name, accent, gender, note, tested}]}] sorted by id."""
+    cfg, out = load_config(), []
+    for mid, m in sorted(cfg["models"].items()):
+        vs = [dict(name=n, accent=v.get("accent") or UNKNOWN, gender=v.get("gender", ""), note=v.get("note", ""), tested=v.get("tested", ""))
+              for n, v in cfg["voices"].get(mid, {}).items()]
+        out.append(dict(id=mid, price=m.get("price", ""), name=m.get("name", mid), tags=m.get("tags", "unknown"),
+                        tested=m.get("tested", ""), note=m.get("note", ""), voices=vs))
     return out
 
 
+def tones_for_page():
+    return [dict(id=t["id"], fa=t["fa"], tag=t.get("tag", ""), words=[t["fa"]] + list(t.get("match", [])), tests=t.get("tests", {}))
+            for t in load_config()["tones"]]
+
+
+def match_tones(text, cfg=None):
+    """Tones whose Persian name or alias appears in the text, in the order they appear."""
+    text, found = text or "", []
+    for i, t in enumerate((cfg or load_config())["tones"]):
+        pos = [text.find(w) for w in [t["fa"]] + list(t.get("match", [])) if w and w in text]
+        if pos:
+            found.append((min(pos), i, t))
+    return [t for _, _, t in sorted(found, key=lambda x: x[:2])]
+
+
+def tone_tags(text, cfg=None):
+    """(audio tags to send, known). known is False when a non-empty tone matches no tone of the config."""
+    hit = match_tones(text, cfg)
+    tags = []
+    for t in hit:
+        if t.get("tag") and t["tag"] not in tags:
+            tags.append(t["tag"])
+    return tags[:MAX_TAGS], bool(hit) or not (text or "").strip()
+
+
+def model_takes_tags(model, cfg=None):
+    t = ((cfg or load_config())["models"].get(model) or {}).get("tags", "unknown")
+    return t == "yes" or (t != "no" and model.startswith(TAG_PREFIX))
+
+
+def known_voice(model, voice):
+    """'' when fine or unknown, else a text: the config lists voices for this model and the voice is not among them."""
+    vs = load_config()["voices"].get(model) or {}
+    return "" if not vs or voice in vs else "مدل %s صدای «%s» را ندارد" % (model, voice)
+
+
+def mark_test(model=None, voice=None, tone=None, result="", tags=None):
+    """Record what you heard: a voice on a model, a tone on a model, or whether a model obeys tags."""
+    if result not in ("", "good", "bad"):
+        raise ValueError("bad result")
+    with LOCK:
+        cfg = load_config()
+        if model not in cfg["models"]:
+            raise ValueError("unknown model")
+        if tags is not None:
+            if tags not in ("yes", "no", "unknown"):
+                raise ValueError("bad tags")
+            cfg["models"][model]["tags"] = tags
+        if voice:
+            if voice not in cfg["voices"].get(model, {}):
+                raise ValueError("unknown voice")
+            cfg["voices"][model][voice]["tested"] = result
+        if tone:
+            t = next((x for x in cfg["tones"] if x["id"] == tone), None)
+            if not t:
+                raise ValueError("unknown tone")
+            t.setdefault("tests", {})
+            if result:
+                t["tests"][model] = result
+            else:
+                t["tests"].pop(model, None)
+        save_config(cfg)
+
+
 def status():
-    return dict(has_key=bool(load_key()), updated=int(os.path.getmtime(CATALOG)) if os.path.exists(CATALOG) else None)
+    return dict(has_key=bool(load_key()), updated=int(os.path.getmtime(CONFIG)) if os.path.exists(CONFIG) else None)
 
 
+# ---------------------------------------------------------------- refresh from the API
 def refresh():
-    """Test the key, fetch the speech models and write voices/catalog.txt. Returns {ok, message}."""
+    """Test the key, fetch the speech models and merge them into voice-config.json (your own fields stay). Returns {ok, message}."""
     key = load_key()
     if not key:
         return dict(ok=False, message="کلید پیدا نشد: OPENROUTER_API_KEY را در محیط یا در فایل .env کنار review.html بگذار.")
@@ -73,19 +222,26 @@ def refresh():
         return dict(ok=False, message="کلید رد شد یا سرویس جواب نداد (HTTP %s)." % e.code)
     except (urllib.error.URLError, TimeoutError, ValueError) as e:
         return dict(ok=False, message="اتصال برقرار نشد: %s" % str(e)[:80])
-    old = {v["name"]: v["accent"] for m in read_catalog() for v in m["voices"] if v["accent"] != UNKNOWN}
-    out = ["# فهرست مدل‌ها و صداهای قابل استفاده با کلید فعلی؛ ساخته‌شده با «python tools/voices.py» در " + datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
-           "# لهجه را API نمی‌دهد؛ جایی که ؟ هست یا از اسم صدا حدس زده شده، با دست هم می‌شود نوشت و با رفرش بعدی پاک نمی‌شود.", ""]
-    for m in sorted(data, key=lambda m: m["id"]):
-        price = float(m.get("pricing", {}).get("prompt") or 0) * 1000
-        out.append("model: %s | %s | %s" % (m["id"], ("%.4f" % price).rstrip("0").rstrip("."), m.get("name", m["id"]).split(": ", 1)[-1]))
-        for v in m.get("supported_voices") or []:
-            out.append("voice: %s | %s" % (v, old.get(v) or accent(v)))
-        out.append("")
-    os.makedirs(os.path.dirname(CATALOG), exist_ok=True)
-    tmp = CATALOG + ".tmp"
-    open(tmp, "w", encoding="utf-8", newline="\n").write("\n".join(out))
-    os.replace(tmp, CATALOG)
+    with LOCK:
+        cfg = load_config()
+        known = {n: v.get("accent") for vs in cfg["voices"].values() for n, v in vs.items() if v.get("accent") not in (None, "", UNKNOWN)}
+        models, voices, raw = {}, {}, ["# فهرست خام مدل‌ها و صداها؛ ساخته‌شده با «python tools/voices.py» در " + datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
+                                       "# فایل اصلی voices/voice-config.json است؛ این فهرست هر بار دوباره نوشته می‌شود.", ""]
+        for m in sorted(data, key=lambda m: m["id"]):
+            mid = m["id"]
+            price = ("%.4f" % (float(m.get("pricing", {}).get("prompt") or 0) * 1000)).rstrip("0").rstrip(".")
+            name = m.get("name", mid).split(": ", 1)[-1]
+            models[mid] = _model(name, price, cfg["models"].get(mid))
+            voices[mid] = {}
+            raw.append("model: %s | %s | %s" % (mid, price, name))
+            for v in m.get("supported_voices") or []:
+                voices[mid][v] = dict(cfg["voices"].get(mid, {}).get(v) or {}, accent=(cfg["voices"].get(mid, {}).get(v) or {}).get("accent") or known.get(v) or accent(v))
+                raw.append("voice: %s | %s" % (v, voices[mid][v]["accent"]))
+            raw.append("")
+        cfg["models"], cfg["voices"] = models, voices
+        save_config(cfg)
+        os.makedirs(os.path.dirname(CATALOG), exist_ok=True)
+        open(CATALOG, "w", encoding="utf-8", newline="\n").write("\n".join(raw))
     return dict(ok=True, message="%d مدل صدا به‌روز شد." % len(data))
 
 

@@ -1030,6 +1030,10 @@ code {
   }
 }
 
+/* ---- tones outside voice-config.json ---- */
+.sp .who .tn.unk{color:#b71c1c;font-weight:700;opacity:1;font-style:normal}
+input.unk{border-color:#e57373!important;background:#ffebee!important}
+
 /* ---- accessibility and polish ---- */
 :where(button,select,input,textarea,.v,a):focus-visible {
   outline:3px solid #1565c0;
@@ -1102,14 +1106,14 @@ async function api(path,body){const r=await fetch(path,{method:'POST',headers:{'
   const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||('خطا '+r.status));return j}
 const fail=e=>alert(e.message||e);
 const TT=()=>P.tts||{default:'',catalog:[]},modelById=id=>TT().catalog.find(m=>m.id===id);
-const modelOpts=(sel,withDefault)=>(withDefault?`<option value="">پیش‌فرض (${esc(TT().default)})</option>`:'')+TT().catalog.map(m=>`<option value="${esc(m.id)}"${m.id===sel?' selected':''}>${esc(m.id)} · $${esc(m.price)}/k${m.voices.length?'':' · بدون فهرست صدا'}</option>`).join('')+(sel&&!modelById(sel)?`<option value="${esc(sel)}" selected>⚠ ${esc(sel)} (توی فهرست نیست)</option>`:'');
+const modelOpts=(sel,withDefault,hint)=>(withDefault?`<option value="">پیش‌فرض (${esc(TT().default)})</option>`:'')+TT().catalog.map(m=>`<option value="${esc(m.id)}"${m.id===sel?' selected':''}>${esc(m.id)} · $${esc(m.price)}/k${m.voices.length?'':' · بدون فهرست صدا'}${hint?hint(m):''}</option>`).join('')+(sel&&!modelById(sel)?`<option value="${esc(sel)}" selected>⚠ ${esc(sel)} (توی فهرست نیست)</option>`:'');
 const voiceOpts=(model,sel)=>{const m=modelById(model),vs=m?m.voices:[];return vs.map(v=>`<option value="${esc(v.name)}"${v.name===sel?' selected':''}>${esc(v.name)} · ${esc(v.accent)}</option>`).join('')+(sel&&!vs.some(v=>v.name===sel)?`<option value="${esc(sel)}" selected>${vs.length?'⚠ ':''}${esc(sel)}${vs.length?' (برای این مدل نیست)':''}</option>`:'')};
 const smpAudio=new Audio();
 async function sample(model,voice,btn){const t=btn.textContent;btn.disabled=true;btn.textContent='…';audio.pause();try{const r=await api('/api/sample',{model,voice});smpAudio.src=r.url;await smpAudio.play()}catch(e){fail(e)}finally{btn.disabled=false;btn.textContent=t}}
 let JOBT=null;
 function pollJob(){if(JOBT)return;JOBT=setInterval(async()=>{try{const j=await (await fetch('/api/job')).json();
   document.querySelectorAll('[data-job]').forEach(x=>x.textContent=x.dataset.job===j.scene&&j.state==='running'?`⏳ ${j.done}/${j.total} خط ساخته شد…`:'');
-  if(j.state!=='running'){clearInterval(JOBT);JOBT=null;await reload();if(j.errors.length)alert('بعضی خط‌ها ساخته نشدن:\n'+j.errors.slice(0,6).join('\n'))}}catch(e){}},2000)}
+  if(j.state!=='running'){clearInterval(JOBT);JOBT=null;await reload();if(j.errors.length)alert('بعضی خط‌ها ساخته نشدن:\n'+j.errors.slice(0,6).join('\n'));if(j.warnings&&j.warnings.length)alert('⚠ هشدار:\n'+j.warnings.slice(0,6).join('\n'))}}catch(e){}},2000)}
 function copy(t,btn){const done=()=>{const o=btn.textContent;btn.textContent='کپی شد ✓';setTimeout(()=>btn.textContent=o,1500)};
   const fb=()=>{const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();document.execCommand('copy');a.remove();done()};
   navigator.clipboard?navigator.clipboard.writeText(t).then(done,fb):fb()}
@@ -1161,7 +1165,10 @@ const FALLBACK=['#546e7a','#6d4c41','#00838f','#ad1457','#558b2f'];
 const colorOf=n=>(SPK()[n]||{}).color||FALLBACK[[...String(n)].reduce((a,c)=>a+c.charCodeAt(0),0)%FALLBACK.length];
 const addBar=ln=>`<div class="addbar" data-after="${ln}"><button data-add="say">+ دیالوگ</button><button data-add="act">+ توضیح صحنه</button></div>`;
 const defTone=n=>(SPK()[n]||{}).tone||'';
-const toneHtml=it=>{const d=defTone(it.sp),eff=it.tone||d;return `<span class="v tn${it.tone?'':' dflt'}" data-ln="${it.ln}" data-k="tone" data-old="${esc(it.tone)}" data-def="${esc(d)}" title="${it.tone?'لحن این خط':'لحن پیش‌فرض گوینده'}؛ کلیک برای عوض‌کردن">${eff?'('+esc(eff)+')':'+ لحن'}</span>`};
+const toneKnown=t=>!String(t||'').trim()||(P.tts.tones||[]).some(x=>x.words.some(w=>String(t).includes(w)));
+const unknownTones=()=>{const m=new Map(),add=t=>{t=String(t||'').trim();if(t&&!toneKnown(t))m.set(t,(m.get(t)||0)+1)};
+  (P.speakers||[]).forEach(s=>add(s.tone));P.scenes.forEach(s=>s.blocks.forEach(b=>b.items.forEach(i=>add(i.tone))));return m};
+const toneHtml=it=>{const d=defTone(it.sp),eff=it.tone||d;const unk=!toneKnown(eff);return `<span class="v tn${it.tone?'':' dflt'}${unk?' unk':''}" data-ln="${it.ln}" data-k="tone" data-old="${esc(it.tone)}" data-def="${esc(d)}" title="${unk?'این لحن توی فهرست لحن‌ها (voices/voice-config.json) نیست و برچسبی نمی‌فرسته؛ ':''}${it.tone?'لحن این خط':'لحن پیش‌فرض گوینده'}؛ کلیک برای عوض‌کردن">${eff?'('+esc(eff)+')':'+ لحن'}</span>`};
 const lineBtns=it=>['fa','en'].filter(lg=>it.audio&&it.audio[lg]).map(lg=>`<button class="ab" data-lg="${lg}" data-src="${esc(it.audio[lg])}" title="${lg==='fa'?'پخش صدای فارسی این دیالوگ':'Play the English voice of this line'}">🔊 ${lg.toUpperCase()}</button>`).join('');
 let LA=null,LB=null,START=null;function stopLine(){if(LA){LA.pause();LA=null}if(LB){LB.classList.remove('on');LB=null}}
 document.addEventListener('click',e=>{const b=e.target.closest('.ab');if(!b)return;if(LB===b){stopLine();return}
@@ -1199,7 +1206,8 @@ function figHtml(m){
      <textarea data-key="vprompt:${m.id}" data-orig="${esc(m.vprompt)}" spellcheck="false" placeholder="هنوز پرامپت ویدیو نداره؛ بنویس و ذخیره کن">${esc(m.vprompt)}</textarea></div></div></figure>`}
 function sceneModel(sc){const eff=sc.model||TT().default,m=modelById(eff),need=[...new Set(sc.blocks.flatMap(b=>b.items.filter(i=>i.k==='say').map(i=>i.sp)))];
   const bad=m&&m.voices.length?need.filter(n=>{const s=(P.speakers||[]).find(x=>x.name===n);return s&&!m.voices.some(v=>v.name===s.voice)}):[];
-  return `<span>مدل صدا: <select data-scm="${sc.id}">${modelOpts(sc.model,true)}</select></span>${sc.voice_stale.length?`<button class="b" data-regen="${sc.id}" ${bad.length?'disabled title="اول صدای گوینده‌ها رو با این مدل جور کن"':''}>🔊 بازسازی صدا</button>`:''}<span class="jobst" data-job="${sc.id}"></span>${bad.length?`<span class="bad">⚠ این مدل صدای ${bad.map(esc).join('، ')} رو نداره</span>`:''}`}
+  const lacks=mm=>{const miss=mm.voices.length?need.filter(n=>{const s=(P.speakers||[]).find(x=>x.name===n);return s&&s.voice&&!mm.voices.some(v=>v.name===s.voice)}):[];return miss.length?' · ⚠ صدای '+miss.join('، ')+' را ندارد':''};
+  return `<span>مدل صدا: <select data-scm="${sc.id}">${modelOpts(sc.model,true,lacks)}</select></span>${sc.voice_stale.length?`<button class="b" data-regen="${sc.id}" ${bad.length?'disabled title="اول صدای گوینده‌ها رو با این مدل جور کن"':''}>🔊 بازسازی صدا</button>`:''}<span class="jobst" data-job="${sc.id}"></span>${bad.length?`<span class="bad">⚠ این مدل صدای ${bad.map(esc).join('، ')} رو نداره</span>`:''}`}
 function render(){const list=$('#list');list.innerHTML='';BL=[];$('#jump').innerHTML='';
   P.scenes.forEach(sc=>{const o=document.createElement('option');o.value=BL.length;o.textContent=label(sc).slice(0,40);$('#jump').appendChild(o);
     const items=sc.blocks.flatMap(b=>b.items.filter(x=>x.id));const cnt=lg=>items.filter(x=>x.audio[lg]).length;
@@ -1318,7 +1326,7 @@ function speakersTab(){const used={};P.scenes.forEach(s=>s.blocks.forEach(b=>b.i
   const t=TT(),upd=t.updated?new Date(t.updated*1000).toLocaleDateString('fa-IR'):'هنوز ساخته نشده',dm=t.default;
   $('#spk').innerHTML=`<div class="ttsbox">${t.has_key?'🔑 کلید API پیدا شد':'⚠ کلید API پیدا نشد؛ توی پوشه‌ی پروژه فایل <code>.env</code> بساز و یه خط <code>OPENROUTER_API_KEY=...</code> توش بنویس'} · فهرست صداها: ${upd} <button class="b" data-vrf="1" ${t.has_key?'':'disabled'}>🔄 رفرش لیست صداها</button> <span id="vmsg"></span><span>· مدل پیش‌فرض: <select data-dm="1">${modelOpts(dm,false)}</select></span></div>`+
     `<p class="env">رنگ، صدا و لحن پیش‌فرض هر گوینده توی بالای <code>story.txt</code> نگه داشته می‌شه؛ لحن هر دیالوگ جدا هم قابل تغییره. گوینده‌ی جدید رو توی صفحه با نوشتن اسمش (توی «+ دیالوگ») می‌سازی. صدای هر گوینده از فهرست مدل پیش‌فرض می‌آد؛ عوض کردنش همه‌ی صحنه‌های اون گوینده رو «کهنه» می‌کنه.</p>`+
-    (P.speakers||[]).map((s,i)=>`<div class="spt"><input type="color" value="${s.color}" data-sc="${i}"><b>${esc(s.name)}</b>${modelById(dm)&&modelById(dm).voices.length?`<select data-sv="${i}">${voiceOpts(dm,s.voice)}</select><button class="b" data-smp="${i}">▶ نمونه</button>`:`<input type="text" list="voicel" value="${esc(s.voice)}" placeholder="صدا (مثلاً george)" data-sv="${i}">`}<input type="text" list="tonel" maxlength="40" value="${esc(s.tone||'')}" placeholder="لحن پیش‌فرض" data-st="${i}" style="direction:rtl"><span>${used[s.name]||0} خط</span></div>`).join('')+
+    (P.speakers||[]).map((s,i)=>`<div class="spt"><input type="color" value="${s.color}" data-sc="${i}"><b>${esc(s.name)}</b>${modelById(dm)&&modelById(dm).voices.length?`<select data-sv="${i}">${voiceOpts(dm,s.voice)}</select><button class="b" data-smp="${i}">▶ نمونه</button>`:`<input type="text" list="voicel" value="${esc(s.voice)}" placeholder="صدا (مثلاً george)" data-sv="${i}">`}<input type="text" list="tonel" maxlength="40" value="${esc(s.tone||'')}" placeholder="لحن پیش‌فرض" data-st="${i}" class="${toneKnown(s.tone)?'':'unk'}" title="${toneKnown(s.tone)?'':'این لحن توی voices/voice-config.json نیست'}" style="direction:rtl"><span>${used[s.name]||0} خط</span></div>`).join('')+
     unknown.map(n=>`<div class="issue">⚠ گوینده‌ی «${esc(n)}» توی فهرست نیست (${used[n]} خط). <button class="b" data-addspk="${esc(n)}">افزودن با رنگ و صدای خودکار</button></div>`).join('');
   $$('#spk [data-sc]').forEach(c=>c.onchange=async()=>{const s=P.speakers[+c.dataset.sc];try{await api('/api/speaker',{name:s.name,color:c.value});await reload()}catch(e){fail(e)}});
   $$('#spk [data-sv]').forEach(c=>c.onchange=async()=>{const s=P.speakers[+c.dataset.sv];try{await api('/api/speaker',{name:s.name,voice:c.value.trim()});await reload()}catch(e){fail(e)}});
@@ -1327,8 +1335,10 @@ function speakersTab(){const used={};P.scenes.forEach(s=>s.blocks.forEach(b=>b.i
   $$('#spk [data-vrf]').forEach(b=>b.onclick=async()=>{b.disabled=true;$('#vmsg').textContent='⏳';try{const r=await api('/api/voices/refresh',{});$('#vmsg').textContent=r.ok?'✓ '+r.message:'';if(!r.ok)alert(r.message);else await reload()}catch(e){fail(e);b.disabled=false;$('#vmsg').textContent=''}});
   $$('#spk [data-st]').forEach(c=>c.onchange=async()=>{const s=P.speakers[+c.dataset.st];try{await api('/api/speaker',{name:s.name,tone:c.value.trim()});await reload()}catch(e){fail(e)}});
   $$('#spk [data-addspk]').forEach(b=>b.onclick=async()=>{try{await api('/api/speaker',{name:b.dataset.addspk});await reload()}catch(e){fail(e)}});
+  const ut=unknownTones();$$('#list .msg.tonewarn').forEach(x=>x.remove());
+  if(ut.size)$('#list').insertAdjacentHTML('afterbegin',`<div class="msg tonewarn">⚠ لحن ناشناخته (توی voices/voice-config.json نیست و برچسبی نمی‌فرسته): ${[...ut].map(([t,n])=>esc(t)+' ('+n+')').join('، ')}</div>`);
   if(unknown.length&&!$('#list .msg.spkwarn'))$('#list').insertAdjacentHTML('afterbegin',`<div class="msg spkwarn">⚠ گوینده‌ای که توی فهرست نیست: ${unknown.map(esc).join('، ')} — تب «گوینده‌ها» رو ببین.</div>`)}
-function toneList(){const T=new Set((P.speakers||[]).map(s=>s.tone).filter(Boolean));P.scenes.forEach(s=>s.blocks.forEach(b=>b.items.forEach(i=>{if(i.tone)T.add(i.tone)})));$('#tonel').innerHTML=[...T].map(l=>`<option value="${esc(l)}">`).join('')}
+function toneList(){$('#tonel').innerHTML=(P.tts.tones||[]).map(t=>`<option value="${esc(t.fa)}" label="${esc(t.tag||'بدون برچسب')}">`).join('')}
 function labelList(){const L=new Set(['گگ']);P.scenes.forEach(s=>s.blocks.forEach(b=>b.items.forEach(i=>{if(i.label)L.add(i.label)})));$('#lbll').innerHTML=[...L].map(l=>`<option value="${esc(l)}">`).join('')}
 function lightbox(src,name){$('#lb video').pause();$('#lb video').classList.add('hide');$('#lb img').classList.remove('hide');$('#lb img').src=src;$('#lb div').textContent=name;$('#lb').classList.remove('hide')}
 function playVideo(src,name){audio.pause();const v=$('#lb video');$('#lb img').classList.add('hide');v.classList.remove('hide');v.src=src;$('#lb div').textContent=name;$('#lb').classList.remove('hide');v.play().catch(()=>{})}
