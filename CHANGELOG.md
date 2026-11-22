@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.6.0
+- Subtitles: «📝 زیرنویس» button (or `python tools/subtitles.py`) writes `subtitles/fa.srt` and `subtitles/en.srt` from the scenario; each line lasts as long as its voice file (estimated from the text when there is none yet), with the same gaps as the auto-play.
+
 ## 1.5.0
 - Edit suggestions: an `fx:` line for the whole scene (under the scene header) and for each picture (under its marker). Edited in the page with «🎬 ادیت صحنه» / «🎬 ادیت». The starter skill lists the shared words and the default edit style (illustrated documentary, intensity 3).
 

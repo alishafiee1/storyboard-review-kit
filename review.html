@@ -52,6 +52,7 @@ code{direction:ltr;unicode-bidi:embed;background:#eee;border-radius:4px;padding:
  <button id="play">▶ پخش</button><button id="prev">⏮</button><button id="next">⏭</button>
  <select id="speed"><option value="0.9">۰٫۹×</option><option value="1" selected>۱×</option><option value="1.15">۱٫۱۵×</option><option value="1.3">۱٫۳×</option></select>
  
+ <button id="subs" title="ساخت فایل زیرنویس فارسی و انگلیسی (subtitles/fa.srt و en.srt) از روی سناریو؛ زمان‌ها از طول فایل‌های صدا">📝 زیرنویس</button>
  <label title="روشن = متن انگلیسی دیده شود و صدا انگلیسی پخش شود؛ خاموش = فقط فارسی"><input type="checkbox" id="showEN"> English</label>
  <select id="jump" title="پرش به صحنه"></select>
  <select id="filter" title="فیلتر"><option value="all">همه</option><option value="missing">ساخته‌نشده</option><option value="none">بدون علامت</option><option value="ok">✅ تأیید</option><option value="redo">🔁 بازسازی</option><option value="note">دارای یادداشت</option><option value="stale">⚠ کهنه</option></select>
@@ -359,6 +360,7 @@ function go(i,start){stopLine();START=null;token++;audio.pause();playing=false;$
 $('#play').onclick=()=>{stopLine();if(playing){token++;audio.pause();playing=false;$('#play').textContent='▶ پخش'}
   else if(START&&BL[START.n])run(START.n,START.lg,START.j);else run(cur)};
 $('#fab').onclick=()=>$('#play').click();
+$('#subs').onclick=async()=>{const b=$('#subs');b.disabled=true;try{const r=await api('/api/subtitles',{});alert('✓ '+r.message)}catch(e){fail(e)}finally{b.disabled=false}};
 new MutationObserver(()=>{const on=$('#play').textContent.includes('⏸');$('#fab').textContent=on?'⏸':'▶';$('#fab').classList.toggle('playing',on)}).observe($('#play'),{childList:true,characterData:true,subtree:true});
 $('#prev').onclick=()=>go(Math.max(0,cur-1),playing);$('#next').onclick=()=>go(Math.min(BL.length-1,cur+1),playing);
 $('#jump').onchange=e=>go(+e.target.value,playing);$('#prog').oninput=e=>go(+e.target.value,playing);$('#filter').onchange=filt;$('#speed').onchange=()=>{audio.playbackRate=+$('#speed').value};

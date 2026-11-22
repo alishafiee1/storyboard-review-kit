@@ -800,7 +800,12 @@ def api_regen(d):
     return {"ok": True}
 
 
-SLOW = {"/api/voices/refresh": api_refresh, "/api/sample": api_sample, "/api/regen": api_regen}
+def api_subtitles(d):
+    import subtitles
+    return subtitles.make_all()
+
+
+SLOW = {"/api/subtitles": api_subtitles, "/api/voices/refresh": api_refresh, "/api/sample": api_sample, "/api/regen": api_regen}
 SAMPLE_TEXT = "سلام، این یه نمونهٔ صداست. امروز می‌خوام یه چیز جالب بهت نشون بدم."
 
 

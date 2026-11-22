@@ -14,6 +14,7 @@
 - **Auto-play button**: a round floating button plays on from the line you last clicked (FA or EN), in that language.
 - **Per-line listening**: every dialogue line with a generated voice file gets small 🔊 FA / 🔊 EN buttons to hear just that line.
 - **Edit suggestions** (`fx:`): short notes per scene and per picture (zoom, fade, shake, particles, light, sound) that the AI editor follows on top of its defaults.
+- **Subtitles**: one click writes `subtitles/fa.srt` and `subtitles/en.srt` from the scenario, timed by the voice files (ready to upload to YouTube).
 - **Stale flags**: when you change a text or a voice, the page marks that scene's audio or image as out of date.
 - **Updates without losing your work**: `python tools/update.py` replaces only the tool files; your scenario, prompts, images and audio stay untouched.
 
@@ -52,6 +53,7 @@ Create a `.env` file next to `review.html` with one line `OPENROUTER_API_KEY=...
 | `videos/` | generated clips, named after the picture (`videos/clips/IMG008_race.mp4`) |
 | `voices/catalog.txt` | voices and models your key can use |
 | `audio/fa`, `audio/en` | generated narration |
+| `subtitles/` | `fa.srt` and `en.srt` made from the scenario |
 | `skills/` | writing rules for image prompts (used by AI coding assistants) |
 
 ## Keywords

@@ -4,5 +4,6 @@ click-for-review.bat
 tools/serve.py
 tools/tts.py
 tools/voices.py
+tools/subtitles.py
 tools/update.py
 VERSION
