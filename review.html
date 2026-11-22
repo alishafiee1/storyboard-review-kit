@@ -24,7 +24,7 @@ h2.sc{margin:40px 0 8px;padding:6px 14px;background:linear-gradient(90deg,#ead9b
 .flag{border:none;background:none;cursor:pointer;opacity:.3;font-size:13px;padding:0 4px}.flag:hover{opacity:1}.del:hover{color:#c62828}
 .ie .bar{display:flex;gap:6px;align-items:center;margin-top:6px;flex-wrap:wrap}.ie .bar .sp1{flex:1}.ie .row{display:flex;gap:8px;margin-bottom:6px}.ie .row input{flex:1;min-width:0}.ie .row input.nm{flex:0 0 38%}button.b.pri{border-color:#2e7d32;color:#2e7d32;font-weight:700}button.b.ghost{border-style:dashed;color:#6b5320;background:none}.sp.ed{clip-path:none;border-radius:14px;transform:none;background:color-mix(in srgb,var(--c,#1565c0) 10%,#fff8e3)}.sp.ed>.who,.sp.ed>.fa{display:none}.ie textarea{width:100%;font:inherit;font-size:15px;border:2px solid #c9bd9f;border-radius:6px;padding:4px 8px;background:#fff;resize:vertical}.en .ie textarea{direction:ltr;text-align:left}
 .issue{background:#ffebee;border:1px solid #e57373;color:#b71c1c;border-radius:8px;padding:0 10px;font-size:13px;line-height:1.7;margin-top:3px}
-.pb{align-self:flex-start;font-size:12px!important}
+#fab{position:fixed;left:20px;bottom:20px;z-index:40;width:58px;height:58px;border-radius:50%;border:3px solid #fffaf0;background:var(--accent);color:#000;font-size:24px;line-height:1;cursor:pointer;box-shadow:0 4px 14px #0005;display:flex;align-items:center;justify-content:center;padding:0}#fab:hover{filter:brightness(1.08)}#fab.playing{background:#e0a800;box-shadow:0 0 0 6px #e0a80044,0 4px 14px #0005}#fab small{position:absolute;bottom:-18px;font-size:11px;font-weight:700;color:#6b5320;white-space:nowrap}
 figure.shot{margin:0;border-radius:8px;border:3px solid transparent;padding:2px}
 figure.shot.cur{outline:4px solid var(--accent)}figure.shot.flash{outline:5px solid #1565c0}
 figure.shot img{width:100%;border-radius:10px;display:block;box-shadow:0 2px 8px #0000001f;aspect-ratio:16/9;object-fit:cover;background:#e8e0cc}[hidden]{display:none!important}.ie textarea.dirty,.ie input.dirty,.cmp textarea.dirty,.cmp input.dirty,textarea.nt.dirty{border-color:#2e7d32;box-shadow:0 0 0 2px #2e7d3226}.ph{background:#eee;border:2px dashed #bbb;border-radius:6px;padding:40px 10px;text-align:center;color:#777;font-size:14px}
@@ -55,7 +55,7 @@ code{direction:ltr;unicode-bidi:embed;background:#eee;border-radius:4px;padding:
  <select id="jump" title="پرش به صحنه"></select>
  <select id="filter" title="فیلتر"><option value="all">همه</option><option value="missing">ساخته‌نشده</option><option value="none">بدون علامت</option><option value="ok">✅ تأیید</option><option value="redo">🔁 بازسازی</option><option value="note">دارای یادداشت</option><option value="stale">⚠ کهنه</option></select>
  <span id="info"></span><input id="prog" type="range" min="0" max="0" value="0"></div>
-<main id="list"></main><main id="refs" class="hide"></main><main id="spk" class="hide"></main><datalist id="spkl"></datalist><datalist id="voicel"></datalist><datalist id="lbll"></datalist><datalist id="tonel"></datalist><div id="lb" class="hide"><video controls playsinline class="hide"></video><img alt=""><div></div></div>
+<main id="list"></main><main id="refs" class="hide"></main><main id="spk" class="hide"></main><datalist id="spkl"></datalist><datalist id="voicel"></datalist><datalist id="lbll"></datalist><datalist id="tonel"></datalist><button id="fab" title="پخش خودکار: از دیالوگی که روی 🔊 FA یا 🔊 EN اش کلیک کردی به بعد، به همون زبان؛ وگرنه از اول (فارسی، یا انگلیسی اگه تیک English زده شده)">▶</button><div id="lb" class="hide"><video controls playsinline class="hide"></video><img alt=""><div></div></div>
 <script>
 /* torn-paper outlines: gently wavy edges, no sharp corners (smooth curves through a few slightly shifted points) */
 (function(){let seed=11;const rnd=()=>(seed=seed*16807%2147483647)/2147483647;
@@ -137,10 +137,11 @@ const colorOf=n=>(SPK()[n]||{}).color||FALLBACK[[...String(n)].reduce((a,c)=>a+c
 const addBar=ln=>`<div class="addbar" data-after="${ln}"><button data-add="say">+ دیالوگ</button><button data-add="act">+ توضیح صحنه</button></div>`;
 const defTone=n=>(SPK()[n]||{}).tone||'';
 const toneHtml=it=>{const d=defTone(it.sp),eff=it.tone||d;return `<span class="v tn${it.tone?'':' dflt'}" data-ln="${it.ln}" data-k="tone" data-old="${esc(it.tone)}" data-def="${esc(d)}" title="${it.tone?'لحن این خط':'لحن پیش‌فرض گوینده'}؛ کلیک برای عوض‌کردن">${eff?'('+esc(eff)+')':'+ لحن'}</span>`};
-const lineBtns=it=>['fa','en'].filter(lg=>it.audio&&it.audio[lg]).map(lg=>`<button class="ab" data-src="${esc(it.audio[lg])}" title="${lg==='fa'?'پخش صدای فارسی این دیالوگ':'Play the English voice of this line'}">🔊 ${lg.toUpperCase()}</button>`).join('');
-let LA=null,LB=null;function stopLine(){if(LA){LA.pause();LA=null}if(LB){LB.classList.remove('on');LB=null}}
+const lineBtns=it=>['fa','en'].filter(lg=>it.audio&&it.audio[lg]).map(lg=>`<button class="ab" data-lg="${lg}" data-src="${esc(it.audio[lg])}" title="${lg==='fa'?'پخش صدای فارسی این دیالوگ':'Play the English voice of this line'}">🔊 ${lg.toUpperCase()}</button>`).join('');
+let LA=null,LB=null,START=null;function stopLine(){if(LA){LA.pause();LA=null}if(LB){LB.classList.remove('on');LB=null}}
 document.addEventListener('click',e=>{const b=e.target.closest('.ab');if(!b)return;if(LB===b){stopLine();return}
   stopLine();token++;audio.pause();playing=false;$('#play').textContent='▶ پخش';
+  const m=/^i(\d+)_(\d+)$/.exec(b.closest('.it').id);if(m)START={n:+m[1],j:+m[2],lg:b.dataset.lg};
   LA=new Audio(b.dataset.src);LB=b;b.classList.add('on');LA.playbackRate=+$('#speed').value;LA.onended=LA.onerror=()=>stopLine();LA.play().catch(()=>stopLine())});
 function itemHtml(it,sc,i,j){
   if(it.k==='act')return `<div class="itw"><div class="it act${it.label==='گگ'?' gag':''}" id="i${i}_${j}">${it.label?`<span class="v alab" data-ln="${it.ln}" data-k="label" data-old="${esc(it.label)}" title="کلیک برای عوض‌کردن یا پاک‌کردن برچسب">${esc(it.label)}</span>`:''}${val(it.fa,it.ln,'act')}${flagBtn(it.ln)}${delBtn(it.ln,'act',it.fa,false)}${issHtml(it.issues)}</div></div>`;
@@ -175,7 +176,7 @@ function render(){const list=$('#list');list.innerHTML='';BL=[];$('#jump').inner
       ${sc.env.map(e=>`<div class="env">${val(e.text,e.ln,'env')}${flagBtn(e.ln)}${issHtml(e.issues)}</div>`).join('')}${items.length?`<div class="vstrip">🔊 ${vs('fa')} ${vs('en')} ${sceneModel(sc)}</div>`:''}${warns}<div class="bl"></div></section>`);
     const holder=list.lastElementChild.querySelector('.bl');
     sc.blocks.forEach(b=>{const i=BL.length;BL.push(b);const d=document.createElement('section');d.className='blk'+(b.images.length?'':' noimg');d.id='b'+i;d.dataset.bid=b.images.length?b.images[0].id:sc.id+'#'+holder.children.length;
-      d.innerHTML=(b.images.length?`<div class="imgs">${b.images.map(figHtml).join('')}</div>`:'')+`<div class="txt"><button class="b pb" data-play="${i}">▶ پخش از اینجا</button>${b.items.map((t,j)=>itemHtml(t,sc,i,j)).join('')}${addBar(b.items.length?b.items[b.items.length-1].ln:b.images[b.images.length-1].ln)}</div>`;
+      d.innerHTML=(b.images.length?`<div class="imgs">${b.images.map(figHtml).join('')}</div>`:'')+`<div class="txt">${b.items.map((t,j)=>itemHtml(t,sc,i,j)).join('')}${addBar(b.items.length?b.items[b.items.length-1].ln:b.images[b.images.length-1].ln)}</div>`;
       holder.appendChild(d)})});
   RO.disconnect();$$('.blk').forEach(d=>{const t=d.querySelector('.txt');if(t)RO.observe(t);d.querySelectorAll('img').forEach(i=>i.addEventListener('load',()=>fitBlock(d)));fitBlock(d)});
   $('#prog').max=Math.max(0,BL.length-1);$('#title').textContent=P.name;wire();refsTab();speakersTab();labelList();toneList();stats();filt()}
@@ -275,7 +276,7 @@ function wire(){
     s.querySelectorAll('[data-clr]').forEach(b=>b.onclick=async()=>{try{await api('/api/issue',{scene:sid,index:+b.dataset.clr,clear:true});await reload()}catch(e){fail(e)}});
     s.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>askDelete(sid,+b.dataset.del,b.dataset.dk,b.dataset.old,b.dataset.hasen==='1'));
     s.querySelectorAll('.addbar button').forEach(b=>b.onclick=()=>openComposer(b.parentElement,{scene:sid,after:+b.parentElement.dataset.after,kind:b.dataset.add}));
-    s.querySelectorAll('[data-play]').forEach(b=>b.onclick=()=>go(+b.dataset.play,true))})}
+    })}
 function speakersTab(){const used={};P.scenes.forEach(s=>s.blocks.forEach(b=>b.items.forEach(i=>{if(i.k==='say')used[i.sp]=(used[i.sp]||0)+1})));
   const known=new Set((P.speakers||[]).map(s=>s.name)),unknown=Object.keys(used).filter(n=>!known.has(n));
   $('#spkl').innerHTML=(P.speakers||[]).map(s=>`<option value="${esc(s.name)}">`).join('');$('#voicel').innerHTML=(P.voices||[]).map(v=>`<option value="${v}">`).join('');
@@ -333,20 +334,23 @@ const dcache={};function dur(src){return new Promise(r=>{if(dcache[src])return r
 function wait(ms,t){return new Promise(r=>{const id=setTimeout(r,ms);const iv=setInterval(()=>{if(t!==token){clearTimeout(id);clearInterval(iv);r()}},120)})}
 function playClip(src,t,cb){stopLine();return new Promise(r=>{audio.src=src;audio.playbackRate=+$('#speed').value;audio.ontimeupdate=()=>{if(t===token)cb(audio.currentTime)};audio.onended=r;audio.onerror=r;
   const poll=setInterval(()=>{if(t!==token){clearInterval(poll);audio.pause();r()}},120);audio.play().catch(r);audio.addEventListener('ended',()=>clearInterval(poll),{once:true})})}
-async function run(i){const t=++token;playing=true;$('#play').textContent='⏸ توقف';const lg=$('#showEN').checked?'en':'fa';
+async function run(i,lgIn,fromJ){const t=++token;playing=true;$('#play').textContent='⏸ توقف';const lg=lgIn||($('#showEN').checked?'en':'fa');
   for(let n=i;n<BL.length&&t===token;n++){const b=BL[n];if($('#b'+n).classList.contains('hide'))continue;show(n);
-    const v=b.items.map((x,j)=>[x,j]).filter(([x])=>x.audio&&x.audio[lg]);
+    const v=b.items.map((x,j)=>[x,j]).filter(([x,j])=>x.audio&&x.audio[lg]&&(n!==i||!fromJ||j>=fromJ));
     if(!v.length){await wait(SILENT*1000/(+$('#speed').value||1),t);continue}
     const ds=await Promise.all(v.map(([x])=>dur(x.audio[lg])));const total=ds.reduce((a,b)=>a+b,0)||1;let done=0;
-    for(let k=0;k<v.length&&t===token;k++){const [it,j]=v[k];$$('.it.cur').forEach(x=>x.classList.remove('cur'));$('#i'+n+'_'+j).classList.add('cur');
+    for(let k=0;k<v.length&&t===token;k++){const [it,j]=v[k];$$('.it.cur').forEach(x=>x.classList.remove('cur'));$('#i'+n+'_'+j).classList.add('cur');START={n,j,lg};
       await playClip(it.audio[lg],t,ct=>{if(b.images.length>1)markImg(n,Math.min(b.images.length-1,Math.floor((done+ct)/total*b.images.length)))});done+=ds[k];await wait(260,t)}
     await wait(380,t)}
-  if(t===token){playing=false;$('#play').textContent='▶ پخش';$('#info').textContent='پایان'}}
-function go(i,start){stopLine();token++;audio.pause();playing=false;$('#play').textContent='▶ پخش';show(i);if(start)run(i)}
-$('#play').onclick=()=>{stopLine();if(playing){token++;audio.pause();playing=false;$('#play').textContent='▶ پخش'}else run(cur)};
+  if(t===token){playing=false;START=null;$('#play').textContent='▶ پخش';$('#info').textContent='پایان'}}
+function go(i,start){stopLine();START=null;token++;audio.pause();playing=false;$('#play').textContent='▶ پخش';show(i);if(start)run(i)}
+$('#play').onclick=()=>{stopLine();if(playing){token++;audio.pause();playing=false;$('#play').textContent='▶ پخش'}
+  else if(START&&BL[START.n])run(START.n,START.lg,START.j);else run(cur)};
+$('#fab').onclick=()=>$('#play').click();
+new MutationObserver(()=>{const on=$('#play').textContent.includes('⏸');$('#fab').textContent=on?'⏸':'▶';$('#fab').classList.toggle('playing',on)}).observe($('#play'),{childList:true,characterData:true,subtree:true});
 $('#prev').onclick=()=>go(Math.max(0,cur-1),playing);$('#next').onclick=()=>go(Math.min(BL.length-1,cur+1),playing);
 $('#jump').onchange=e=>go(+e.target.value,playing);$('#prog').oninput=e=>go(+e.target.value,playing);$('#filter').onchange=filt;$('#speed').onchange=()=>{audio.playbackRate=+$('#speed').value};
-$('#showEN').onchange=()=>reload();
+$('#showEN').onchange=()=>{START=null;reload()};
 const TABS={tabR:'#list',tabF:'#refs',tabS:'#spk'};
 function showTab(id){if(id!=='tabR'){token++;audio.pause();playing=false;$('#play').textContent='▶ پخش'}
   Object.entries(TABS).forEach(([k,sel])=>{$(sel).classList.toggle('hide',k!==id);$('#'+k).classList.toggle('on',k===id)})}

@@ -11,6 +11,7 @@
 - **In-browser editing**: click a text, edit, press Enter. Clicking elsewhere saves it.
 - **Voice-over**: pick a text-to-speech model and voice per speaker and scene (ElevenLabs, Gemini, Qwen, ... through one [OpenRouter](https://openrouter.ai) key), listen to a sample, rebuild only the scenes whose text changed.
 - **Video prompts and clips**: every picture also has an image-to-video prompt (`prompts/video-prompts.txt`); pictures and references that already have a video get a ▶ play button.
+- **Auto-play button**: a round floating button plays on from the line you last clicked (FA or EN), in that language.
 - **Per-line listening**: every dialogue line with a generated voice file gets small 🔊 FA / 🔊 EN buttons to hear just that line.
 - **Stale flags**: when you change a text or a voice, the page marks that scene's audio or image as out of date.
 - **Updates without losing your work**: `python tools/update.py` replaces only the tool files; your scenario, prompts, images and audio stay untouched.

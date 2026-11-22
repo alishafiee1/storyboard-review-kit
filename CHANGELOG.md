@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.4.0
+- A round floating play button replaces the per-block «play from here» buttons. It continues from the line whose 🔊 FA / 🔊 EN button you clicked last, in that language; with no click yet it starts from the beginning (English if the English box is ticked, else Persian). Pausing and pressing it again resumes from the same line.
+
 ## 1.3.0
 - Two small voice buttons (🔊 FA / 🔊 EN) on every dialogue line whose audio file exists: click to hear just that line, click again to stop.
 
