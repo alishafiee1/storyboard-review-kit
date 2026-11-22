@@ -106,7 +106,7 @@ def clean_label(s):
 def parse_scene(raw_lines):
     """raw_lines = the scene block (header first). ln = line index inside the block. Every part can carry format-issue notes."""
     m = HEADER.match(raw_lines[0].strip())
-    sc = dict(id=m.group(1), title=m.group(2), time=m.group(3), env=[], model="", voice_stale=set(), blocks=[], warnings=[], issues=[])
+    sc = dict(id=m.group(1), title=m.group(2), time=m.group(3), env=[], model="", fx="", voice_stale=set(), blocks=[], warnings=[], issues=[])
     cur = last_img = last_speech = last_obj = None
 
     def warn(text, i):
@@ -123,7 +123,7 @@ def parse_scene(raw_lines):
             if cur is None or cur["items"]:
                 cur = dict(images=[], items=[])
                 sc["blocks"].append(cur)
-            last_img = last_obj = dict(id=mk.group(1), status="", note="", stale=False, ln=i, issues=[])
+            last_img = last_obj = dict(id=mk.group(1), status="", note="", fx="", stale=False, ln=i, issues=[])
             cur["images"].append(last_img)
             last_speech = None
             continue
@@ -139,9 +139,11 @@ def parse_scene(raw_lines):
             sc["env"].append(last_obj)
         elif key == "model":
             sc["model"] = val.strip()
+        elif key == "fx" and last_img is None:  # before the first picture: edit suggestion for the whole scene
+            sc["fx"] = val.replace("\\n", "\n")
         elif key == "voice-stale":
             sc["voice_stale"] = {x.strip() for x in val.split(",") if x.strip() in LANGS}
-        elif key in ("status", "note", "image-stale"):
+        elif key in ("status", "note", "image-stale", "fx"):
             if last_img is None:
                 warn(s, i)
             else:
@@ -150,6 +152,8 @@ def parse_scene(raw_lines):
                     last_img["status"] = val if val in MARKS else ""
                 elif key == "note":
                     last_img["note"] = val.replace("\\n", "\n")
+                elif key == "fx":
+                    last_img["fx"] = val.replace("\\n", "\n")
                 else:
                     last_img["stale"] = val.lower() in ("yes", "true", "1")
         elif key in CONTENT:
@@ -369,7 +373,7 @@ def project():
                 if "id" in it:
                     it["audio"] = {lg: audio_url(lg, it["id"]) for lg in LANGS}
         scenes.append(dict(id=sc["id"], title=sc["title"], time=sc["time"], env=sc["env"], issues=sc["issues"],
-                           warnings=sc["warnings"], model=sc["model"], voice_stale=sorted(sc["voice_stale"]), blocks=sc["blocks"]))
+                           warnings=sc["warnings"], model=sc["model"], fx=sc["fx"], voice_stale=sorted(sc["voice_stale"]), blocks=sc["blocks"]))
     return dict(name=os.path.basename(ROOT), scenes=scenes, refs=refs, speakers=parse_speakers(lines), voices=VOICE_LIST,
                 tts=dict(default=dm, catalog=cat, job=JOB, **voices.status()), time=datetime.datetime.now().isoformat(timespec="seconds"))
 
@@ -379,20 +383,22 @@ class Conflict(Exception):
     pass
 
 
-def patch_image(lines, img_id, status=None, note=None, stale=None):
+def patch_image(lines, img_id, status=None, note=None, stale=None, fx=None):
     idx = next((i for i, l in enumerate(lines) if l.strip() == f"[{img_id}]"), None)
     if idx is None:
         raise ValueError("image not in story")
-    j, cur = idx + 1, dict(status="", note="", stale=False)
+    j, cur = idx + 1, dict(status="", note="", stale=False, fx="")
     while j < len(lines):
         kv = KEYLINE.match(lines[j].strip())
-        if not kv or kv.group(1) not in ("status", "note", "image-stale"):
+        if not kv or kv.group(1) not in ("status", "note", "image-stale", "fx"):
             break
         v = kv.group(2).strip()
         if kv.group(1) == "status":
             cur["status"] = v
         elif kv.group(1) == "note":
             cur["note"] = v
+        elif kv.group(1) == "fx":
+            cur["fx"] = v
         else:
             cur["stale"] = v.lower() in ("yes", "true", "1")
         j += 1
@@ -402,8 +408,10 @@ def patch_image(lines, img_id, status=None, note=None, stale=None):
         cur["note"] = note.strip().replace("\r\n", "\n").replace("\n", "\\n")
     if stale is not None:
         cur["stale"] = bool(stale)
+    if fx is not None:
+        cur["fx"] = fx.strip().replace("\r\n", "\n").replace("\n", "\\n")
     new = ([f"status: {cur['status']}"] if cur["status"] else []) + (["image-stale: yes"] if cur["stale"] else []) \
-        + ([f"note: {cur['note']}"] if cur["note"] else [])
+        + ([f"note: {cur['note']}"] if cur["note"] else []) + ([f"fx: {cur['fx']}"] if cur["fx"] else [])
     lines[idx + 1:j] = new
 
 
@@ -424,6 +432,22 @@ def set_flag(lines, scene_id, lang, value):
     elif new:
         k = s + 1
         while k < e and lines[k].strip().startswith("env:"):
+            k += 1
+        lines[k:k] = new
+
+
+def set_scene_fx(lines, scene_id, text):
+    """Write (or remove, when empty) the scene's own «fx:» line, right under the scene header lines (before the first picture)."""
+    s, e = scene_span(lines, scene_id)
+    first_img = next((i for i in range(s + 1, e) if MARKER.match(lines[i].strip())), e)
+    pos = next((i for i in range(s + 1, first_img) if lines[i].strip().startswith("fx:")), None)
+    text = text.strip().replace("\r\n", "\n").replace("\n", "\\n")
+    new = [f"fx: {text}"] if text else []
+    if pos is not None:
+        lines[pos:pos + 1] = new
+    elif new:
+        k = s + 1
+        while k < e and lines[k].strip().split(":")[0] in ("env", "voice-stale", "model"):
             k += 1
         lines[k:k] = new
 
@@ -603,7 +627,7 @@ def add_line(lines, scene_id, after, kind, speaker, text, label="", tone=""):
     l0 = lines[a].strip()
     kv = KEYLINE.match(l0)
     if MARKER.match(l0):
-        skip = ("status", "note", "image-stale", "format-issue")
+        skip = ("status", "note", "image-stale", "fx", "format-issue")
     elif kv and kv.group(1) in SPEECH:
         skip = ("en", "format-issue")
     else:
@@ -657,7 +681,7 @@ def add_issue(lines, scene_id, index, message):
     kv = KEYLINE.match(lines[a].strip())
     pos = a + 1
     if MARKER.match(lines[a].strip()):
-        skip = ("status", "note", "image-stale", "format-issue")
+        skip = ("status", "note", "image-stale", "fx", "format-issue")
     elif kv and kv.group(1) in SPEECH:
         skip = ("en", "format-issue")
     else:
@@ -826,7 +850,8 @@ class H(http.server.SimpleHTTPRequestHandler):
             if not re.fullmatch(r"IMG\d{3}", id_) or str(d.get("status", "")) not in MARKS:
                 raise ValueError("bad id or status")
             lines = read_lines(STORY)
-            patch_image(lines, id_, d.get("status"), None if d.get("note") is None else str(d["note"])[:4000], d.get("stale"))
+            patch_image(lines, id_, d.get("status"), None if d.get("note") is None else str(d["note"])[:4000], d.get("stale"),
+                        None if d.get("fx") is None else str(d["fx"])[:2000])
             write_lines(STORY, lines)
         elif path == "/api/flag":
             if d["lang"] not in LANGS or not re.fullmatch(r"scene-\d{2}", str(d["scene"])):
@@ -891,6 +916,12 @@ class H(http.server.SimpleHTTPRequestHandler):
                 clear_issue(lines, d["scene"], d["index"])
             else:
                 add_issue(lines, d["scene"], d["index"], d.get("message", ""))
+            write_lines(STORY, lines)
+        elif path == "/api/scenefx":
+            if not re.fullmatch(r"scene-\d{2}", str(d["scene"])):
+                raise ValueError("bad scene")
+            lines = read_lines(STORY)
+            set_scene_fx(lines, d["scene"], str(d.get("fx", ""))[:2000])
             write_lines(STORY, lines)
         elif path == "/api/vprompt":
             id_ = str(d["id"])

@@ -18,7 +18,8 @@ h2.sc{margin:40px 0 8px;padding:6px 14px;background:linear-gradient(90deg,#ead9b
 .act{background:#f0f0f0;color:#666;border-radius:8px;padding:2px 12px;font-size:14.5px}
 .gag{background:#eef6ff;border:1px dashed #7aa;border-radius:8px;padding:2px 12px;font-size:14px}.alab{display:inline-block;background:#fff;border:1px solid #bbb;border-radius:8px;font-size:12px;padding:0 8px;margin-inline-end:6px;color:#555;line-height:1.6;cursor:text}.gag .alab{border-color:#7aa;color:#2a5d7a}
 .itw{display:flex;flex-direction:column;gap:2px}.itw:has(> .sp){filter:drop-shadow(0 1px 1.5px #00000030)}.sp{border:none;border-radius:0;padding:12px 22px 12px 24px;background:color-mix(in srgb,var(--c,#1565c0) 10%,#fff8e3);clip-path:url(#paper0)}.sp.t1{clip-path:url(#paper1)}.sp.t2{clip-path:url(#paper2)}.sp.t1{transform:rotate(.25deg)}.sp.t2{transform:rotate(-.3deg)}
-.sp .who{font-size:13px;font-weight:700;color:var(--c,#1565c0);display:flex;align-items:center;gap:6px;line-height:1.5}.sp .who .dot{width:10px;height:10px;border-radius:50%;background:var(--c,#1565c0);flex:none}.sp .who .nm{cursor:text}.ab{font:inherit;font-size:11px;font-weight:600;border:1px solid #c9bd9f;background:#fff;border-radius:10px;padding:0 7px;cursor:pointer;line-height:1.6;color:#6b5320;direction:ltr}.ab:hover{background:#fff3d1}.ab.on{background:#1565c0;border-color:#1565c0;color:#fff}.sp .who .tn{font-weight:400;font-size:12.5px;color:#555;cursor:text}.sp .who .tn.dflt{opacity:.6;font-style:italic}.itw:has(> .sp.vstale){filter:drop-shadow(0 0 2px var(--stale)) drop-shadow(0 0 2px var(--stale)) drop-shadow(0 1px 1.5px #00000030)}.itw:has(> .sp.cur){filter:drop-shadow(0 0 3px var(--accent)) drop-shadow(0 0 3px var(--accent))}
+.sp .who{font-size:13px;font-weight:700;color:var(--c,#1565c0);display:flex;align-items:center;gap:6px;line-height:1.5}.sp .who .dot{width:10px;height:10px;border-radius:50%;background:var(--c,#1565c0);flex:none}.sp .who .nm{cursor:text}.fxbox{margin-top:6px;background:#f6effa;border:1px dashed #ab47bc;border-radius:8px;padding:4px 8px;font-size:13px}.fxbox textarea{width:100%;border:1px solid #ce93d8;border-radius:6px;font:inherit;padding:4px 6px;resize:none;overflow:hidden;background:#fff;direction:rtl}.fxbox .fxl{color:#7b1fa2;font-weight:700;font-size:12px}.fxbox textarea.dirty{border-color:#2e7d32}.fxs{display:flex;gap:6px;align-items:flex-start;margin:4px 0}.fxs .fxbox{flex:1;margin:0}.b.fxb{border-color:#ce93d8}
+.ab{font:inherit;font-size:11px;font-weight:600;border:1px solid #c9bd9f;background:#fff;border-radius:10px;padding:0 7px;cursor:pointer;line-height:1.6;color:#6b5320;direction:ltr}.ab:hover{background:#fff3d1}.ab.on{background:#1565c0;border-color:#1565c0;color:#fff}.sp .who .tn{font-weight:400;font-size:12.5px;color:#555;cursor:text}.sp .who .tn.dflt{opacity:.6;font-style:italic}.itw:has(> .sp.vstale){filter:drop-shadow(0 0 2px var(--stale)) drop-shadow(0 0 2px var(--stale)) drop-shadow(0 1px 1.5px #00000030)}.itw:has(> .sp.cur){filter:drop-shadow(0 0 3px var(--accent)) drop-shadow(0 0 3px var(--accent))}
 .en{direction:ltr;text-align:left;font-size:15px;color:#333;border-top:1px dotted #bbb;margin-top:2px;padding-top:2px}.en.none{border-top:none;margin:0;padding:0}.enp{border:none;background:none;font:inherit;font-size:11px;color:#8a7f66;opacity:.45;cursor:pointer;padding:0 4px}.enp:hover{opacity:1}
 .v{cursor:text;border-radius:4px;white-space:pre-wrap}.ie textarea,.cmp textarea,textarea.nt{overflow:hidden;resize:none}.txt{align-self:start}.v:hover{background:#fff6d6;outline:1px dashed #c9a24b}
 .flag{border:none;background:none;cursor:pointer;opacity:.3;font-size:13px;padding:0 4px}.flag:hover{opacity:1}.del:hover{color:#c62828}
@@ -114,6 +115,7 @@ document.addEventListener('pointerdown',async e=>{
     :bar?{type:'a',scene:bar.closest('section[data-scene]').dataset.scene,after:bar.parentElement.dataset.after,kind:bar.dataset.add}:null;
   const r0=RELOADS;let ran=false;
   for(const x of [...EDITORS]){if(!x.w.isConnected){EDITORS.delete(x);continue}if(x.w._keep||x.w.contains(t))continue;ran=true;await x.run()}
+  document.querySelectorAll('.fxbox:not(.hide) textarea').forEach(x=>{if(!x.closest('.fxbox').contains(t)&&x.value!==x.dataset.orig&&x._save)x._save()});
   document.querySelectorAll('.nbox:not(.hide) textarea.nt').forEach(nt=>{const nb=nt.closest('.nbox');if(nb.contains(t))return;
     if(nt.value!==nt.dataset.orig)nt.closest('figure.shot').querySelector('[data-sn]').click();else if(!nt.value.trim())nb.classList.add('hide')});
   if(ran&&RELOADS!==r0&&pend){const sec=document.querySelector(`section[data-scene="${pend.scene}"]`);if(!sec)return;
@@ -148,16 +150,24 @@ function itemHtml(it,sc,i,j){
   const fa=`<div class="fa">${val(it.fa,it.ln,'say',it.en!=null?'data-hasen="1"':'')}</div>`;
   const en=$('#showEN').checked?(it.en!=null?`<div class="en">${val(it.en,it.en_ln,'en')}${delBtn(it.en_ln,'en',it.en,false)}</div>`:`<div class="en none"><button class="enp" data-aden="${it.ln}" title="افزودن ترجمهٔ انگلیسی">EN+</button></div>`):'';
   return `<div class="itw"><div class="it sp t${(i*7+j)%3}${sc.voice_stale.length?' vstale':''}" style="--c:${colorOf(it.sp)}" id="i${i}_${j}"><div class="who"><span class="dot"></span><span class="v nm" data-ln="${it.ln}" data-k="speaker" data-old="${esc(it.sp)}" title="کلیک برای عوض‌کردن گوینده">${esc(it.sp)}</span>${toneHtml(it)}${lineBtns(it)}${flagBtn(it.ln)}${delBtn(it.ln,'say',it.fa,it.en!=null)}</div>${fa}${en}${issHtml(it.issues)}</div></div>`}
+const FX_PH='توصیهٔ ادیت (زوم، پن، فید، لرزش، نور، ذرات، صدا...) · Enter = ذخیره · Shift+Enter = خط بعد · Esc = برگشت';
+const fxBox=(key,v,title)=>`<div class="fxbox${v?'':' hide'}" data-key="panel:fx:${key}"><span class="fxl">🎬 ${title}</span><textarea rows="1" data-key="fx:${key}" data-orig="${esc(v)}" placeholder="${FX_PH}">${esc(v)}</textarea></div>`;
+function wireFx(box,btn,save){const t=box.querySelector('textarea');track(t,btn);
+  let busy=false;const go=async()=>{if(busy)return;if(t.value===t.dataset.orig){if(!t.value.trim())box.classList.add('hide');return}busy=true;try{await save(t.value);t.dataset.orig=t.value;await reload()}catch(e){fail(e)}finally{busy=false}};t._save=go;
+  btn.onclick=()=>{box.classList.toggle('hide');if(!box.classList.contains('hide')){grow(t);t.focus()}};t.addEventListener('input',()=>grow(t));if(!box.classList.contains('hide'))grow(t);
+  t.addEventListener('blur',()=>setTimeout(()=>{if(document.hasFocus()&&box.isConnected)go()},0));
+  t.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();go()}if(e.key==='Escape'){t.value=t.dataset.orig;t.dispatchEvent(new Event('input'));if(!t.value.trim())box.classList.add('hide')}})}
 function figHtml(m){
   const im=m.src?`<img src="${m.src}" loading="lazy">`:`<div class="ph"><b>${m.id}</b><br>هنوز ساخته نشده</div>`;
   const rj=m.rejected.length?` ردشده‌ها: ${m.rejected.map((r,i)=>`<a href="${r}" target="_blank">${i+1}</a>`).join('')}`:'';
   const chips=m.refs.map(c=>c.src?`<button class="chip ref" data-ref="${c.src}" data-name="${esc(c.name)}" title="باز کردن رفرنس">${esc(c.name)}</button>${c.video?`<button class="chip ref" data-vid="${esc(c.video)}" data-name="${esc(c.name)}" title="پخش ویدیوی این رفرنس">▶</button>`:''}`:`<span class="chip miss" title="این رفرنس هنوز ساخته نشده">${esc(c.name)}</span>`).join('');
   return `<figure class="shot" data-id="${m.id}" data-m="${m.status}"><div class="idl">${m.id}</div>${im}<div class="ctl">
    <div class="refs">${chips||'<small>بدون رفرنس</small>'}</div>
-   <div class="btns"><button class="b" data-m="ok">✅ تأیید</button><button class="b" data-m="redo">🔁 بازسازی</button><button class="b" data-nt="1">📝 یادداشت${m.note?' •':''}</button><button class="b" data-p="1">پرامپت</button><button class="b" data-vp="1" title="پرامپت ساخت ویدیو از همین تصویر">🎬 پرامپت ویدیو${m.vprompt?'':' ·'}</button>${m.video?`<button class="b vid" data-vid="${esc(m.video)}" data-name="${m.id}" title="پخش ویدیوی این تصویر">▶ ویدیو</button>`:''}<span class="st"></span></div>
+   <div class="btns"><button class="b" data-m="ok">✅ تأیید</button><button class="b" data-m="redo">🔁 بازسازی</button><button class="b" data-nt="1">📝 یادداشت${m.note?' •':''}</button><button class="b fxb" data-fx="1" title="توصیهٔ ادیت برای این تصویر">🎬 ادیت${m.fx?' •':''}</button><button class="b" data-p="1">پرامپت</button><button class="b" data-vp="1" title="پرامپت ساخت ویدیو از همین تصویر">🎬 پرامپت ویدیو${m.vprompt?'':' ·'}</button>${m.video?`<button class="b vid" data-vid="${esc(m.video)}" data-name="${m.id}" title="پخش ویدیوی این تصویر">▶ ویدیو</button>`:''}<span class="st"></span></div>
    ${m.stale?`<div class="stalebox">⚠ پرامپت عوض شده؛ تصویر کهنه است <button class="b" data-clrimg="1">✓ تصویر به‌روز شد</button></div>`:''}${issHtml(m.issues)}
    <div class="nbox${m.note?'':' hide'}" data-key="panel:note:${m.id}"><textarea class="nt" rows="2" data-key="note:${m.id}" data-orig="${esc(m.note)}" placeholder="یادداشت برای این عکس... (Enter = ذخیره · Shift+Enter = خط بعد · Esc = برگشت)">${esc(m.note)}</textarea>
      <div class="btns" hidden><button class="b" data-sn="1">💾 ذخیره یادداشت</button></div></div>
+   ${fxBox(m.id,m.fx||'','ادیت این تصویر')}
    <div class="pr hide${m.stale?' stale':''}" data-key="panel:${m.id}"><small>${rj}</small>
      <div class="btns"><button class="b" data-sp="1">💾 ذخیره پرامپت</button><button class="b" data-cp="1">📋 کپی پرامپت</button></div>
      <textarea data-key="prompt:${m.id}" data-orig="${esc(m.prompt)}" spellcheck="false">${esc(m.prompt)}</textarea></div>
@@ -172,7 +182,7 @@ function render(){const list=$('#list');list.innerHTML='';BL=[];$('#jump').inner
     const items=sc.blocks.flatMap(b=>b.items.filter(x=>x.id));const cnt=lg=>items.filter(x=>x.audio[lg]).length;
     const vs=lg=>`<span class="lg${sc.voice_stale.includes(lg)?' stale':''}">${lg==='fa'?'فارسی':'English'}: ${cnt(lg)}/${items.length} ${sc.voice_stale.includes(lg)?'⚠ کهنه':'✓'}</span>${sc.voice_stale.includes(lg)?`<button class="b" data-flag="${lg}">✓ صدای ${lg==='fa'?'فارسی':'انگلیسی'} به‌روز شد</button>`:''}`;
     const warns=sc.warnings.map(w=>w.issues.length?issHtml(w.issues):`<div class="issue">⚠ خط با قالب ناشناخته: <code>${esc(w.text)}</code> <button class="b" data-wreg="${w.ln}">⚑ ثبت برای هوش مصنوعی</button></div>`).join('')+issHtml(sc.issues);
-    list.insertAdjacentHTML('beforeend',`<section data-scene="${sc.id}"><h2 class="sc">${labelHtml(sc)}</h2>
+    list.insertAdjacentHTML('beforeend',`<section data-scene="${sc.id}"><h2 class="sc">${labelHtml(sc)}</h2><div class="fxs"><button class="b fxb" data-sfx="1" title="توصیهٔ ادیت برای کل این صحنه (گذار، موسیقی، حال‌وهوا)">🎬 ادیت صحنه${sc.fx?' •':''}</button>${fxBox(sc.id,sc.fx||'','ادیت کل صحنه')}</div>
       ${sc.env.map(e=>`<div class="env">${val(e.text,e.ln,'env')}${flagBtn(e.ln)}${issHtml(e.issues)}</div>`).join('')}${items.length?`<div class="vstrip">🔊 ${vs('fa')} ${vs('en')} ${sceneModel(sc)}</div>`:''}${warns}<div class="bl"></div></section>`);
     const holder=list.lastElementChild.querySelector('.bl');
     sc.blocks.forEach(b=>{const i=BL.length;BL.push(b);const d=document.createElement('section');d.className='blk'+(b.images.length?'':' noimg');d.id='b'+i;d.dataset.bid=b.images.length?b.images[0].id:sc.id+'#'+holder.children.length;
@@ -255,6 +265,7 @@ function wire(){
     nt.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();f.querySelector('[data-sn]').click()}if(e.key==='Escape'){nt.value=nt.dataset.orig;nt.dispatchEvent(new Event('input'));if(!nt.value.trim())nb.classList.add('hide')}});
     f.querySelector('[data-sn]').onclick=async()=>{try{await api('/api/image',{id,note:nt.value});nt.dataset.orig=nt.value;nt.dispatchEvent(new Event('input'));m.note=nt.value;
       ntb.textContent='📝 یادداشت'+(nt.value.trim()?' •':'');if(!nt.value.trim())nb.classList.add('hide');stats();filt()}catch(e){fail(e)}};
+    wireFx(f.querySelector('.fxbox'),f.querySelector('[data-fx]'),v=>api('/api/image',{id,fx:v}));
     f.querySelector('[data-p]').onclick=()=>f.querySelector('.pr:not(.vpr)').classList.toggle('hide');
     f.querySelector('[data-vp]').onclick=()=>f.querySelector('.vpr').classList.toggle('hide');
     f.querySelector('[data-cvp]').onclick=e=>copy(vt.value,e.target);
@@ -266,6 +277,7 @@ function wire(){
     f.querySelectorAll('[data-ref]').forEach(b=>b.onclick=()=>lightbox(b.dataset.ref,b.dataset.name))});
   $$('section[data-scene]').forEach(s=>{const sid=s.dataset.scene;
     s.querySelectorAll('[data-flag]').forEach(b=>b.onclick=async()=>{try{await api('/api/flag',{scene:sid,lang:b.dataset.flag,value:false});await reload()}catch(e){fail(e)}});
+    const sf=s.querySelector('.fxs');if(sf)wireFx(sf.querySelector('.fxbox'),sf.querySelector('[data-sfx]'),v=>api('/api/scenefx',{scene:sid,fx:v}));
     s.querySelectorAll('[data-scm]').forEach(c=>c.onchange=async()=>{try{await api('/api/ttsmodel',{scene:sid,model:c.value});await reload()}catch(e){fail(e);await reload()}});
     s.querySelectorAll('[data-regen]').forEach(b=>b.onclick=async()=>{try{await api('/api/regen',{scene:sid});pollJob()}catch(e){fail(e)}});
     s.querySelectorAll('.v').forEach(v=>v.onclick=()=>openFromV(v));
