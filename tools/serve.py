@@ -9,11 +9,13 @@ import colorsys, datetime, functools, glob, http.server, json, os, random, re, s
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STORY = os.path.join(ROOT, "scenario", "story.txt")
 PROMPTS = os.path.join(ROOT, "prompts", "prompts.txt")
+VPROMPTS = os.path.join(ROOT, "prompts", "video-prompts.txt")  # one image-to-video prompt per picture (optional file)
 PORT = int(os.environ.get("PORT", "8765"))
 IDLE = float(os.environ.get("IDLE_SECONDS", "90"))
 MARKS = {"", "ok", "redo", "anim"}
 LANGS = ("fa", "en")
 IMG_EXT = (".jpg", ".jpeg", ".png", ".webp")
+VID_EXT = (".mp4", ".webm", ".mov", ".m4v")
 last_ping, seen_ping = [time.time()], [False]
 LOCK = threading.Lock()
 
@@ -323,6 +325,20 @@ def scan_refs(prompts):
     return out
 
 
+def scan_videos():
+    """[(file name without extension, path)] of every video under videos/ and images/, newest first (rejected ones left out)."""
+    out = []
+    for f in glob.glob(os.path.join(ROOT, "videos", "**", "*"), recursive=True) + glob.glob(os.path.join(ROOT, "images", "**", "*"), recursive=True):
+        if f.lower().endswith(VID_EXT) and "_rejected" not in f.replace("\\", "/"):
+            out.append((os.path.getmtime(f), os.path.splitext(os.path.basename(f))[0], rel(f)))
+    return [(b, p) for _, b, p in sorted(out, reverse=True)]
+
+
+def video_for(name, vids):
+    """The newest video named after this picture or reference: «IMG008.mp4», «IMG008_race_ab12cd34.mp4», «CH_MIMO_walk.mp4»."""
+    return next((p for b, p in vids if b == name or b.startswith(name + "_")), None)
+
+
 def audio_url(lang, id_):
     p = os.path.join(ROOT, "audio", lang, id_ + ".mp3")
     return f"audio/{lang}/{id_}.mp3?v={int(os.path.getmtime(p))}" if os.path.exists(p) else None
@@ -334,14 +350,20 @@ def project():
     cat = voices.read_catalog()
     dm = default_model(lines)
     images, prompts = scan_images(), parse_prompts()
+    vprompts = parse_prompts(read_lines(VPROMPTS)) if os.path.exists(VPROMPTS) else {}
+    vids = scan_videos()
     refs = scan_refs(prompts)
+    for r in refs:
+        r["video"] = video_for(r["name"], vids)
     ref_src = {r["name"]: r["src"] for r in refs}
+    ref_vid = {r["name"]: r["video"] for r in refs}
     scenes = []
     for sc in story_scenes(lines):
         for b in sc["blocks"]:
             b["images"] = [dict(im, **images.get(im["id"], dict(src=None, rejected=[])),
                                 prompt=prompts.get(im["id"], {}).get("prompt", ""),
-                                refs=[dict(name=n, src=ref_src.get(n)) for n in prompts.get(im["id"], {}).get("refs", [])])
+                                vprompt=vprompts.get(im["id"], {}).get("prompt", ""), video=video_for(im["id"], vids),
+                                refs=[dict(name=n, src=ref_src.get(n), video=ref_vid.get(n)) for n in prompts.get(im["id"], {}).get("refs", [])])
                            for im in b["images"]]
             for it in b["items"]:
                 if "id" in it:
@@ -656,6 +678,21 @@ def clear_issue(lines, scene_id, index):
     del lines[a]
 
 
+def upsert_prompt(lines, id_, old, new):
+    """Like replace_prompt, but a picture that has no block yet gets a new one at the end (old must then be empty)."""
+    if id_ in prompt_ranges(lines):
+        return replace_prompt(lines, id_, old, new)
+    if old.strip():
+        raise Conflict("این پرامپت بیرون از مرورگر پاک شده؛ صفحه را دوباره بارگذاری کن.")
+    body = new.replace("\r\n", "\n").strip()
+    if not body:
+        return False
+    while lines and not lines[-1].strip():
+        lines.pop()
+    lines += ["", f"=== {id_} ===", *body.split("\n"), ""]
+    return True
+
+
 def replace_prompt(lines, id_, old, new):
     r = prompt_ranges(lines)
     if id_ not in r:
@@ -855,6 +892,14 @@ class H(http.server.SimpleHTTPRequestHandler):
             else:
                 add_issue(lines, d["scene"], d["index"], d.get("message", ""))
             write_lines(STORY, lines)
+        elif path == "/api/vprompt":
+            id_ = str(d["id"])
+            if not re.fullmatch(r"IMG\d{3}", id_):
+                raise ValueError("bad id")
+            lines = read_lines(VPROMPTS) if os.path.exists(VPROMPTS) else [
+                "# پرامپت‌های ویدیو (تصویر به ویدیو). هر بلوک با «=== IMG### ===» شروع می‌شه و کامل و مستقل است؛ تصویر همان شناسه، فریم اول ویدیوست.", ""]
+            upsert_prompt(lines, id_, str(d.get("old", "")), str(d["new"]))
+            write_lines(VPROMPTS, lines)
         elif path == "/api/prompt":
             id_ = str(d["id"])
             if not re.fullmatch(r"[A-Za-z0-9_]+", id_):

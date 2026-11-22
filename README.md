@@ -10,6 +10,7 @@
 - **Bilingual lines** (Persian + English, right-to-left friendly), speakers with colours and voices, tone per line.
 - **In-browser editing**: click a text, edit, press Enter. Clicking elsewhere saves it.
 - **Voice-over**: pick a text-to-speech model and voice per speaker and scene (ElevenLabs, Gemini, Qwen, ... through one [OpenRouter](https://openrouter.ai) key), listen to a sample, rebuild only the scenes whose text changed.
+- **Video prompts and clips**: every picture also has an image-to-video prompt (`prompts/video-prompts.txt`); pictures and references that already have a video get a ▶ play button.
 - **Stale flags**: when you change a text or a voice, the page marks that scene's audio or image as out of date.
 - **Updates without losing your work**: `python tools/update.py` replaces only the tool files; your scenario, prompts, images and audio stay untouched.
 
@@ -44,6 +45,8 @@ Create a `.env` file next to `review.html` with one line `OPENROUTER_API_KEY=...
 | `scenario/story.txt` | scenes, dialogue, speakers, notes, flags |
 | `prompts/prompts.txt` | one complete image prompt per picture or reference |
 | `images/refs/`, `images/scenes/` | reference images and generated pictures (`IMG001_....jpg`) |
+| `prompts/video-prompts.txt` | one image-to-video prompt per picture (the picture is the first frame) |
+| `videos/` | generated clips, named after the picture (`videos/clips/IMG008_race.mp4`) |
 | `voices/catalog.txt` | voices and models your key can use |
 | `audio/fa`, `audio/en` | generated narration |
 | `skills/` | writing rules for image prompts (used by AI coding assistants) |

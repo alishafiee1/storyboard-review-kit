@@ -37,6 +37,7 @@ figure.shot[data-m=ok] [data-m=ok]{background:var(--ok);color:#fff}figure.shot[d
 button.chip.ref{cursor:pointer}button.chip.ref:hover{background:#ffe9a8}.chip.miss{background:#ffebee;border-color:#e57373;color:#b71c1c}
 .stalebox{background:#fff8e1;border:1px solid var(--stale);border-radius:8px;padding:2px 10px;margin-top:4px}
 .pr{margin-top:6px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:6px 10px}.pr.stale{border-color:#1565c0;box-shadow:0 0 0 2px #1565c055}.pr a{margin:0 4px}
+.pr.vpr{border-color:#8e24aa55}.b.vid{background:#efe3f5;border-color:#ba68c8}.chip .pv{margin-inline-start:4px}#lb video{max-width:92vw;max-height:84vh;border-radius:8px;cursor:auto;background:#000}
 .pr textarea{width:100%;min-height:200px;direction:ltr;text-align:left;font:12.5px/1.5 Consolas,monospace;border:1px solid #c9bd9f;border-radius:6px;padding:6px;margin-top:6px}
 .tag{display:inline-block;font-size:12px;border-radius:5px;padding:0 7px;margin:0 4px;color:#fff}.tag small{margin-inline-start:5px;opacity:.85}.tag.fact{background:#00897b}.tag.hyp{background:#e08a00}
 code{direction:ltr;unicode-bidi:embed;background:#eee;border-radius:4px;padding:0 4px}
@@ -54,7 +55,7 @@ code{direction:ltr;unicode-bidi:embed;background:#eee;border-radius:4px;padding:
  <select id="jump" title="پرش به صحنه"></select>
  <select id="filter" title="فیلتر"><option value="all">همه</option><option value="missing">ساخته‌نشده</option><option value="none">بدون علامت</option><option value="ok">✅ تأیید</option><option value="redo">🔁 بازسازی</option><option value="note">دارای یادداشت</option><option value="stale">⚠ کهنه</option></select>
  <span id="info"></span><input id="prog" type="range" min="0" max="0" value="0"></div>
-<main id="list"></main><main id="refs" class="hide"></main><main id="spk" class="hide"></main><datalist id="spkl"></datalist><datalist id="voicel"></datalist><datalist id="lbll"></datalist><datalist id="tonel"></datalist><div id="lb" class="hide"><img alt=""><div></div></div>
+<main id="list"></main><main id="refs" class="hide"></main><main id="spk" class="hide"></main><datalist id="spkl"></datalist><datalist id="voicel"></datalist><datalist id="lbll"></datalist><datalist id="tonel"></datalist><div id="lb" class="hide"><video controls playsinline class="hide"></video><img alt=""><div></div></div>
 <script>
 /* torn-paper outlines: gently wavy edges, no sharp corners (smooth curves through a few slightly shifted points) */
 (function(){let seed=11;const rnd=()=>(seed=seed*16807%2147483647)/2147483647;
@@ -144,16 +145,19 @@ function itemHtml(it,sc,i,j){
 function figHtml(m){
   const im=m.src?`<img src="${m.src}" loading="lazy">`:`<div class="ph"><b>${m.id}</b><br>هنوز ساخته نشده</div>`;
   const rj=m.rejected.length?` ردشده‌ها: ${m.rejected.map((r,i)=>`<a href="${r}" target="_blank">${i+1}</a>`).join('')}`:'';
-  const chips=m.refs.map(c=>c.src?`<button class="chip ref" data-ref="${c.src}" data-name="${esc(c.name)}" title="باز کردن رفرنس">${esc(c.name)}</button>`:`<span class="chip miss" title="این رفرنس هنوز ساخته نشده">${esc(c.name)}</span>`).join('');
+  const chips=m.refs.map(c=>c.src?`<button class="chip ref" data-ref="${c.src}" data-name="${esc(c.name)}" title="باز کردن رفرنس">${esc(c.name)}</button>${c.video?`<button class="chip ref" data-vid="${esc(c.video)}" data-name="${esc(c.name)}" title="پخش ویدیوی این رفرنس">▶</button>`:''}`:`<span class="chip miss" title="این رفرنس هنوز ساخته نشده">${esc(c.name)}</span>`).join('');
   return `<figure class="shot" data-id="${m.id}" data-m="${m.status}"><div class="idl">${m.id}</div>${im}<div class="ctl">
    <div class="refs">${chips||'<small>بدون رفرنس</small>'}</div>
-   <div class="btns"><button class="b" data-m="ok">✅ تأیید</button><button class="b" data-m="redo">🔁 بازسازی</button><button class="b" data-nt="1">📝 یادداشت${m.note?' •':''}</button><button class="b" data-p="1">پرامپت</button><span class="st"></span></div>
+   <div class="btns"><button class="b" data-m="ok">✅ تأیید</button><button class="b" data-m="redo">🔁 بازسازی</button><button class="b" data-nt="1">📝 یادداشت${m.note?' •':''}</button><button class="b" data-p="1">پرامپت</button><button class="b" data-vp="1" title="پرامپت ساخت ویدیو از همین تصویر">🎬 پرامپت ویدیو${m.vprompt?'':' ·'}</button>${m.video?`<button class="b vid" data-vid="${esc(m.video)}" data-name="${m.id}" title="پخش ویدیوی این تصویر">▶ ویدیو</button>`:''}<span class="st"></span></div>
    ${m.stale?`<div class="stalebox">⚠ پرامپت عوض شده؛ تصویر کهنه است <button class="b" data-clrimg="1">✓ تصویر به‌روز شد</button></div>`:''}${issHtml(m.issues)}
    <div class="nbox${m.note?'':' hide'}" data-key="panel:note:${m.id}"><textarea class="nt" rows="2" data-key="note:${m.id}" data-orig="${esc(m.note)}" placeholder="یادداشت برای این عکس... (Enter = ذخیره · Shift+Enter = خط بعد · Esc = برگشت)">${esc(m.note)}</textarea>
      <div class="btns" hidden><button class="b" data-sn="1">💾 ذخیره یادداشت</button></div></div>
    <div class="pr hide${m.stale?' stale':''}" data-key="panel:${m.id}"><small>${rj}</small>
      <div class="btns"><button class="b" data-sp="1">💾 ذخیره پرامپت</button><button class="b" data-cp="1">📋 کپی پرامپت</button></div>
-     <textarea data-key="prompt:${m.id}" data-orig="${esc(m.prompt)}" spellcheck="false">${esc(m.prompt)}</textarea></div></div></figure>`}
+     <textarea data-key="prompt:${m.id}" data-orig="${esc(m.prompt)}" spellcheck="false">${esc(m.prompt)}</textarea></div>
+   <div class="pr vpr hide" data-key="panel:v:${m.id}"><small>🎬 پرامپت ساخت ویدیو از همین تصویر (تصویر = فریم اول)</small>
+     <div class="btns"><button class="b" data-svp="1">💾 ذخیره پرامپت ویدیو</button><button class="b" data-cvp="1">📋 کپی پرامپت ویدیو</button></div>
+     <textarea data-key="vprompt:${m.id}" data-orig="${esc(m.vprompt)}" spellcheck="false" placeholder="هنوز پرامپت ویدیو نداره؛ بنویس و ذخیره کن">${esc(m.vprompt)}</textarea></div></div></figure>`}
 function sceneModel(sc){const eff=sc.model||TT().default,m=modelById(eff),need=[...new Set(sc.blocks.flatMap(b=>b.items.filter(i=>i.k==='say').map(i=>i.sp)))];
   const bad=m&&m.voices.length?need.filter(n=>{const s=(P.speakers||[]).find(x=>x.name===n);return s&&!m.voices.some(v=>v.name===s.voice)}):[];
   return `<span>مدل صدا: <select data-scm="${sc.id}">${modelOpts(sc.model,true)}</select></span>${sc.voice_stale.length?`<button class="b" data-regen="${sc.id}" ${bad.length?'disabled title="اول صدای گوینده‌ها رو با این مدل جور کن"':''}>🔊 بازسازی صدا</button>`:''}<span class="jobst" data-job="${sc.id}"></span>${bad.length?`<span class="bad">⚠ این مدل صدای ${bad.map(esc).join('، ')} رو نداره</span>`:''}`}
@@ -237,7 +241,7 @@ function openFromV(v){const sid=v.closest('section[data-scene]').dataset.scene,k
   return ['speaker','tone','say'].includes(k)?openSayEditor(v.closest('.it'),{scene:sid,ln,focus:{speaker:'nm',tone:'tn'}[k]||'tx'}):openEditor(v,{scene:sid,ln,key:k,old:v.dataset.old})}
 function wire(){
   $$('figure.shot').forEach(f=>{const id=f.dataset.id,m=BL.flatMap(b=>b.images).find(x=>x.id===id);
-    const nt=f.querySelector('.nt'),pt=f.querySelector('.pr textarea');track(nt,f.querySelector('[data-sn]'));track(pt,f.querySelector('[data-sp]'));
+    const nt=f.querySelector('.nt'),pt=f.querySelector('.pr:not(.vpr) textarea'),vt=f.querySelector('.vpr textarea');track(nt,f.querySelector('[data-sn]'));track(pt,f.querySelector('[data-sp]'));track(vt,f.querySelector('[data-svp]'));
     f.querySelectorAll('[data-m]').forEach(b=>b.onclick=async()=>{const v=f.dataset.m===b.dataset.m?'':b.dataset.m;
       try{await api('/api/image',{id,status:v});f.dataset.m=v;m.status=v;stats();filt()}catch(e){fail(e)}});
     const nb=f.querySelector('.nbox'),ntb=f.querySelector('[data-nt]');ntb.onclick=()=>{nb.classList.toggle('hide');if(!nb.classList.contains('hide')){grow(nt);nt.focus()}};nt.addEventListener('input',()=>grow(nt));if(!nb.classList.contains('hide'))grow(nt);
@@ -245,7 +249,11 @@ function wire(){
     nt.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();f.querySelector('[data-sn]').click()}if(e.key==='Escape'){nt.value=nt.dataset.orig;nt.dispatchEvent(new Event('input'));if(!nt.value.trim())nb.classList.add('hide')}});
     f.querySelector('[data-sn]').onclick=async()=>{try{await api('/api/image',{id,note:nt.value});nt.dataset.orig=nt.value;nt.dispatchEvent(new Event('input'));m.note=nt.value;
       ntb.textContent='📝 یادداشت'+(nt.value.trim()?' •':'');if(!nt.value.trim())nb.classList.add('hide');stats();filt()}catch(e){fail(e)}};
-    f.querySelector('[data-p]').onclick=()=>f.querySelector('.pr').classList.toggle('hide');
+    f.querySelector('[data-p]').onclick=()=>f.querySelector('.pr:not(.vpr)').classList.toggle('hide');
+    f.querySelector('[data-vp]').onclick=()=>f.querySelector('.vpr').classList.toggle('hide');
+    f.querySelector('[data-cvp]').onclick=e=>copy(vt.value,e.target);
+    f.querySelector('[data-svp]').onclick=async()=>{try{await api('/api/vprompt',{id,old:vt.dataset.orig,new:vt.value});vt.dataset.orig=vt.value;await reload()}catch(e){fail(e)}};
+    f.querySelectorAll('[data-vid]').forEach(b=>b.onclick=()=>playVideo(b.dataset.vid,b.dataset.name));
     f.querySelector('[data-cp]').onclick=e=>copy(pt.value,e.target);
     f.querySelector('[data-sp]').onclick=async()=>{try{await api('/api/prompt',{id,old:pt.dataset.orig,new:pt.value});pt.dataset.orig=pt.value;await reload()}catch(e){fail(e)}};
     const c=f.querySelector('[data-clrimg]');if(c)c.onclick=async()=>{try{await api('/api/image',{id,stale:false});await reload()}catch(e){fail(e)}};
@@ -281,15 +289,17 @@ function speakersTab(){const used={};P.scenes.forEach(s=>s.blocks.forEach(b=>b.i
   if(unknown.length&&!$('#list .msg.spkwarn'))$('#list').insertAdjacentHTML('afterbegin',`<div class="msg spkwarn">⚠ گوینده‌ای که توی فهرست نیست: ${unknown.map(esc).join('، ')} — تب «گوینده‌ها» رو ببین.</div>`)}
 function toneList(){const T=new Set((P.speakers||[]).map(s=>s.tone).filter(Boolean));P.scenes.forEach(s=>s.blocks.forEach(b=>b.items.forEach(i=>{if(i.tone)T.add(i.tone)})));$('#tonel').innerHTML=[...T].map(l=>`<option value="${esc(l)}">`).join('')}
 function labelList(){const L=new Set(['گگ']);P.scenes.forEach(s=>s.blocks.forEach(b=>b.items.forEach(i=>{if(i.label)L.add(i.label)})));$('#lbll').innerHTML=[...L].map(l=>`<option value="${esc(l)}">`).join('')}
-function lightbox(src,name){$('#lb img').src=src;$('#lb div').textContent=name;$('#lb').classList.remove('hide')}
-$('#lb').onclick=()=>$('#lb').classList.add('hide');
-document.addEventListener('keydown',e=>{if(e.key==='Escape')$('#lb').classList.add('hide')});
+function lightbox(src,name){$('#lb video').pause();$('#lb video').classList.add('hide');$('#lb img').classList.remove('hide');$('#lb img').src=src;$('#lb div').textContent=name;$('#lb').classList.remove('hide')}
+function playVideo(src,name){audio.pause();const v=$('#lb video');$('#lb img').classList.add('hide');v.classList.remove('hide');v.src=src;$('#lb div').textContent=name;$('#lb').classList.remove('hide');v.play().catch(()=>{})}
+function closeLb(){$('#lb video').pause();$('#lb').classList.add('hide')}
+$('#lb').onclick=closeLb;$('#lb video').onclick=e=>e.stopPropagation();
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeLb()});
 function jumpToImage(id){showTab('tabR');const f=document.querySelector(`figure.shot[data-id="${id}"]`);if(!f)return;if(f.closest('.hide'))$('#filter').value='all',filt();
   f.scrollIntoView({block:'center',behavior:'smooth'});f.classList.add('flash');setTimeout(()=>f.classList.remove('flash'),2000)}
-function refsTab(){const R=$('#refs');R.innerHTML=`<div class="grid">${P.refs.map((r,i)=>`<div class="card"><img src="${r.src}" loading="lazy" data-zoom="${r.src}" data-name="${esc(r.name)}"><b>${esc(r.name)}</b> <small>${esc(r.kind)}</small><div>${r.used.map(u=>`<button class="chip ref" data-img="${u}" title="رفتن به این تصویر">${u}</button>`).join('')||'—'}</div>
+function refsTab(){const R=$('#refs');R.innerHTML=`<div class="grid">${P.refs.map((r,i)=>`<div class="card"><img src="${r.src}" loading="lazy" data-zoom="${r.src}" data-name="${esc(r.name)}"><b>${esc(r.name)}</b> <small>${esc(r.kind)}</small>${r.video?` <button class="b vid" data-vid="${esc(r.video)}" data-name="${esc(r.name)}">▶ ویدیو</button>`:''}<div>${r.used.map(u=>`<button class="chip ref" data-img="${u}" title="رفتن به این تصویر">${u}</button>`).join('')||'—'}</div>
   ${r.prompt?`<button class="b" data-r="${i}">پرامپت</button><div class="pr hide"><button class="b" data-rc="${i}">📋 کپی</button><textarea readonly style="min-height:140px">${esc(r.prompt)}</textarea></div>`:''}</div>`).join('')}</div>`;
   R.querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>b.nextElementSibling.classList.toggle('hide'));R.querySelectorAll('[data-rc]').forEach(b=>b.onclick=()=>copy(b.nextElementSibling.querySelector('textarea').value,b));
-  R.querySelectorAll('[data-zoom]').forEach(i=>i.onclick=()=>lightbox(i.dataset.zoom,i.dataset.name));R.querySelectorAll('[data-img]').forEach(b=>b.onclick=()=>jumpToImage(b.dataset.img))}
+  R.querySelectorAll('[data-zoom]').forEach(i=>i.onclick=()=>lightbox(i.dataset.zoom,i.dataset.name));R.querySelectorAll('[data-img]').forEach(b=>b.onclick=()=>jumpToImage(b.dataset.img));R.querySelectorAll('[data-vid]').forEach(b=>b.onclick=()=>playVideo(b.dataset.vid,b.dataset.name))}
 function stats(){const imgs=BL.flatMap(b=>b.images);const c=k=>imgs.filter(m=>m.status===k).length;
   const issues=P.scenes.reduce((n,s)=>n+s.issues.length+s.warnings.length+s.env.reduce((a,e)=>a+e.issues.length,0)+s.blocks.reduce((a,b)=>a+b.images.reduce((x,m)=>x+m.issues.length,0)+b.items.reduce((x,t)=>x+t.issues.length,0),0),0);
   $('#info').textContent=`${imgs.filter(m=>m.src).length}/${imgs.length} تصویر · ✅${c('ok')} 🔁${c('redo')} · ⚠${imgs.filter(m=>m.stale).length}${issues?` · ⚑${issues}`:''}`}
