@@ -4,7 +4,7 @@ Usage:  python tools/subtitles.py        (or the «📝 زیرنویس» button 
 Timing follows the review page's auto-play: each line lasts as long as its voice file, 0.26 s between lines, 0.38 s after a block,
 3.2 s for a block with no dialogue. A line with no voice file yet gets a length estimated from its text (reported).
 The timing is provisional until the final edit exists: run it again after the edit if shot lengths change."""
-import os, shutil, subprocess, sys
+import os, re, shutil, subprocess, sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from serve import ROOT, clean_spoken, story_scenes  # noqa: E402
@@ -26,8 +26,7 @@ def duration(path):
         return None
 
 
-def cues_of(text):
-    """Split a line into cues of at most two lines of MAX_CHARS characters (never inside a word)."""
+def wrap(text):
     lines, cur = [], ""
     for w in text.split():
         if cur and len(cur) + 1 + len(w) > MAX_CHARS:
@@ -37,7 +36,28 @@ def cues_of(text):
             cur = (cur + " " + w).strip()
     if cur:
         lines.append(cur)
-    return ["\n".join(lines[i:i + 2]) for i in range(0, len(lines), 2)]
+    return lines
+
+
+def cues_of(text):
+    """Cues of at most two lines of MAX_CHARS characters, never inside a word; a cue ends where a sentence ends
+    (short sentences that fit together share one cue)."""
+    out, cur = [], []
+    for sent in re.split(r"(?<=[.!?؟…])\s+", text.strip()):
+        lines = wrap(sent)
+        if cur and len(wrap(" ".join(cur + [sent]))) <= 2:  # still fits in the open cue
+            cur.append(sent)
+            continue
+        if cur:
+            out.append("\n".join(wrap(" ".join(cur))))
+            cur = []
+        if len(lines) <= 2:
+            cur = [sent]
+        else:
+            out += ["\n".join(lines[i:i + 2]) for i in range(0, len(lines), 2)]
+    if cur:
+        out.append("\n".join(wrap(" ".join(cur))))
+    return out
 
 
 def stamp(t):

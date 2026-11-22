@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.6.1
+- Subtitle cues end where a sentence ends (short sentences share a cue), instead of breaking mid-sentence.
+
 ## 1.6.0
 - Subtitles: «📝 زیرنویس» button (or `python tools/subtitles.py`) writes `subtitles/fa.srt` and `subtitles/en.srt` from the scenario; each line lasts as long as its voice file (estimated from the text when there is none yet), with the same gaps as the auto-play.
 
