@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.6.2
+- Floating play button redrawn: crisp SVG play/pause icons exactly centered, soft gradient, press feedback and a pulse while playing.
+- Page CSS reformatted (one declaration per line, shared colour tokens); visible keyboard focus rings; larger invisible hit areas for the small buttons; tiny 11px labels raised to 12px; reduced-motion support; aria-labels on icon-only buttons.
+- Fix: auto-play left timers running after each pause or clip (small leak), now cleaned up.
+
 ## 1.6.1
 - Subtitle cues end where a sentence ends (short sentences share a cue), instead of breaking mid-sentence.
 
