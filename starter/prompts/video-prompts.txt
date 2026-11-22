@@ -1,10 +1,12 @@
 # پرامپت‌های ویدیو (تصویر به ویدیو). هر بلوک با «=== IMG### ===» شروع می‌شه و کامل و مستقل است؛ تصویر همان شناسه، فریم اول ویدیوست.
 
 === IMG001 ===
+[REFS TO ATTACH: STYLE_ANCHOR| CH_ALI]
 [START FRAME: IMG001]
 Animate the attached picture as the very first frame. Keep its exact hand-drawn look, colors, characters and layout; flat 2D cartoon animation, never 3D or live action.
+Characters (exactly as in the attached reference images): CH_ALI (plain white round head, curly dark hair, orange jacket).
 Shot: 8 seconds, 16:9, slow gentle push-in.
-Action: Ali walks past the shops holding his coffee cup, takes a sip and smiles.
-Ending: Ali stops and looks up, surprised.
+Action: CH_ALI walks past the shops holding his coffee cup, takes a sip and smiles.
+Ending: CH_ALI stops and looks up, surprised.
 Sound: no speech, no voice-over, no music; only soft cartoon sound effects (footsteps, a sip).
 Avoid: no new characters, no text or letters, no talking or lip movement, no 3D, no style change, no changing faces.
