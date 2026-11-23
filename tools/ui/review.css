@@ -1113,3 +1113,10 @@ dialog.dlg details{margin:4px 0}
 button.vgen{font-size:14px}
 dialog.dlg .dgen label:first-child{flex:1 1 100%}
 dialog.dlg .dgen label:first-child select{width:100%;margin-top:4px}
+
+dialog.dlg .arefs{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px;margin:8px 0}
+dialog.dlg .aref{display:flex;align-items:center;gap:8px;padding:6px;border:1px solid var(--line-2);border-radius:8px;cursor:pointer}
+dialog.dlg .aref:has(input:checked){background:#fff3d1;border-color:var(--accent)}
+dialog.dlg .aref small{display:block}
+dialog.dlg span.dthumb.none{display:flex;align-items:center;justify-content:center;background:#e8e0cc;font-size:11px}
+.refs .chip.add{cursor:pointer}

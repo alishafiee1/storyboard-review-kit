@@ -989,6 +989,33 @@ def replace_prompt(lines, id_, old, new):
     return "\n".join(body).strip() != old.replace("\r\n", "\n").strip()
 
 
+REFS_LINE = re.compile(r"\[REFS TO ATTACH:[^\]]*\]")
+
+
+def set_prompt_refs(lines, id_, names):
+    """Rewrite only the «[REFS TO ATTACH: A| B]» line at the top of one prompt (added when missing, removed when empty).
+    A prompt that does not exist yet is created. Returns True when something changed."""
+    line = "[REFS TO ATTACH: " + "| ".join(names) + "]" if names else ""
+    r = prompt_ranges(lines)
+    if id_ not in r:
+        if line:
+            while lines and not lines[-1].strip():
+                lines.pop()
+            lines += ([""] if lines else []) + [f"=== {id_} ===", line, ""]
+        return bool(line)
+    s, e = r[id_]
+    i = next((k for k in range(s + 1, e) if lines[k].strip()), None)
+    if i is not None and REFS_LINE.fullmatch(lines[i].strip()):
+        if lines[i].strip() == line:
+            return False
+        lines[i:i + 1] = [line] if line else []
+    elif line:
+        lines[s + 1:s + 1] = [line]
+    else:
+        return False
+    return True
+
+
 # ---------------------------------------------------------------- server
 # ---------------------------------------------------------------- voice jobs (network; they do not hold the file lock while they wait)
 JOB = dict(state="idle", scene="", done=0, total=0, errors=[], warnings=[])
@@ -1301,6 +1328,24 @@ class H(http.server.SimpleHTTPRequestHandler):
                 "# پرامپت‌های ویدیو (تصویر به ویدیو). هر بلوک با «=== IMG### ===» شروع می‌شه و کامل و مستقل است؛ تصویر همان شناسه، فریم اول ویدیوست.", ""]
             upsert_prompt(lines, id_, str(d.get("old", "")), str(d["new"]))
             write_lines(VPROMPTS, lines)
+        elif path == "/api/refs":  # attach / detach reference pictures of one shot (edits the top line of its prompt)
+            id_ = str(d["id"])
+            names = [str(n) for n in d["refs"]]
+            if not re.fullmatch(r"IMG\d{3}", id_) or len(names) > 12 or len(set(names)) != len(names) or not all(re.fullmatch(r"[A-Za-z0-9_]+", n) for n in names):
+                raise ValueError("bad id or reference names")
+            lines = read_lines(PROMPTS)
+            pr = parse_prompts(lines)
+            known = {r["name"] for r in scan_refs(pr)} | {n for rec in pr.values() for n in rec["refs"]}  # a reference picture on disk, or one another prompt already uses
+            if any(n not in known for n in names):
+                raise ValueError("no such reference picture")
+            if set_prompt_refs(lines, id_, names):
+                write_lines(PROMPTS, lines)
+                sl = read_lines(STORY)
+                try:
+                    patch_image(sl, id_, stale=True)  # the picture was made with the old references
+                    write_lines(STORY, sl)
+                except ValueError:
+                    pass
         elif path == "/api/prompt":
             id_ = str(d["id"])
             if not re.fullmatch(r"[A-Za-z0-9_]+", id_):

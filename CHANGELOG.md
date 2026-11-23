@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.12.0
+- «📎 اتچ» next to a picture's references opens a gallery of the project's reference pictures; tick or untick and save. Only the `[REFS TO ATTACH: ...]` line at the top of that prompt is rewritten (created when the prompt does not exist yet) and the picture is marked stale. Only reference names that exist on disk or that another prompt already uses are accepted.
+- 1 new test (34 in total).
+
 ## 1.11.0
 - Voice manager per line: a small 🎙 button next to the flag opens a dialog where you listen to every voice of the line, choose the final one, archive a voice, bring an archived one back, and make a new voice with a model you pick (Persian, English or both). The new voice sits next to the old ones and becomes the chosen one. The per-scene model picker is not needed any more.
 - Archive instead of delete: «🗄 آرشیو» under a picture moves that version to `images/archive/`; archived voices go to `audio/<lang>/archive/`; «📂 آرشیو» brings them back. An archived file that was the chosen one loses its `pick:` / `voice-pick:`. Making the same model's voice again moves the older file to the archive first.

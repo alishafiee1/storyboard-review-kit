@@ -39,6 +39,14 @@ function openArchiveDialog(iid){
     return `<h3>آرشیو ${esc(iid)}</h3>${k.length?k.map(a=>`<div class="vrow"><img class="dthumb" src="${esc(a.src)}" alt=""><bdi dir="ltr">${esc(a.name)}</bdi><button class="b" data-irestore="${esc(a.name)}">↩ برگردان</button></div>`).join(''):'<div class="none">آرشیو خالیه.</div>'}<div class="dbar"><button class="b" data-dclose="1">بستن</button></div>`});
   DLG.el.dataset.kind='archive';DLG.el.dataset.iid=iid}
 
+/* ---- attach / detach reference pictures of one shot (edits the [REFS TO ATTACH: ...] line of its prompt) */
+function openAttachDialog(iid){
+  openDialog(()=>{const m=findImage(iid);if(!m)return'<p>این تصویر دیگه نیست.</p><button data-dclose>بستن</button>';
+    const have=m.refs.map(r=>r.name),all=P.refs||[],known=new Set(all.map(r=>r.name));
+    const row=(name,src,kind)=>`<label class="aref"><input type="checkbox" data-aref="${esc(name)}"${have.includes(name)?' checked':''}>${src?`<img class="dthumb" src="${esc(src)}" alt="">`:'<span class="dthumb none">فایل نداره</span>'}<span><bdi dir="ltr">${esc(name)}</bdi><small>${esc(kind||'')}</small></span></label>`;
+    return `<h3>رفرنس‌های ${esc(iid)}</h3><div class="arefs">${all.map(r=>row(r.name,r.src,r.kind)).join('')}${have.filter(n=>!known.has(n)).map(n=>row(n,'','ساخته نشده')).join('')}</div><small>رفرنس تازه باید قبلاً توی images/refs/ باشه. تغییر رفرنس یعنی تصویر کهنه می‌شه و باید دوباره ساخته بشه.</small><div class="dbar"><button class="b pri" data-dsaverefs="1">💾 ذخیره</button> <button class="b" data-dclose="1">انصراف</button></div>`});
+  DLG.el.dataset.kind='attach';DLG.el.dataset.iid=iid}
+
 document.addEventListener('click',e=>{
   const t=e.target.closest('button,input[data-dpick]');if(!t)return;
   const g=t.closest('dialog.dlg');
@@ -46,9 +54,13 @@ document.addEventListener('click',e=>{
     if(t.dataset.vgen)return openVoiceDialog(t.dataset.sc,t.dataset.vgen);
     const f=t.closest('figure.shot');
     if(f&&t.dataset.irest)return openArchiveDialog(f.dataset.id);
+    if(f&&t.dataset.attach)return openAttachDialog(f.dataset.id);
     if(f&&t.dataset.iarch){const m=findImage(f.dataset.id);if(m&&m.versions[m.vi])dAct(()=>api('/api/archive',{kind:'image',id:m.id,name:m.versions[m.vi].name}));return}
     return}
   const sid=g.dataset.sid,iid=g.dataset.iid;
+  if(t.dataset.dsaverefs){const m=findImage(iid),on=[...g.querySelectorAll('[data-aref]:checked')].map(x=>x.dataset.aref);
+    const names=[...m.refs.map(r=>r.name).filter(n=>on.includes(n)),...on.filter(n=>!m.refs.some(r=>r.name===n))];
+    return dAct(async()=>{await api('/api/refs',{id:iid,refs:names});g.close()})}
   if(t.dataset.dplay){dlgAudio.src=t.dataset.dplay+'?v='+Date.now();dlgAudio.play().catch(()=>{});return}
   if(t.dataset.dpick)return dAct(()=>api('/api/voicepick',{scene:sid,id:iid,lang:t.dataset.dpick,variant:t.value}));
   if(t.dataset.darch)return dAct(()=>api('/api/archive',{kind:'voice',id:iid,lang:t.dataset.darch,name:t.dataset.n,scene:sid}));

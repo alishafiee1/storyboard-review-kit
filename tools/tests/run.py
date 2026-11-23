@@ -668,6 +668,32 @@ def picture_archive_and_back(proj, page):
 
 
 @test
+def attach_references(proj, page):
+    """The 📎 dialog lists the project's reference pictures; saving rewrites only the REFS line of that prompt and marks the picture stale."""
+    f = "figure.shot[data-id=IMG003]"
+    page.click(f + " [data-attach]")
+    dlg = "dialog.dlg"
+    page.wait_for_selector(dlg + " [data-aref=CH_ALI]:checked")
+    assert page.locator(dlg + " [data-aref]").count() >= 2
+    page.click(dlg + " [data-aref=CH_ALI]")  # untick
+    page.click(dlg + " [data-dsaverefs]")
+    proj.wait("prompts/prompts.txt", "[REFS TO ATTACH: STYLE_ANCHOR]\nPrompt of picture 3.")
+    proj.wait_in("[IMG003]", "image-stale: yes")
+    page.wait_for_selector(dlg, state="detached")
+    assert page.locator(f + " .chip.ref, " + f + " .chip.miss").count() == 1
+    page.click(f + " [data-attach]")
+    page.click(dlg + " [data-aref=CH_ALI]")  # tick it again
+    page.click(dlg + " [data-dsaverefs]")
+    proj.wait("prompts/prompts.txt", "[REFS TO ATTACH: STYLE_ANCHOR| CH_ALI]\nPrompt of picture 3.")
+    code, data = proj.api("/api/addimage", {"scene": "scene-02"})
+    assert proj.api("/api/refs", {"id": data["id"], "refs": ["STYLE_ANCHOR"]})[0] == 200
+    assert "=== %s ===\n[REFS TO ATTACH: STYLE_ANCHOR]" % data["id"] in proj.read("prompts/prompts.txt")
+    assert proj.api("/api/refs", {"id": "IMG003", "refs": ["NOPE_NOT_THERE"]})[0] == 400
+    assert proj.api("/api/refs", {"id": "IMG003", "refs": ["bad name"]})[0] == 400
+    assert proj.api("/api/refs", {"id": "IMG003", "refs": ["CH_ALI", "CH_ALI"]})[0] == 400
+
+
+@test
 def engine_manifest_is_complete(proj, page):
     files = [l.strip() for l in open(os.path.join(KIT, "ENGINE.txt"), encoding="utf-8") if l.strip() and not l.startswith("#")]
     missing = [f for f in files if not os.path.exists(os.path.join(KIT, *f.split("/")))]
