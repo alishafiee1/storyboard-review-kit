@@ -7,7 +7,7 @@ Key: OPENROUTER_API_KEY (environment or .env). Do not use google/gemini-3.8-*-tt
 import concurrent.futures as cf, json, os, subprocess, sys, time, urllib.error, urllib.request, wave
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from serve import ROOT, spoken_lines  # noqa: E402
+from serve import ROOT, pick_made, spoken_lines, variant_tag  # noqa: E402
 import voices  # noqa: E402
 from voices import load_key  # noqa: E402
 
@@ -73,7 +73,7 @@ def make(items, lang, force=False, workers=4, on_done=None, warnings=None):
     result = {}
 
     def one(it):
-        mp3 = os.path.join(out_dir, it["id"] + ".mp3")
+        mp3 = os.path.join(out_dir, "%s.%s.mp3" % (it["id"], variant_tag(it["model"])))  # one file per model: voices never overwrite each other
         if os.path.exists(mp3) and not force:
             return it["id"], "cached"
         if not key:
@@ -112,6 +112,7 @@ if __name__ == "__main__":
     print(len(items), "lines, lang", lang, flush=True)
     warns = []
     res = make(items, lang, force=bool(os.environ.get("TTS_FORCE")), on_done=lambda i, s: s != "cached" and print(i, s, flush=True), warnings=warns)
+    pick_made(items, res, lang)
     for w in warns:
         print("⚠", w)
     print("done:", sum(v == "ok" for v in res.values()), "made,", sum(v.startswith("FAILED") for v in res.values()), "failed")

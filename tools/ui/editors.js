@@ -97,4 +97,4 @@ function wire(){
     s.querySelectorAll('[data-clr]').forEach(b=>b.onclick=async()=>{try{await api('/api/issue',{scene:sid,index:+b.dataset.clr,clear:true});await reload()}catch(e){fail(e)}});
     s.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>askDelete(sid,+b.dataset.del,b.dataset.dk,b.dataset.old,b.dataset.hasen==='1'));
     s.querySelectorAll('.addbar button').forEach(b=>b.onclick=()=>openComposer(b.parentElement,{scene:sid,after:+b.parentElement.dataset.after,kind:b.dataset.add}));
-    })}
+    });wireVersions()}

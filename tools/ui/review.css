@@ -1069,3 +1069,17 @@ select,
     animation:none!important;
   }
 }
+
+/* ---- picture versions, voice variants, scene management ---- */
+h2.sc .sct{display:inline-flex;gap:4px;margin-inline-start:auto}
+h2.sc .sct button{font:inherit;font-size:13px;line-height:1.5;padding:0 8px;border:1px solid var(--line-2);background:#fffaf0;border-radius:8px;cursor:pointer;color:var(--brown)}
+h2.sc .sct button:hover{background:#fff3d1}
+h2.sc.off{opacity:.7;background:#ece6d6}
+.scene-off{margin:6px 0}
+.addscene{display:flex;justify-content:center;margin:10px 0 0}
+.vnav{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:6px;direction:ltr}
+.vnav .vc{font-size:13px;color:var(--brown);font-weight:700;min-width:64px;text-align:center}
+.vv{font:inherit;font-size:12px;border:1px solid var(--line-2);background:#fff;border-radius:10px;padding:0 6px;cursor:pointer;line-height:1.6;color:var(--brown);direction:ltr}
+.vv:hover{background:#fff3d1}
+figure.shot.off{opacity:.5}
+figure.shot.off img{filter:grayscale(1)}

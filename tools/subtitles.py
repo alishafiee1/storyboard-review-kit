@@ -7,7 +7,7 @@ The timing is provisional until the final edit exists: run it again after the ed
 import os, re, shutil, subprocess, sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from serve import ROOT, clean_spoken, story_scenes  # noqa: E402
+from serve import ROOT, audio_path, clean_spoken, story_scenes  # noqa: E402
 
 LINE_GAP, BLOCK_GAP, SILENT = 0.26, 0.38, 3.2  # same as the page's auto-play
 CPS = {"fa": 13.0, "en": 15.0}  # characters per second, only for lines without a voice file
@@ -68,6 +68,8 @@ def stamp(t):
 def build(lang):
     t, cues, estimated = 0.0, [], []
     for sc in story_scenes():
+        if sc["off"]:
+            continue
         for b in sc["blocks"]:
             lines = [(it, clean_spoken(it["fa"] if lang == "fa" else (it["en"] or ""))) for it in b["items"] if it["k"] == "say"]
             lines = [(it, x) for it, x in lines if x]
@@ -75,8 +77,8 @@ def build(lang):
                 t += SILENT
                 continue
             for it, text in lines:
-                f = os.path.join(ROOT, "audio", lang, it["id"] + ".mp3")
-                d = duration(f) if os.path.exists(f) else None
+                f = audio_path(lang, it["id"], sc["voice_pick"])  # the voice the user chose (else the old default or the newest)
+                d = duration(f) if f else None
                 if d is None:
                     d = len(text) / CPS[lang] + 0.3
                     estimated.append(it["id"])

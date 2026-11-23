@@ -26,6 +26,9 @@
        "issues": [],
        "ln": 1,
        "note": "",
+       "off": false,
+       "pick": "",
+       "picked": "",
        "prompt": "[REFS TO ATTACH: STYLE_ANCHOR| CH_ALI]\nPrompt of the thumbnail.",
        "refs": [
         {
@@ -43,6 +46,8 @@
        "src": null,
        "stale": false,
        "status": "",
+       "versions": [],
+       "vi": -1,
        "video": null,
        "vprompt": ""
       }
@@ -67,6 +72,7 @@
    "id": "scene-00",
    "issues": [],
    "model": "",
+   "off": false,
    "time": "-",
    "title": "تامبنیل",
    "voice_stale": [],
@@ -82,6 +88,9 @@
        "issues": [],
        "ln": 4,
        "note": "رنگ‌ها شاد باشه",
+       "off": false,
+       "pick": "",
+       "picked": "",
        "prompt": "[REFS TO ATTACH: STYLE_ANCHOR| CH_ALI]\nPrompt of picture 1.",
        "refs": [
         {
@@ -96,9 +105,20 @@
         }
        ],
        "rejected": [],
-       "src": "images/scenes/IMG001_start.png",
+       "src": "images/scenes/IMG001_start_a1b2c3.png",
        "stale": false,
        "status": "ok",
+       "versions": [
+        {
+         "name": "IMG001_start.png",
+         "src": "images/scenes/IMG001_start.png"
+        },
+        {
+         "name": "IMG001_start_a1b2c3.png",
+         "src": "images/scenes/IMG001_start_a1b2c3.png"
+        }
+       ],
+       "vi": 1,
        "video": null,
        "vprompt": "[REFS TO ATTACH: STYLE_ANCHOR| CH_ALI]\n[START FRAME: IMG001]\nVideo prompt of picture 1."
       }
@@ -120,6 +140,24 @@
         "en": "audio/en/IMG001_1.mp3?v=0",
         "fa": "audio/fa/IMG001_1.mp3?v=0"
        },
+       "audio_v": {
+        "en": {
+         "chosen": "default",
+         "names": [
+          "default",
+          "eleven-v3",
+          "eleven-v4"
+         ]
+        },
+        "fa": {
+         "chosen": "default",
+         "names": [
+          "default",
+          "eleven-v3",
+          "eleven-v4"
+         ]
+        }
+       },
        "en": "This is Ali. He is not a person before coffee.",
        "en_ln": 9,
        "fa": "این علیه. صبح‌ها بدون قهوه آدم نیست.",
@@ -135,6 +173,20 @@
        "audio": {
         "en": "audio/en/IMG001_2.mp3?v=0",
         "fa": "audio/fa/IMG001_2.mp3?v=0"
+       },
+       "audio_v": {
+        "en": {
+         "chosen": "default",
+         "names": [
+          "default"
+         ]
+        },
+        "fa": {
+         "chosen": "default",
+         "names": [
+          "default"
+         ]
+        }
        },
        "en": "Where did that come from?",
        "en_ln": 11,
@@ -157,6 +209,9 @@
        "issues": [],
        "ln": 12,
        "note": "",
+       "off": false,
+       "pick": "",
+       "picked": "",
        "prompt": "[REFS TO ATTACH: STYLE_ANCHOR| CH_ALI]\nPrompt of picture 2.",
        "refs": [
         {
@@ -174,6 +229,13 @@
        "src": "images/scenes/IMG002_sign.png",
        "stale": true,
        "status": "",
+       "versions": [
+        {
+         "name": "IMG002_sign.png",
+         "src": "images/scenes/IMG002_sign.png"
+        }
+       ],
+       "vi": 0,
        "video": null,
        "vprompt": ""
       }
@@ -194,6 +256,16 @@
        "audio": {
         "en": null,
         "fa": null
+       },
+       "audio_v": {
+        "en": {
+         "chosen": "",
+         "names": []
+        },
+        "fa": {
+         "chosen": "",
+         "names": []
+        }
        },
        "en": null,
        "en_ln": null,
@@ -220,6 +292,7 @@
    "id": "scene-01",
    "issues": [],
    "model": "",
+   "off": false,
    "time": "0:00-0:15",
    "title": "شروع",
    "voice_stale": [
@@ -237,6 +310,9 @@
        "issues": [],
        "ln": 2,
        "note": "",
+       "off": false,
+       "pick": "",
+       "picked": "",
        "prompt": "[REFS TO ATTACH: STYLE_ANCHOR| CH_ALI]\nPrompt of picture 3.",
        "refs": [
         {
@@ -254,6 +330,13 @@
        "src": "images/scenes/IMG003_sea.png",
        "stale": false,
        "status": "redo",
+       "versions": [
+        {
+         "name": "IMG003_sea.png",
+         "src": "images/scenes/IMG003_sea.png"
+        }
+       ],
+       "vi": 0,
        "video": null,
        "vprompt": ""
       }
@@ -263,6 +346,16 @@
        "audio": {
         "en": null,
         "fa": null
+       },
+       "audio_v": {
+        "en": {
+         "chosen": "",
+         "names": []
+        },
+        "fa": {
+         "chosen": "",
+         "names": []
+        }
        },
        "en": "And the day was over.",
        "en_ln": 5,
@@ -289,6 +382,7 @@
    "id": "scene-02",
    "issues": [],
    "model": "",
+   "off": false,
    "time": "0:15-0:30",
    "title": "پایان",
    "voice_stale": [],

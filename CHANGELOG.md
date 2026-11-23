@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.9.0
+- Several pictures for one shot (any file name that starts with the id, random suffixes included): ◀ ▶ browse them; the one you stop on is saved as `pick:` and counts as approved (the ✅ button now chooses the shown picture). No `pick:` = the newest file.
+- Several voices for one line: `tools/tts.py` writes `audio/<lang>/<id>.<model>.mp3` (never over another model's file; the old `<id>.mp3` is the `default`). A small ‹1/3› button next to 🔊 FA / EN switches voice and plays it; the last one you stop on is saved as `voice-pick:` under the scene header and is the final voice (also used by the auto-play and the subtitles). A freshly made voice becomes the chosen one.
+- Scenes: ▲ ▼ move a scene (only the block moves; ids and file names stay), 🚫 sets a scene or a picture aside (`off: yes`, text and files stay; set-aside scenes are skipped by play, subtitles and new voices), «＋ صحنهٔ جدید» adds a scene with 0 to 12 empty picture slots. Scene numbers on the page follow the order; scene ids may now have 3 digits.
+- 7 new browser tests (29 in total).
+
 ## 1.8.0
 - `review.html` is now a small page shell; its style and code moved, unchanged, to `tools/ui/` (`review.css` and six scripts: paper, core, render, editors, panels, player). The page looks and behaves exactly as before (checked against a recorded copy of the old page).
 - The local server no longer serves hidden files (`.env`, `.git`, `.engine-backup`), `*.py` sources or `*.tmp` files. Before, `.env` could be downloaded from 127.0.0.1.

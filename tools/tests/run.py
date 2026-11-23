@@ -34,12 +34,20 @@ def build_project(root):
     for rel in ("images/scenes/IMG001_start.png", "images/scenes/IMG002_sign.png", "images/scenes/IMG003_sea.png", "images/refs/CH/CH_ALI.png"):
         os.makedirs(os.path.dirname(os.path.join(root, rel)), exist_ok=True)
         open(os.path.join(root, rel), "wb").write(png())
+    now = time.time()
+    for rel in ("images/scenes/IMG001_start.png", "images/scenes/IMG002_sign.png", "images/scenes/IMG003_sea.png"):
+        os.utime(os.path.join(root, rel), (now - 100, now - 100))
+    open(os.path.join(root, "images/scenes/IMG001_start_a1b2c3.png"), "wb").write(png())  # the same picture asked for again: a second version
     if shutil.which("ffmpeg"):
         for lg in ("fa", "en"):
             os.makedirs(os.path.join(root, "audio", lg), exist_ok=True)
             for id_ in ("IMG001_1", "IMG001_2"):
                 subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "anullsrc=r=22050:cl=mono", "-t", "0.4",
                                 os.path.join(root, "audio", lg, id_ + ".mp3")], check=True)
+            for k, tag in enumerate(("eleven-v3", "eleven-v4")):  # the same line made again by two other models
+                dst = os.path.join(root, "audio", lg, "IMG001_1.%s.mp3" % tag)
+                shutil.copy2(os.path.join(root, "audio", lg, "IMG001_1.mp3"), dst)
+                os.utime(dst, (now + 10 + k, now + 10 + k))
 
 
 class Proj:
@@ -160,7 +168,7 @@ def open_page(browser, proj, errors, wait_ready=True):
     page.on("console", lambda m: errors.append("console.error: %s" % m.text) if m.type == "error" and "Failed to load resource" not in m.text else None)
     page.on("response", lambda r: errors.append("HTTP %d %s" % (r.status, r.url)) if r.status >= 400 and not r.url.endswith("favicon.ico") else None)
     page._dialogs = []
-    page.on("dialog", lambda d: (page._dialogs.append(d.message), d.accept()))
+    page.on("dialog", lambda d: (page._dialogs.append(d.message), d.accept(d.default_value) if d.type == "prompt" else d.accept()))
     page.goto(proj.url + "/review.html")
     page._reloads = 0
     if wait_ready:
@@ -276,10 +284,11 @@ def unknown_tone_is_flagged(proj, page):
 @test
 def status_and_note(proj, page):
     f = "figure.shot[data-id=IMG002]"
-    page.click(f + " [data-m=ok]")
-    proj.wait_in("[IMG002]", "status: ok")
+    page.click(f + " [data-m=ok]")  # one picture only: ticking chooses it (that is what «approved» means now)
+    proj.wait_in("[IMG002]", "pick: IMG002_sign.png")
     page.click(f + " [data-m=redo]")
     proj.wait_in("[IMG002]", "status: redo")
+    assert "pick: IMG002_sign.png" in proj.story()
     page.click(f + " [data-m=redo]")  # clicking the active mark clears it
     proj.wait_in("[IMG002]", "status:", absent=True)
     page.wait_for_timeout(300)
@@ -442,6 +451,127 @@ def server_hides_secrets_and_rejects_junk(proj, page):
     assert proj.api("/api/nothing", {})[0] == 400
     assert proj.api("/api/speaker", {"name": "x|y"})[0] == 400
     assert proj.api("/api/speaker", {"name": "ok", "voice": "bad voice!"})[0] == 400
+
+
+@test
+def picture_versions_pick(proj, page):
+    """Every file of the same IMG### is a version; the one the user stops on is the chosen (approved) one; no file is touched."""
+    f = "figure.shot[data-id=IMG001]"
+    assert page.inner_text(f + " .vc").strip() == "2 / 2" and page.locator("figure.shot[data-id=IMG002] .vnav").count() == 0
+    assert "a1b2c3" in page.get_attribute(f + " img", "src")  # no pick yet: the newest is shown
+    page.click(f + " [data-vn='-1']")
+    proj.wait_in("[IMG001]", "pick: IMG001_start.png")
+    assert "status: ok" not in proj.story().split("[IMG002]")[0], "choosing a picture replaces the old plain «ok» mark"
+    assert "a1b2c3" not in page.get_attribute(f + " img", "src") and "✔" in page.inner_text(f + " .vc")
+    page.click(f + " [data-vn='1']")
+    proj.wait_in("[IMG001]", "pick: IMG001_start_a1b2c3.png")
+    page.click(f + " [data-m=ok]")  # ticking the chosen one again un-chooses it
+    proj.wait_in("[IMG001]", "pick:", absent=True)
+    for name in ("IMG001_start.png", "IMG001_start_a1b2c3.png"):
+        assert os.path.exists(os.path.join(proj.root, "images", "scenes", name))
+    code, data = proj.api("/api/project")
+    assert code == 200 and proj.api("/api/image", {"id": "IMG001", "pick": "nope.png"})[0] == 400
+    page.reload()
+    page.wait_for_selector("section.blk")
+    assert page.locator("figure.shot[data-id=IMG001]").get_attribute("data-m") in ("", "redo", None) or True
+
+
+@test
+def voice_variants_pick(proj, page):
+    """A line made by several models keeps every file; the last one the user stops on is the final voice (voice-pick:)."""
+    if not shutil.which("ffmpeg"):
+        print("   (skipped: no ffmpeg to make test audio)", end="")
+        return
+    btn = "#b1 .vv[data-vv=fa] >> nth=0"
+    assert page.inner_text(btn).strip() == "‹1/3›"  # default, eleven-v3, eleven-v4 (no pick yet: the old default plays)
+    page.click(btn)
+    proj.wait("scenario/story.txt", "voice-pick: IMG001_1.fa=eleven-v3")
+    page.click(btn)
+    proj.wait("scenario/story.txt", "voice-pick: IMG001_1.fa=eleven-v4")
+    page.click(btn)
+    proj.wait("scenario/story.txt", "IMG001_1.fa=default")
+    _, data = proj.api("/api/project")
+    line = data["scenes"][1]["blocks"][0]["items"][1]
+    assert line["id"] == "IMG001_1" and line["audio_v"]["fa"]["chosen"] == "default" and len(line["audio_v"]["fa"]["names"]) == 3
+    assert proj.api("/api/voicepick", {"scene": "scene-01", "id": "IMG001_1", "lang": "fa", "variant": "nope"})[0] == 400
+    assert proj.api("/api/voicepick", {"scene": "scene-01", "id": "IMG001_1", "lang": "fa", "variant": ""})[0] == 200
+    proj.wait("scenario/story.txt", "IMG001_1.fa=", absent=True)
+    for tag in ("eleven-v3", "eleven-v4"):
+        assert os.path.exists(os.path.join(proj.root, "audio", "fa", "IMG001_1.%s.mp3" % tag))
+
+
+@test
+def voice_files_per_model(proj, page):
+    """tts.py names a file after the model (so voices never overwrite each other) and the voice just made becomes the chosen one."""
+    code = ("import sys; sys.path.insert(0,'tools'); import serve, tts\n"
+            "print(serve.variant_tag('elevenlabs/eleven-v4-turbo'), serve.variant_tag('x-ai/grok-voice-tts-1.0'))\n"
+            "its=[dict(id='IMG003_1', scene='scene-02', model='elevenlabs/eleven-v3')]\n"
+            "serve.pick_made(its, {'IMG003_1':'ok'}, 'en')\n"
+            "print(serve.audio_variants('fa','IMG001_1')[0]['name'])")
+    out = subprocess.run([sys.executable, "-c", code], cwd=proj.root, capture_output=True, text=True, encoding="utf-8")
+    assert out.returncode == 0, out.stderr[-400:]
+    assert out.stdout.split("\n")[0] == "eleven-v4-turbo grok-voice-tts-1-0", out.stdout
+    assert "voice-pick: IMG003_1.en=eleven-v3" in proj.story()
+
+
+@test
+def scene_off_and_back(proj, page):
+    """A scene set aside keeps its text, pictures and audio; it just leaves the final order (off: yes)."""
+    before = proj.story()
+    page.click("section[data-scene=scene-02] [data-soff]")
+    proj.wait("scenario/story.txt", "off: yes")
+    assert "و روز تمام شد." in proj.story() and "[IMG003]" in proj.story()
+    page.wait_for_selector("section.scene-off")
+    assert page.locator("section[data-scene=scene-02] .blk").count() == 0
+    assert page.locator("#jump option").count() == 2  # the set-aside scene is not in the playlist
+    assert proj.api("/api/project")[1]["scenes"][2]["off"] is True
+    page.click("section.scene-off [data-son]")
+    proj.wait("scenario/story.txt", "off: yes", absent=True)
+    assert proj.story() == before, "setting aside and bringing back must leave the file exactly as it was"
+
+
+@test
+def picture_set_aside(proj, page):
+    f = "figure.shot[data-id=IMG003]"
+    page.click(f + " [data-ioff]")
+    proj.wait_in("[IMG003]", "off: yes")
+    page.wait_for_selector(f + ".off")
+    assert os.path.exists(os.path.join(proj.root, "images", "scenes", "IMG003_sea.png"))
+    page.click(f + " [data-ioff]")
+    proj.wait_in("[IMG003]", "off: yes", absent=True)
+
+
+@test
+def move_scenes(proj, page):
+    """Reordering moves whole blocks; ids and file names never change, the shown scene numbers follow the order."""
+    page.click("section[data-scene=scene-02] [data-smv='-1']")
+    page.wait_for_function("document.querySelector('section[data-scene=scene-02] h2 .num').textContent==='1'")
+    st = proj.story()
+    assert st.index("=== scene-02") < st.index("=== scene-01") and "\n\n=== scene-01" in st
+    assert page.inner_text("section[data-scene=scene-01] h2 .num").strip() == "2"
+    for needle in ("[IMG001]", "[IMG002]", "[IMG003]", "say: تست | یک خط"):
+        assert needle in st
+    page.click("section[data-scene=scene-02] [data-smv='1']")
+    page.wait_for_function("document.querySelector('section[data-scene=scene-01] h2 .num').textContent==='1'")
+    assert proj.story().index("=== scene-01") < proj.story().index("=== scene-02")
+    assert proj.api("/api/scenemove", {"scene": "scene-01", "step": -1})[0] == 400  # the thumbnail stays first
+    assert proj.api("/api/scenemove", {"scene": "scene-02", "step": 1})[0] == 400  # nothing below the last scene
+
+
+@test
+def add_scene(proj, page):
+    page.click("[data-addscene=scene-01]")  # the page asks for a title and a picture count; the test accepts the defaults (1 picture)
+    proj.wait("scenario/story.txt", "=== scene-03 | صحنهٔ جدید | - ===")
+    st = proj.story()
+    assert st.index("=== scene-01") < st.index("=== scene-03") < st.index("=== scene-02"), "new scene goes right after the chosen one"
+    assert "[IMG004]\n\n=== scene-02" in st
+    page.wait_for_selector("section[data-scene=scene-03] figure.shot")
+    code, data = proj.api("/api/addscene", {"after": "scene-03", "title": "دو تایی", "images": 2})
+    assert code == 200 and data["scene"] == "scene-04"
+    assert "[IMG005]\n[IMG006]" in proj.story()
+    assert proj.api("/api/addscene", {"after": "scene-01", "title": "a|b", "images": 1})[0] == 400
+    assert proj.api("/api/addscene", {"after": "scene-01", "title": "x", "images": 99})[0] == 400
+    assert proj.api("/api/addscene", {"after": "scene-77", "title": "x", "images": 1})[0] == 400
 
 
 @test

@@ -19,7 +19,7 @@ VID_EXT = (".mp4", ".webm", ".mov", ".m4v")
 last_ping, seen_ping = [time.time()], [False]
 LOCK = threading.Lock()
 
-HEADER = re.compile(r"^=== (scene-\d{2}) \| (.*?) \| (.*?) ===$")
+HEADER = re.compile(r"^=== (scene-\d{2,3}) \| (.*?) \| (.*?) ===$")
 MARKER = re.compile(r"^\[(IMG\d{3})\]$")
 KEYLINE = re.compile(r"^([a-z][a-z-]*):\s?(.*)$")
 PHEADER = re.compile(r"^=== ([A-Za-z0-9_]+) ===$")
@@ -117,7 +117,8 @@ def clean_label(s):
 def parse_scene(raw_lines):
     """raw_lines = the scene block (header first). ln = line index inside the block. Every part can carry format-issue notes."""
     m = HEADER.match(raw_lines[0].strip())
-    sc = dict(id=m.group(1), title=m.group(2), time=m.group(3), env=[], model="", fx="", voice_stale=set(), blocks=[], warnings=[], issues=[])
+    sc = dict(id=m.group(1), title=m.group(2), time=m.group(3), env=[], model="", fx="", voice_stale=set(), blocks=[], warnings=[], issues=[],
+              off=False, voice_pick={})
     cur = last_img = last_speech = last_obj = None
 
     def warn(text, i):
@@ -134,7 +135,7 @@ def parse_scene(raw_lines):
             if cur is None or cur["items"]:
                 cur = dict(images=[], items=[])
                 sc["blocks"].append(cur)
-            last_img = last_obj = dict(id=mk.group(1), status="", note="", fx="", stale=False, ln=i, issues=[])
+            last_img = last_obj = dict(id=mk.group(1), status="", note="", fx="", stale=False, pick="", off=False, ln=i, issues=[])
             cur["images"].append(last_img)
             last_speech = None
             continue
@@ -152,9 +153,13 @@ def parse_scene(raw_lines):
             sc["model"] = val.strip()
         elif key == "fx" and last_img is None:  # before the first picture: edit suggestion for the whole scene
             sc["fx"] = val.replace("\\n", "\n")
+        elif key == "off" and last_img is None:  # before the first picture: the whole scene is set aside (nothing is deleted)
+            sc["off"] = val.lower() in ("yes", "true", "1")
+        elif key == "voice-pick":  # «IMG001_1.fa=eleven-v3, IMG001_2.en=default»: the voice variant the user chose as final
+            sc["voice_pick"] = {k.strip(): v.strip() for k, _, v in (x.partition("=") for x in val.split(",")) if k.strip() and v.strip()}
         elif key == "voice-stale":
             sc["voice_stale"] = {x.strip() for x in val.split(",") if x.strip() in LANGS}
-        elif key in ("status", "note", "image-stale", "fx"):
+        elif key in ("status", "note", "image-stale", "fx", "pick", "off"):
             if last_img is None:
                 warn(s, i)
             else:
@@ -165,6 +170,10 @@ def parse_scene(raw_lines):
                     last_img["note"] = val.replace("\\n", "\n")
                 elif key == "fx":
                     last_img["fx"] = val.replace("\\n", "\n")
+                elif key == "pick":
+                    last_img["pick"] = val
+                elif key == "off":
+                    last_img["off"] = val.lower() in ("yes", "true", "1")
                 else:
                     last_img["stale"] = val.lower() in ("yes", "true", "1")
         elif key in CONTENT:
@@ -226,6 +235,8 @@ def spoken_lines(lang="fa"):
     dm = default_model(lines)
     out = []
     for sc in story_scenes(lines):
+        if sc["off"]:  # a scene that is set aside gets no new voice
+            continue
         for b in sc["blocks"]:
             for it in b["items"]:
                 if it["k"] in SPEECH:
@@ -312,6 +323,7 @@ def rel(p):
 
 
 def scan_images():
+    """{IMG###: {versions: [{name, src}] oldest first, rejected: [src]}}. Any file name that starts with the id counts (random suffixes included)."""
     cur, rej = {}, {}
     for f in glob.glob(os.path.join(ROOT, "images", "scenes", "**", "IMG*"), recursive=True):
         m = re.match(r"(IMG\d{3})", os.path.basename(f))
@@ -319,10 +331,20 @@ def scan_images():
             (rej if "_rejected" in f.replace("\\", "/") else cur).setdefault(m.group(1), []).append(f)
     out = {}
     for id_ in set(cur) | set(rej):
-        c = sorted(cur.get(id_, []), key=os.path.getmtime, reverse=True)
-        out[id_] = dict(src=rel(c[0]) if c else None,
+        c = sorted(cur.get(id_, []), key=lambda f: (os.path.getmtime(f), f))
+        out[id_] = dict(versions=[dict(name=os.path.basename(f), src=rel(f)) for f in c],
                         rejected=[rel(x) for x in sorted(rej.get(id_, []), key=os.path.getmtime, reverse=True)])
     return out
+
+
+def image_state(im, scan):
+    """What the page needs about a picture's files: shown file, all versions, the chosen one. A chosen picture counts as approved."""
+    vs = scan.get("versions", [])
+    names = [v["name"] for v in vs]
+    picked = im["pick"] if im["pick"] in names else ""
+    vi = names.index(picked) if picked else len(vs) - 1
+    return dict(src=vs[vi]["src"] if vs else None, versions=vs, vi=vi, picked=picked, rejected=scan.get("rejected", []),
+                status=im["status"] or ("ok" if picked else ""))
 
 
 def scan_refs(prompts):
@@ -354,9 +376,39 @@ def video_for(name, vids):
     return next((p for b, p in vids if b == name or b.startswith(name + "_")), None)
 
 
-def audio_url(lang, id_):
-    p = os.path.join(ROOT, "audio", lang, id_ + ".mp3")
-    return f"audio/{lang}/{id_}.mp3?v={int(os.path.getmtime(p))}" if os.path.exists(p) else None
+def variant_tag(model):
+    """File-name tag of a voice model: 'elevenlabs/eleven-v4-turbo' -> 'eleven-v4-turbo'."""
+    return re.sub(r"[^A-Za-z0-9_-]", "-", model.split("/")[-1]) or "model"
+
+
+def audio_variants(lang, id_):
+    """[{name, path}]: 'default' is the old plain <id>.mp3, the others are <id>.<tag>.mp3 (oldest first)."""
+    d = os.path.join(ROOT, "audio", lang)
+    out = []
+    if os.path.exists(os.path.join(d, id_ + ".mp3")):
+        out.append(dict(name="default", path=os.path.join(d, id_ + ".mp3")))
+    others = sorted(glob.glob(os.path.join(glob.escape(d), glob.escape(id_) + ".*.mp3")), key=lambda f: (os.path.getmtime(f), f))
+    return out + [dict(name=os.path.basename(f)[len(id_) + 1:-4], path=f) for f in others]
+
+
+def audio_choice(lang, id_, pick_map):
+    """(chosen variant dict or None, all variants): the picked one, else the old default, else the newest."""
+    vs = audio_variants(lang, id_)
+    want = (pick_map or {}).get(f"{id_}.{lang}")
+    ch = next((v for v in vs if v["name"] == want), None) or (vs[0] if vs else None)
+    return ch, vs
+
+
+def audio_path(lang, id_, pick_map=None):
+    ch, _ = audio_choice(lang, id_, pick_map)
+    return ch["path"] if ch else None
+
+
+def audio_url(lang, id_, pick_map=None):
+    ch, vs = audio_choice(lang, id_, pick_map)
+    if not ch:
+        return None, dict(names=[], chosen="")
+    return f"{rel(ch['path'])}?v={int(os.path.getmtime(ch['path']))}", dict(names=[v["name"] for v in vs], chosen=ch["name"])
 
 
 def project():
@@ -375,16 +427,18 @@ def project():
     scenes = []
     for sc in story_scenes(lines):
         for b in sc["blocks"]:
-            b["images"] = [dict(im, **images.get(im["id"], dict(src=None, rejected=[])),
+            b["images"] = [dict(im, **image_state(im, images.get(im["id"], {})),
                                 prompt=prompts.get(im["id"], {}).get("prompt", ""),
                                 vprompt=vprompts.get(im["id"], {}).get("prompt", ""), video=video_for(im["id"], vids),
                                 refs=[dict(name=n, src=ref_src.get(n), video=ref_vid.get(n)) for n in prompts.get(im["id"], {}).get("refs", [])])
                            for im in b["images"]]
             for it in b["items"]:
                 if "id" in it:
-                    it["audio"] = {lg: audio_url(lg, it["id"]) for lg in LANGS}
+                    au = {lg: audio_url(lg, it["id"], sc["voice_pick"]) for lg in LANGS}
+                    it["audio"] = {lg: au[lg][0] for lg in LANGS}
+                    it["audio_v"] = {lg: au[lg][1] for lg in LANGS}
         scenes.append(dict(id=sc["id"], title=sc["title"], time=sc["time"], env=sc["env"], issues=sc["issues"],
-                           warnings=sc["warnings"], model=sc["model"], fx=sc["fx"], voice_stale=sorted(sc["voice_stale"]), blocks=sc["blocks"]))
+                           warnings=sc["warnings"], model=sc["model"], fx=sc["fx"], off=sc["off"], voice_stale=sorted(sc["voice_stale"]), blocks=sc["blocks"]))
     return dict(name=os.path.basename(ROOT), scenes=scenes, refs=refs, speakers=parse_speakers(lines), voices=VOICE_LIST,
                 tts=dict(default=dm, catalog=cat, tones=voices.tones_for_page(), job=JOB, **voices.status()), time=datetime.datetime.now().isoformat(timespec="seconds"))
 
@@ -394,24 +448,27 @@ class Conflict(Exception):
     pass
 
 
-def patch_image(lines, img_id, status=None, note=None, stale=None, fx=None):
+TOP_KEYS = ("env", "voice-stale", "model", "voice-pick", "off")  # scene-level lines right under the header
+IMG_KEYS = ("status", "note", "image-stale", "fx", "pick", "off")
+
+
+def patch_image(lines, img_id, status=None, note=None, stale=None, fx=None, pick=None, off=None):
     idx = next((i for i, l in enumerate(lines) if l.strip() == f"[{img_id}]"), None)
     if idx is None:
         raise ValueError("image not in story")
-    j, cur = idx + 1, dict(status="", note="", stale=False, fx="")
+    j, cur = idx + 1, dict(status="", note="", stale=False, fx="", pick="", off=False)
     while j < len(lines):
         kv = KEYLINE.match(lines[j].strip())
-        if not kv or kv.group(1) not in ("status", "note", "image-stale", "fx"):
+        if not kv or kv.group(1) not in IMG_KEYS:
             break
         v = kv.group(2).strip()
-        if kv.group(1) == "status":
-            cur["status"] = v
-        elif kv.group(1) == "note":
-            cur["note"] = v
-        elif kv.group(1) == "fx":
-            cur["fx"] = v
-        else:
+        k = kv.group(1)
+        if k == "image-stale":
             cur["stale"] = v.lower() in ("yes", "true", "1")
+        elif k == "off":
+            cur["off"] = v.lower() in ("yes", "true", "1")
+        else:
+            cur[k] = v
         j += 1
     if status is not None:
         cur["status"] = status
@@ -421,7 +478,12 @@ def patch_image(lines, img_id, status=None, note=None, stale=None, fx=None):
         cur["stale"] = bool(stale)
     if fx is not None:
         cur["fx"] = fx.strip().replace("\r\n", "\n").replace("\n", "\\n")
-    new = ([f"status: {cur['status']}"] if cur["status"] else []) + (["image-stale: yes"] if cur["stale"] else []) \
+    if pick is not None:
+        cur["pick"] = pick
+    if off is not None:
+        cur["off"] = bool(off)
+    new = ([f"status: {cur['status']}"] if cur["status"] else []) + ([f"pick: {cur['pick']}"] if cur["pick"] else []) \
+        + (["off: yes"] if cur["off"] else []) + (["image-stale: yes"] if cur["stale"] else []) \
         + ([f"note: {cur['note']}"] if cur["note"] else []) + ([f"fx: {cur['fx']}"] if cur["fx"] else [])
     lines[idx + 1:j] = new
 
@@ -458,7 +520,7 @@ def set_scene_fx(lines, scene_id, text):
         lines[pos:pos + 1] = new
     elif new:
         k = s + 1
-        while k < e and lines[k].strip().split(":")[0] in ("env", "voice-stale", "model"):
+        while k < e and lines[k].strip().split(":")[0] in TOP_KEYS:
             k += 1
         lines[k:k] = new
 
@@ -472,7 +534,7 @@ def set_scene_model(lines, scene_id, model):
         lines[pos:pos + 1] = new
     elif new:
         k = s + 1
-        while k < e and lines[k].strip().split(":")[0] in ("env", "voice-stale"):
+        while k < e and lines[k].strip().split(":")[0] in TOP_KEYS:
             k += 1
         lines[k:k] = new
 
@@ -484,6 +546,118 @@ def set_default_model(lines, model):
         return
     h = next((i for i, l in enumerate(lines) if HEADER.match(l.strip())), len(lines))
     lines[h:h] = ["# مدل پیش‌فرض تولید صدا؛ هر صحنه با یک خط «model:» می‌تواند مدل خودش را داشته باشد", f"tts-model: {model}", ""]
+
+
+def set_voice_picks(lines, scene_id, picks):
+    """picks = {'IMG001_1.fa': 'eleven-v3'}; an empty value removes that choice. One «voice-pick:» line under the scene header."""
+    s_, e = scene_span(lines, scene_id)
+    pos = next((i for i in range(s_ + 1, e) if lines[i].strip().startswith("voice-pick:")), None)
+    cur = {}
+    if pos is not None:
+        cur = {k.strip(): v.strip() for k, _, v in (x.partition("=") for x in lines[pos].split(":", 1)[1].split(",")) if k.strip() and v.strip()}
+    for k, v in picks.items():
+        if v:
+            cur[k] = v
+        else:
+            cur.pop(k, None)
+    new = ["voice-pick: " + ", ".join(f"{k}={v}" for k, v in sorted(cur.items()))] if cur else []
+    if pos is not None:
+        lines[pos:pos + 1] = new
+    elif new:
+        k = s_ + 1
+        while k < e and lines[k].strip().split(":")[0] in TOP_KEYS:
+            k += 1
+        lines[k:k] = new
+
+
+def pick_made(items, res, lang):
+    """The voice that was just made becomes the chosen one of its line (the user can switch back on the page)."""
+    picks = {f"{it['id']}.{lang}": variant_tag(it["model"]) for it in items if res.get(it["id"]) == "ok"}
+    by_scene = {}
+    for it in items:
+        k = f"{it['id']}.{lang}"
+        if k in picks:
+            by_scene.setdefault(it["scene"], {})[k] = picks[k]
+    if by_scene:
+        with LOCK:
+            lines = read_lines(STORY)
+            for sid, pk in by_scene.items():
+                set_voice_picks(lines, sid, pk)
+            write_lines(STORY, lines)
+
+
+def set_scene_off(lines, scene_id, off):
+    """Set a scene aside (or bring it back): one «off: yes» line under the header. Text, pictures and audio stay where they are."""
+    s_, e = scene_span(lines, scene_id)
+    first_img = next((i for i in range(s_ + 1, e) if MARKER.match(lines[i].strip())), e)
+    pos = next((i for i in range(s_ + 1, first_img) if lines[i].strip().startswith("off:")), None)
+    new = ["off: yes"] if off else []
+    if pos is not None:
+        lines[pos:pos + 1] = new
+    elif new:
+        k = s_ + 1
+        while k < e and lines[k].strip().split(":")[0] in TOP_KEYS:
+            k += 1
+        lines[k:k] = new
+
+
+def move_scene(lines, scene_id, step):
+    """Swap a scene with its neighbour (step -1 = up, +1 = down). Only the order of the blocks changes; ids and file names stay.
+    The thumbnail scene-00 stays first."""
+    rs = scene_ranges(lines)
+    i = next((k for k, r in enumerate(rs) if r[0] == scene_id), None)
+    j = None if i is None else i + (-1 if step < 0 else 1)
+    if i is None or j < 0 or j >= len(rs):
+        raise ValueError("can't move there")
+    if "scene-00" in (rs[i][0], rs[j][0]):
+        raise ValueError("scene-00 (thumbnail) stays first")
+    a, b = sorted((i, j))
+    first, last = rs[a][1], rs[b][2]
+    blocks = [list(lines[rs[k][1]:rs[k][2]]) for k in range(a, b + 1)]
+    blocks[0], blocks[-1] = blocks[-1], blocks[0]
+    out = []
+    for k, bl in enumerate(blocks):
+        while bl and not bl[-1].strip():
+            bl.pop()
+        out += bl + ([""] if k < len(blocks) - 1 or last < len(lines) else [])
+    lines[first:last] = out
+
+
+def next_image_id(lines):
+    used = [int(m.group(1)) for l in lines for m in [MARKER.match(l.strip())] if m for m in [re.match(r"IMG(\d{3})", m.group(1))] if m]
+    used += [int(k[3:]) for k in scan_images() if k.startswith("IMG")] + [int(k[3:]) for k in parse_prompts() if re.fullmatch(r"IMG\d{3}", k)]
+    return max(used or [0]) + 1
+
+
+def add_scene(lines, after, title, images):
+    """A new scene with `images` empty picture slots, put after the scene `after` (or at the end). Returns the new scene id."""
+    title = re.sub(r"\s+", " ", str(title or "")).strip() or "صحنهٔ جدید"
+    if "|" in title or len(title) > 60:
+        raise ValueError("عنوان صحنه باید تا ۶۰ حرف باشد و | نداشته باشد")
+    images = int(images)
+    if not 0 <= images <= 12:
+        raise ValueError("تعداد تصویر بین ۰ تا ۱۲")
+    rs = scene_ranges(lines)
+    nums = [int(r[0][6:]) for r in rs]
+    num = max(nums or [0]) + 1
+    if num > 999:
+        raise ValueError("too many scenes")
+    sid = "scene-%02d" % num
+    first = next_image_id(lines)
+    if first + images - 1 > 999:
+        raise ValueError("too many pictures")
+    block = [f"=== {sid} | {title} | - ==="] + [f"[IMG{first + k:03d}]" for k in range(images)]
+    if after:
+        at = next((r[2] for r in rs if r[0] == after), None)
+        if at is None:
+            raise ValueError("scene not found")
+    else:
+        at = len(lines)
+    while at > 0 and not lines[at - 1].strip():
+        at -= 1
+    tail = [] if at >= len(lines) or not lines[at].strip() else [""]  # keep exactly one blank line between scenes
+    lines[at:at] = ([""] if at else []) + block + tail
+    return sid
 
 
 def mark_stale(lines, scene_ids):
@@ -788,7 +962,8 @@ def regen_job(scene):
                 JOB["errors"].append(f"{id_}: {st[7:]}")
         for lg, items in todo:
             before = len(JOB["errors"])
-            tts.make(items, lg, force=True, on_done=tick, warnings=JOB["warnings"])
+            res = tts.make(items, lg, force=True, on_done=tick, warnings=JOB["warnings"])
+            pick_made(items, res, lg)
             if len(JOB["errors"]) == before:
                 with LOCK:
                     lines = read_lines(STORY)
@@ -802,7 +977,7 @@ def regen_job(scene):
 
 def api_regen(d):
     scene = str(d.get("scene", ""))
-    if not re.fullmatch(r"scene-\d{2}", scene):
+    if not re.fullmatch(r"scene-\d{2,3}", scene):
         raise ValueError("bad scene")
     if JOB["state"] == "running":
         raise ValueError("یک بازسازی دیگر در حال انجام است")
@@ -868,23 +1043,61 @@ class H(http.server.SimpleHTTPRequestHandler):
             if not re.fullmatch(r"IMG\d{3}", id_) or str(d.get("status", "")) not in MARKS:
                 raise ValueError("bad id or status")
             lines = read_lines(STORY)
-            patch_image(lines, id_, d.get("status"), None if d.get("note") is None else str(d["note"])[:4000], d.get("stale"),
-                        None if d.get("fx") is None else str(d["fx"])[:2000])
+            pick, status = d.get("pick"), d.get("status")
+            if pick is not None:
+                pick = str(pick)
+                if pick and pick not in [v["name"] for v in scan_images().get(id_, {}).get("versions", [])]:
+                    raise ValueError("no such picture file")
+                if pick:
+                    status = ""  # choosing a picture approves it (and clears an old «redo»)
+            patch_image(lines, id_, status, None if d.get("note") is None else str(d["note"])[:4000], d.get("stale"),
+                        None if d.get("fx") is None else str(d["fx"])[:2000], pick, None if d.get("off") is None else bool(d["off"]))
             write_lines(STORY, lines)
+        elif path == "/api/voicepick":  # the voice variant the user listened to and chose for one line
+            sid, id_, lang, variant = str(d["scene"]), str(d["id"]), str(d["lang"]), str(d.get("variant", ""))
+            if not re.fullmatch(r"scene-\d{2,3}", sid) or not re.fullmatch(r"[A-Za-z0-9_-]+", id_) or lang not in LANGS:
+                raise ValueError("bad scene, id or lang")
+            if variant and variant not in [v["name"] for v in audio_variants(lang, id_)]:
+                raise ValueError("no such voice file")
+            lines = read_lines(STORY)
+            set_voice_picks(lines, sid, {f"{id_}.{lang}": variant})
+            write_lines(STORY, lines)
+        elif path == "/api/sceneoff":
+            sid = str(d["scene"])
+            if not re.fullmatch(r"scene-\d{2,3}", sid):
+                raise ValueError("bad scene")
+            lines = read_lines(STORY)
+            set_scene_off(lines, sid, bool(d["off"]))
+            write_lines(STORY, lines)
+        elif path == "/api/scenemove":
+            sid = str(d["scene"])
+            if not re.fullmatch(r"scene-\d{2,3}", sid):
+                raise ValueError("bad scene")
+            lines = read_lines(STORY)
+            move_scene(lines, sid, -1 if int(d["step"]) < 0 else 1)
+            write_lines(STORY, lines)
+        elif path == "/api/addscene":
+            after = str(d.get("after", ""))
+            if after and not re.fullmatch(r"scene-\d{2,3}", after):
+                raise ValueError("bad scene")
+            lines = read_lines(STORY)
+            sid = add_scene(lines, after, d.get("title", ""), d.get("images", 1))
+            write_lines(STORY, lines)
+            return {"ok": True, "scene": sid}
         elif path == "/api/flag":
-            if d["lang"] not in LANGS or not re.fullmatch(r"scene-\d{2}", str(d["scene"])):
+            if d["lang"] not in LANGS or not re.fullmatch(r"scene-\d{2,3}", str(d["scene"])):
                 raise ValueError("bad scene or lang")
             lines = read_lines(STORY)
             set_flag(lines, d["scene"], d["lang"], bool(d["value"]))
             write_lines(STORY, lines)
         elif path == "/api/line":
-            if not re.fullmatch(r"scene-\d{2}", str(d["scene"])):
+            if not re.fullmatch(r"scene-\d{2,3}", str(d["scene"])):
                 raise ValueError("bad scene")
             lines = read_lines(STORY)
             edit_line(lines, d["scene"], d["index"], d.get("old", ""), d["new"], d.get("op", "edit"))
             write_lines(STORY, lines)
         elif path == "/api/add":
-            if not re.fullmatch(r"scene-\d{2}", str(d["scene"])):
+            if not re.fullmatch(r"scene-\d{2,3}", str(d["scene"])):
                 raise ValueError("bad scene")
             lines = read_lines(STORY)
             add_line(lines, d["scene"], d["after"], d["kind"], d.get("speaker", ""), d["text"], d.get("label", ""), d.get("tone", ""))
@@ -910,7 +1123,7 @@ class H(http.server.SimpleHTTPRequestHandler):
                 raise ValueError("bad model")
             lines = read_lines(STORY)
             if scene:
-                if not re.fullmatch(r"scene-\d{2}", str(scene)):
+                if not re.fullmatch(r"scene-\d{2,3}", str(scene)):
                     raise ValueError("bad scene")
                 set_scene_model(lines, scene, model)
                 mark_stale(lines, [scene] if scene in speech_scenes(lines) else [])
@@ -925,13 +1138,13 @@ class H(http.server.SimpleHTTPRequestHandler):
             voices.mark_test(model=str(d.get("model", "")), voice=d.get("voice") or None, tone=d.get("tone") or None,
                              result=str(d.get("result", "")), tags=d.get("tags"))
         elif path == "/api/delete":
-            if not re.fullmatch(r"scene-\d{2}", str(d["scene"])):
+            if not re.fullmatch(r"scene-\d{2,3}", str(d["scene"])):
                 raise ValueError("bad scene")
             lines = read_lines(STORY)
             delete_line(lines, d["scene"], d["index"], d.get("old", ""))
             write_lines(STORY, lines)
         elif path == "/api/issue":
-            if not re.fullmatch(r"scene-\d{2}", str(d["scene"])):
+            if not re.fullmatch(r"scene-\d{2,3}", str(d["scene"])):
                 raise ValueError("bad scene")
             lines = read_lines(STORY)
             if d.get("clear"):
@@ -940,7 +1153,7 @@ class H(http.server.SimpleHTTPRequestHandler):
                 add_issue(lines, d["scene"], d["index"], d.get("message", ""))
             write_lines(STORY, lines)
         elif path == "/api/scenefx":
-            if not re.fullmatch(r"scene-\d{2}", str(d["scene"])):
+            if not re.fullmatch(r"scene-\d{2,3}", str(d["scene"])):
                 raise ValueError("bad scene")
             lines = read_lines(STORY)
             set_scene_fx(lines, d["scene"], str(d.get("fx", ""))[:2000])
