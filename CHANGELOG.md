@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.11.0
+- Voice manager per line: a small 🎙 button next to the flag opens a dialog where you listen to every voice of the line, choose the final one, archive a voice, bring an archived one back, and make a new voice with a model you pick (Persian, English or both). The new voice sits next to the old ones and becomes the chosen one. The per-scene model picker is not needed any more.
+- Archive instead of delete: «🗄 آرشیو» under a picture moves that version to `images/archive/`; archived voices go to `audio/<lang>/archive/`; «📂 آرشیو» brings them back. An archived file that was the chosen one loses its `pick:` / `voice-pick:`. Making the same model's voice again moves the older file to the archive first.
+- 3 new tests (33 in total).
+
 ## 1.10.0
 - Cleaner page: a single «⋯» menu per scene (move up/down, set aside, new picture in this scene, new scene after this one) instead of a row of small buttons. The «new picture» item is new: it adds an empty `[IMG###]` slot at the end of an existing scene.
 - Removed: the whole-scene edit box, the voice «updated»/count chips and the per-scene voice-model picker (a «make voices» button shows only when the scene's voice is out of date), and the ✅ approve / 🔁 redo buttons under pictures (choosing a version with ◀ ▶ is the approval).

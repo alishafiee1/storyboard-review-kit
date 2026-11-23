@@ -1094,3 +1094,22 @@ h2.sc .sct .menu button{display:block;width:100%;text-align:start;padding:7px 10
 h2.sc .sct .menu button:hover,h2.sc .sct .menu button:focus-visible{background:#fff3d1}
 .idl .b{margin-inline-start:auto;font-size:12px;padding:0 8px;direction:rtl}
 .nbox textarea.nt{width:100%;font:inherit;font-size:14px;border:1px solid var(--line-2);border-radius:6px;padding:4px 8px;background:#fffdf7;resize:none}
+
+/* ---- dialogs (voice manager, picture archive) ---- */
+dialog.dlg{width:min(560px,92vw);max-height:86vh;overflow:auto;padding:16px 18px;border:1px solid var(--line-2);border-radius:14px;background:#fffdf7;color:var(--ink,#2b2418);box-shadow:0 12px 40px #0000004d}
+dialog.dlg::backdrop{background:#0000006b}
+dialog.dlg h3{margin:0 0 8px;font-size:17px}
+dialog.dlg .dq{margin:0 0 10px;padding:8px 10px;background:#f3ecd9;border-radius:8px;font-size:14px}
+dialog.dlg .dlang{margin:8px 0}
+dialog.dlg .vrow{display:flex;align-items:center;gap:8px;padding:4px 0;flex-wrap:wrap}
+dialog.dlg .vrow label{flex:1;min-width:140px;cursor:pointer}
+dialog.dlg .dthumb{width:96px;aspect-ratio:16/9;object-fit:cover;border-radius:6px}
+dialog.dlg .dgen{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:8px 0}
+dialog.dlg .dgen select{max-width:100%;font:inherit;font-size:13px}
+dialog.dlg .dbar{display:flex;justify-content:flex-start;margin-top:12px}
+dialog.dlg small{display:block;color:#7a6f55;line-height:1.7}
+dialog.dlg .none{color:#8a7f66;font-size:13px}
+dialog.dlg details{margin:4px 0}
+button.vgen{font-size:14px}
+dialog.dlg .dgen label:first-child{flex:1 1 100%}
+dialog.dlg .dgen label:first-child select{width:100%;margin-top:4px}

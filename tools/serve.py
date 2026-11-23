@@ -411,6 +411,69 @@ def audio_url(lang, id_, pick_map=None):
     return f"{rel(ch['path'])}?v={int(os.path.getmtime(ch['path']))}", dict(names=[v["name"] for v in vs], chosen=ch["name"])
 
 
+def archive_dir(kind, lang=""):
+    """Archived pictures live in images/archive/, archived voices in audio/<lang>/archive/ (nothing is ever deleted)."""
+    return os.path.join(ROOT, "images", "archive") if kind == "image" else os.path.join(ROOT, "audio", lang, "archive")
+
+
+def archive_move(src, dest_dir):
+    """Move a file into an archive folder (a time stamp is added when that name is already taken). Returns the new path."""
+    os.makedirs(dest_dir, exist_ok=True)
+    dst = os.path.join(dest_dir, os.path.basename(src))
+    if os.path.exists(dst):
+        stem, ext = os.path.splitext(dst)
+        dst = "%s.%d%s" % (stem, time.time_ns() // 1000000, ext)
+    replace_file(src, dst)
+    return dst
+
+
+def archived_images(id_):
+    return [dict(name=os.path.basename(f), src=rel(f)) for f in sorted(glob.glob(os.path.join(glob.escape(archive_dir("image")), id_ + "*")), key=os.path.getmtime)
+            if f.lower().endswith(IMG_EXT)]
+
+
+def archived_voices(lang, id_):
+    d = glob.escape(archive_dir("voice", lang))
+    fs = glob.glob(os.path.join(d, glob.escape(id_) + ".mp3")) + glob.glob(os.path.join(d, glob.escape(id_) + ".*.mp3"))
+    return [dict(name=os.path.basename(f)[len(id_) + 1:-4] or "default", src=rel(f)) for f in sorted(fs, key=os.path.getmtime)]
+
+
+def archive_item(kind, id_, name, lang="", back=False):
+    """Archive (or bring back) one picture version or one voice variant. Returns the new path."""
+    if kind == "image":
+        if not re.fullmatch(r"IMG\d{3}", id_):
+            raise ValueError("bad id")
+        if back:
+            f = next((x for x in archived_images(id_) if x["name"] == name), None)
+            if not f:
+                raise ValueError("not in the archive")
+            dst = os.path.join(ROOT, "images", "scenes", name)
+            if os.path.exists(dst):
+                raise ValueError("a file with this name already exists")
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            replace_file(os.path.join(ROOT, f["src"]), dst)
+            return dst
+        v = next((x for x in scan_images().get(id_, {}).get("versions", []) if x["name"] == name), None)
+        if not v:
+            raise ValueError("no such picture file")
+        return archive_move(os.path.join(ROOT, v["src"]), archive_dir("image"))
+    if kind != "voice" or lang not in LANGS or not re.fullmatch(r"[A-Za-z0-9_-]+", id_):
+        raise ValueError("bad kind, lang or id")
+    if back:
+        f = next((x for x in archived_voices(lang, id_) if x["name"] == name), None)
+        if not f:
+            raise ValueError("not in the archive")
+        dst = os.path.join(ROOT, "audio", lang, os.path.basename(f["src"]))
+        if os.path.exists(dst):
+            raise ValueError("a file with this name already exists")
+        replace_file(os.path.join(ROOT, f["src"]), dst)
+        return dst
+    v = next((x for x in audio_variants(lang, id_) if x["name"] == name), None)
+    if not v:
+        raise ValueError("no such voice file")
+    return archive_move(v["path"], archive_dir("voice", lang))
+
+
 def project():
     import voices
     lines = read_lines(STORY)
@@ -429,14 +492,14 @@ def project():
         for b in sc["blocks"]:
             b["images"] = [dict(im, **image_state(im, images.get(im["id"], {})),
                                 prompt=prompts.get(im["id"], {}).get("prompt", ""),
-                                vprompt=vprompts.get(im["id"], {}).get("prompt", ""), video=video_for(im["id"], vids),
+                                vprompt=vprompts.get(im["id"], {}).get("prompt", ""), video=video_for(im["id"], vids), archived=archived_images(im["id"]),
                                 refs=[dict(name=n, src=ref_src.get(n), video=ref_vid.get(n)) for n in prompts.get(im["id"], {}).get("refs", [])])
                            for im in b["images"]]
             for it in b["items"]:
                 if "id" in it:
                     au = {lg: audio_url(lg, it["id"], sc["voice_pick"]) for lg in LANGS}
                     it["audio"] = {lg: au[lg][0] for lg in LANGS}
-                    it["audio_v"] = {lg: au[lg][1] for lg in LANGS}
+                    it["audio_v"] = {lg: dict(au[lg][1], archived=archived_voices(lg, it["id"])) for lg in LANGS}
         scenes.append(dict(id=sc["id"], title=sc["title"], time=sc["time"], env=sc["env"], issues=sc["issues"],
                            warnings=sc["warnings"], model=sc["model"], fx=sc["fx"], off=sc["off"], voice_stale=sorted(sc["voice_stale"]), blocks=sc["blocks"]))
     return dict(name=os.path.basename(ROOT), scenes=scenes, refs=refs, speakers=parse_speakers(lines), voices=VOICE_LIST,
@@ -998,12 +1061,48 @@ def api_regen(d):
     return {"ok": True}
 
 
+def line_voice_job(scene, id_, langs, model):
+    import tts
+    try:
+        todo = []
+        for lg in langs:
+            its = [dict(i, model=model) for i in spoken_lines(lg) if i["id"] == id_ and i["scene"] == scene]
+            if its:
+                todo.append((lg, its))
+        JOB["total"] = sum(len(x) for _, x in todo)
+
+        def tick(i, st):
+            JOB["done"] += 1
+            if st.startswith("FAILED"):
+                JOB["errors"].append(f"{i}: {st[7:]}")
+        for lg, its in todo:
+            res = tts.make(its, lg, force=True, on_done=tick, warnings=JOB["warnings"])
+            pick_made(its, res, lg)  # the voice just made is the chosen one; the old file of the same model went to the archive
+        JOB["state"] = "failed" if JOB["errors"] else "done"
+    except Exception as e:
+        JOB["errors"].append(str(e)[:150])
+        JOB["state"] = "failed"
+
+
+def api_linevoice(d):
+    """Make one line's voice with a chosen model (fa, en or both); it sits next to the voices the line already has."""
+    scene, id_, model = str(d.get("scene", "")), str(d.get("id", "")), str(d.get("model", ""))
+    langs = [lg for lg in d.get("langs", []) if lg in LANGS]
+    if not re.fullmatch(r"scene-\d{2,3}", scene) or not re.fullmatch(r"[A-Za-z0-9_-]+", id_) or not MODEL_RE.fullmatch(model) or not langs:
+        raise ValueError("bad scene, id, model or language")
+    if JOB["state"] == "running":
+        raise ValueError("یک ساخت صدای دیگه در حال انجام است")
+    JOB.update(state="running", scene=scene, done=0, total=0, errors=[], warnings=[])
+    threading.Thread(target=line_voice_job, args=(scene, id_, langs, model), daemon=True).start()
+    return {"ok": True}
+
+
 def api_subtitles(d):
     import subtitles
     return subtitles.make_all()
 
 
-SLOW = {"/api/subtitles": api_subtitles, "/api/voices/refresh": api_refresh, "/api/sample": api_sample, "/api/regen": api_regen}
+SLOW = {"/api/subtitles": api_subtitles, "/api/voices/refresh": api_refresh, "/api/sample": api_sample, "/api/regen": api_regen, "/api/linevoice": api_linevoice}
 SAMPLE_TEXT = "سلام، این یه نمونهٔ صداست. امروز می‌خوام یه چیز جالب بهت نشون بدم."
 
 
@@ -1074,6 +1173,22 @@ class H(http.server.SimpleHTTPRequestHandler):
             lines = read_lines(STORY)
             set_voice_picks(lines, sid, {f"{id_}.{lang}": variant})
             write_lines(STORY, lines)
+        elif path in ("/api/archive", "/api/restore"):  # move a picture version or a voice to the archive folder and back; a chosen one loses its pick
+            kind, id_, name, lang = str(d["kind"]), str(d["id"]), str(d["name"]), str(d.get("lang", ""))
+            back = path == "/api/restore"
+            archive_item(kind, id_, name, lang, back)
+            if not back:
+                lines = read_lines(STORY)
+                if kind == "image":
+                    im = next((x for sc in story_scenes(lines) for b in sc["blocks"] for x in b["images"] if x["id"] == id_), None)
+                    if im and im["pick"] == name:
+                        patch_image(lines, id_, pick="")
+                        write_lines(STORY, lines)
+                else:
+                    sc = next((s for s in story_scenes(lines) if str(d.get("scene", "")) == s["id"]), None)
+                    if sc and sc["voice_pick"].get(f"{id_}.{lang}") == name:
+                        set_voice_picks(lines, sc["id"], {f"{id_}.{lang}": ""})
+                        write_lines(STORY, lines)
         elif path == "/api/sceneoff":
             sid = str(d["scene"])
             if not re.fullmatch(r"scene-\d{2,3}", sid):

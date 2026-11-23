@@ -21,6 +21,7 @@
     {
      "images": [
       {
+       "archived": [],
        "fx": "",
        "id": "IMG000",
        "issues": [],
@@ -83,6 +84,7 @@
     {
      "images": [
       {
+       "archived": [],
        "fx": "",
        "id": "IMG001",
        "issues": [],
@@ -142,6 +144,7 @@
        },
        "audio_v": {
         "en": {
+         "archived": [],
          "chosen": "default",
          "names": [
           "default",
@@ -150,6 +153,7 @@
          ]
         },
         "fa": {
+         "archived": [],
          "chosen": "default",
          "names": [
           "default",
@@ -176,12 +180,14 @@
        },
        "audio_v": {
         "en": {
+         "archived": [],
          "chosen": "default",
          "names": [
           "default"
          ]
         },
         "fa": {
+         "archived": [],
          "chosen": "default",
          "names": [
           "default"
@@ -204,6 +210,7 @@
     {
      "images": [
       {
+       "archived": [],
        "fx": "",
        "id": "IMG002",
        "issues": [],
@@ -259,10 +266,12 @@
        },
        "audio_v": {
         "en": {
+         "archived": [],
          "chosen": "",
          "names": []
         },
         "fa": {
+         "archived": [],
          "chosen": "",
          "names": []
         }
@@ -305,6 +314,7 @@
     {
      "images": [
       {
+       "archived": [],
        "fx": "",
        "id": "IMG003",
        "issues": [],
@@ -349,10 +359,12 @@
        },
        "audio_v": {
         "en": {
+         "archived": [],
          "chosen": "",
          "names": []
         },
         "fa": {
+         "archived": [],
          "chosen": "",
          "names": []
         }

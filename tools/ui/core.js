@@ -16,7 +16,7 @@ async function sample(model,voice,btn){const t=btn.textContent;btn.disabled=true
 let JOBT=null;
 function pollJob(){if(JOBT)return;JOBT=setInterval(async()=>{try{const j=await (await fetch('/api/job')).json();
   document.querySelectorAll('[data-job]').forEach(x=>x.textContent=x.dataset.job===j.scene&&j.state==='running'?`⏳ ${j.done}/${j.total} خط ساخته شد…`:'');
-  if(j.state!=='running'){clearInterval(JOBT);JOBT=null;await reload();if(j.errors.length)alert('بعضی خط‌ها ساخته نشدن:\n'+j.errors.slice(0,6).join('\n'));if(j.warnings&&j.warnings.length)alert('⚠ هشدار:\n'+j.warnings.slice(0,6).join('\n'))}}catch(e){}},2000)}
+  if(j.state!=='running'){clearInterval(JOBT);JOBT=null;await reload();if(typeof redrawDialog==='function')redrawDialog();if(j.errors.length)alert('بعضی خط‌ها ساخته نشدن:\n'+j.errors.slice(0,6).join('\n'));if(j.warnings&&j.warnings.length)alert('⚠ هشدار:\n'+j.warnings.slice(0,6).join('\n'))}}catch(e){}},2000)}
 function copy(t,btn){const done=()=>{const o=btn.textContent;btn.textContent='کپی شد ✓';setTimeout(()=>btn.textContent=o,1500)};
   const fb=()=>{const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();document.execCommand('copy');a.remove();done()};
   navigator.clipboard?navigator.clipboard.writeText(t).then(done,fb):fb()}

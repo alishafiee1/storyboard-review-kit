@@ -7,7 +7,7 @@ Key: OPENROUTER_API_KEY (environment or .env). Do not use google/gemini-3.8-*-tt
 import concurrent.futures as cf, json, os, subprocess, sys, time, urllib.error, urllib.request, wave
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from serve import ROOT, pick_made, spoken_lines, variant_tag  # noqa: E402
+from serve import ROOT, archive_dir, archive_move, pick_made, spoken_lines, variant_tag  # noqa: E402
 import voices  # noqa: E402
 from voices import load_key  # noqa: E402
 
@@ -87,6 +87,8 @@ def make(items, lang, force=False, workers=4, on_done=None, warnings=None):
                 data = synth(it["model"], it["voice"], style_text(it["spoken"], it.get("tone", ""), lang, it["model"], warn), key)
                 tmp = mp3 + ".tmp"
                 open(tmp, "wb").write(data)
+                if os.path.exists(mp3):  # making the same model again: the older voice goes to the archive, never lost
+                    archive_move(mp3, archive_dir("voice", lang))
                 os.replace(tmp, mp3)
                 return it["id"], "ok"
             except (urllib.error.URLError, RuntimeError, TimeoutError, subprocess.CalledProcessError) as e:

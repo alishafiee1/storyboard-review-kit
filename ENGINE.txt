@@ -6,6 +6,7 @@ tools/ui/core.js
 tools/ui/render.js
 tools/ui/editors.js
 tools/ui/versions.js
+tools/ui/dialogs.js
 tools/ui/panels.js
 tools/ui/player.js
 click-for-review.bat

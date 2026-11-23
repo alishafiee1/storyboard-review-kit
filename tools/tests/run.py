@@ -451,7 +451,7 @@ def server_hides_secrets_and_rejects_junk(proj, page):
 def picture_versions_pick(proj, page):
     """Every file of the same IMG### is a version; the one the user stops on is the chosen (approved) one; no file is touched."""
     f = "figure.shot[data-id=IMG001]"
-    assert page.inner_text(f + " .vc").strip() == "2 / 2" and page.locator("figure.shot[data-id=IMG002] .vnav").count() == 0
+    assert page.inner_text(f + " .vc").strip() == "2 / 2" and page.locator("figure.shot[data-id=IMG002] [data-vn]").count() == 0
     assert "a1b2c3" in page.get_attribute(f + " img", "src")  # no pick yet: the newest is shown
     page.click(f + " [data-vn='-1']")
     proj.wait_in("[IMG001]", "pick: IMG001_start.png")
@@ -594,6 +594,77 @@ def add_scene(proj, page):
     assert proj.api("/api/addscene", {"after": "scene-01", "title": "a|b", "images": 1})[0] == 400
     assert proj.api("/api/addscene", {"after": "scene-01", "title": "x", "images": 99})[0] == 400
     assert proj.api("/api/addscene", {"after": "scene-77", "title": "x", "images": 1})[0] == 400
+
+
+@test
+def voice_dialog_manage(proj, page):
+    """One dialog per line: choose a voice, archive it (file moves, pick is cleared), bring it back. No network is used."""
+    if not shutil.which("ffmpeg"):
+        print("   (skipped: no ffmpeg to make test audio)", end="")
+        return
+    page.click("[data-vgen=IMG001_1]")
+    dlg = "dialog.dlg"
+    page.wait_for_selector(dlg + " [data-dpick=fa]")
+    assert page.locator(dlg + " [data-dpick=fa]").count() == 3 and page.locator(dlg + " #dmodel option").count() >= 2
+    page.click(dlg + " [data-dpick=fa][value=eleven-v3]")
+    proj.wait("scenario/story.txt", "voice-pick: IMG001_1.fa=eleven-v3")
+    page.wait_for_selector(dlg + " [data-dpick=fa][value=eleven-v3]:checked")
+    page.click(dlg + " [data-darch=fa][data-n=eleven-v4]")
+    page.wait_for_selector(dlg + " [data-drest=fa][data-n=eleven-v4]", state="attached")
+    assert os.path.exists(os.path.join(proj.root, "audio", "fa", "archive", "IMG001_1.eleven-v4.mp3"))
+    assert not os.path.exists(os.path.join(proj.root, "audio", "fa", "IMG001_1.eleven-v4.mp3"))
+    assert page.locator(dlg + " [data-dpick=fa]").count() == 2
+    page.click(dlg + " [data-darch=fa][data-n=eleven-v3]")  # archiving the chosen voice also clears the pick
+    proj.wait("scenario/story.txt", "IMG001_1.fa=", absent=True)
+    page.wait_for_selector(dlg + " [data-drest=fa][data-n=eleven-v3]", state="attached")
+    page.click(dlg + " details summary")  # the archive list is folded
+    page.click(dlg + " [data-drest=fa][data-n=eleven-v3]")
+    page.wait_for_selector(dlg + " [data-dpick=fa][value=eleven-v3]")
+    assert os.path.exists(os.path.join(proj.root, "audio", "fa", "IMG001_1.eleven-v3.mp3"))
+    page.click(dlg + " [data-dclose]")
+    page.wait_for_selector(dlg, state="detached")
+    assert proj.api("/api/linevoice", {"scene": "scene-01", "id": "IMG001_1", "model": "x y", "langs": ["fa"]})[0] == 400
+    assert proj.api("/api/linevoice", {"scene": "scene-01", "id": "IMG001_1", "model": "elevenlabs/eleven-v3", "langs": []})[0] == 400
+    assert proj.api("/api/archive", {"kind": "voice", "id": "IMG001_1", "lang": "fa", "name": "nope"})[0] == 400
+    assert proj.api("/api/restore", {"kind": "voice", "id": "IMG001_1", "lang": "fa", "name": "nope"})[0] == 400
+
+
+@test
+def making_again_archives_the_old_voice(proj, page):
+    """tts.make with the same model replaces nothing: the older file goes to audio/<lang>/archive/ first (the network is faked here)."""
+    code = ("import sys, os; sys.path.insert(0,'tools'); import tts\n"
+            "tts.synth=lambda *a: b'x'*6000; tts.load_key=lambda: 'k'; tts.voice_problem=lambda m,v: None\n"
+            "it=dict(id='IMG003_1', scene='scene-02', speaker='راوی', voice='george', model='elevenlabs/eleven-v3', spoken='سلام', tone='')\n"
+            "os.makedirs('audio/fa',exist_ok=True)\n"
+            "print(tts.make([it],'fa',force=True)); print(tts.make([it],'fa',force=True))\n"
+            "print(sorted(os.listdir('audio/fa/archive')))")
+    out = subprocess.run([sys.executable, "-c", code], cwd=proj.root, capture_output=True, text=True, encoding="utf-8")
+    assert out.returncode == 0, out.stderr[-400:]
+    assert "'IMG003_1.eleven-v3.mp3'" in out.stdout and out.stdout.count("'ok'") == 2, out.stdout
+    assert os.path.exists(os.path.join(proj.root, "audio", "fa", "IMG003_1.eleven-v3.mp3"))
+
+
+@test
+def picture_archive_and_back(proj, page):
+    f = "figure.shot[data-id=IMG001]"
+    page.click(f + " [data-vn='-1']")  # choose the older picture, then archive the newest one
+    proj.wait_in("[IMG001]", "pick: IMG001_start.png")
+    page.click(f + " [data-vn='1']")
+    proj.wait_in("[IMG001]", "pick: IMG001_start_a1b2c3.png")
+    page.click(f + " [data-iarch]")  # archiving the chosen picture clears the pick
+    proj.wait_in("[IMG001]", "pick:", absent=True)
+    page.wait_for_selector(f + " [data-irest]")
+    assert os.path.exists(os.path.join(proj.root, "images", "archive", "IMG001_start_a1b2c3.png"))
+    assert not os.path.exists(os.path.join(proj.root, "images", "scenes", "IMG001_start_a1b2c3.png"))
+    assert page.locator(f + " [data-vn]").count() == 0  # one version left
+    page.click(f + " [data-irest]")
+    page.wait_for_selector("dialog.dlg [data-irestore]")
+    page.click("dialog.dlg [data-irestore='IMG001_start_a1b2c3.png']")
+    page.wait_for_selector(f + " [data-vn]")
+    assert os.path.exists(os.path.join(proj.root, "images", "scenes", "IMG001_start_a1b2c3.png"))
+    assert page.locator(f + " [data-irest]").count() == 0
+    page.keyboard.press("Escape")
+    assert proj.api("/api/archive", {"kind": "image", "id": "IMG001", "name": "nope.png"})[0] == 400
 
 
 @test
