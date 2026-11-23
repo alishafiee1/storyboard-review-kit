@@ -67,13 +67,11 @@ function openFromV(v){const sid=v.closest('section[data-scene]').dataset.scene,k
 function wire(){
   $$('figure.shot').forEach(f=>{const id=f.dataset.id,m=BL.flatMap(b=>b.images).find(x=>x.id===id);
     const nt=f.querySelector('.nt'),pt=f.querySelector('.pr:not(.vpr) textarea'),vt=f.querySelector('.vpr textarea');track(nt,f.querySelector('[data-sn]'));track(pt,f.querySelector('[data-sp]'));track(vt,f.querySelector('[data-svp]'));
-    f.querySelectorAll('[data-m]').forEach(b=>b.onclick=async()=>{const v=f.dataset.m===b.dataset.m?'':b.dataset.m;
-      try{await api('/api/image',{id,status:v});f.dataset.m=v;m.status=v;stats();filt()}catch(e){fail(e)}});
-    const nb=f.querySelector('.nbox'),ntb=f.querySelector('[data-nt]');ntb.onclick=()=>{nb.classList.toggle('hide');if(!nb.classList.contains('hide')){grow(nt);nt.focus()}};nt.addEventListener('input',()=>grow(nt));if(!nb.classList.contains('hide'))grow(nt);
-    nt.addEventListener('blur',()=>setTimeout(()=>{if(!document.hasFocus()||!nb.isConnected)return;if(nt.value!==nt.dataset.orig)f.querySelector('[data-sn]').click();else if(!nt.value.trim())nb.classList.add('hide')},0));
-    nt.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();f.querySelector('[data-sn]').click()}if(e.key==='Escape'){nt.value=nt.dataset.orig;nt.dispatchEvent(new Event('input'));if(!nt.value.trim())nb.classList.add('hide')}});
-    f.querySelector('[data-sn]').onclick=async()=>{try{await api('/api/image',{id,note:nt.value});nt.dataset.orig=nt.value;nt.dispatchEvent(new Event('input'));m.note=nt.value;
-      ntb.textContent='📝 یادداشت'+(nt.value.trim()?' •':'');if(!nt.value.trim())nb.classList.add('hide');stats();filt()}catch(e){fail(e)}};
+    /* the note is always-visible one-line input: Enter or leaving the field saves it */
+    nt.addEventListener('input',()=>grow(nt));grow(nt);
+    nt.addEventListener('blur',()=>setTimeout(()=>{if(!document.hasFocus()||!nt.isConnected)return;if(nt.value!==nt.dataset.orig)f.querySelector('[data-sn]').click()},0));
+    nt.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();f.querySelector('[data-sn]').click()}if(e.key==='Escape'){nt.value=nt.dataset.orig;nt.dispatchEvent(new Event('input'))}});
+    f.querySelector('[data-sn]').onclick=async()=>{try{await api('/api/image',{id,note:nt.value});nt.dataset.orig=nt.value;nt.dispatchEvent(new Event('input'));m.note=nt.value;stats();filt()}catch(e){fail(e)}};
     wireFx(f.querySelector('.fxbox'),f.querySelector('[data-fx]'),v=>api('/api/image',{id,fx:v}));
     f.querySelector('[data-p]').onclick=()=>f.querySelector('.pr:not(.vpr)').classList.toggle('hide');
     f.querySelector('[data-vp]').onclick=()=>f.querySelector('.vpr').classList.toggle('hide');
@@ -86,8 +84,6 @@ function wire(){
     f.querySelectorAll('[data-ref]').forEach(b=>b.onclick=()=>lightbox(b.dataset.ref,b.dataset.name))});
   $$('section[data-scene]').forEach(s=>{const sid=s.dataset.scene;
     s.querySelectorAll('[data-flag]').forEach(b=>b.onclick=async()=>{try{await api('/api/flag',{scene:sid,lang:b.dataset.flag,value:false});await reload()}catch(e){fail(e)}});
-    const sf=s.querySelector('.fxs');if(sf)wireFx(sf.querySelector('.fxbox'),sf.querySelector('[data-sfx]'),v=>api('/api/scenefx',{scene:sid,fx:v}));
-    s.querySelectorAll('[data-scm]').forEach(c=>c.onchange=async()=>{try{await api('/api/ttsmodel',{scene:sid,model:c.value});await reload()}catch(e){fail(e);await reload()}});
     s.querySelectorAll('[data-regen]').forEach(b=>b.onclick=async()=>{try{await api('/api/regen',{scene:sid});pollJob()}catch(e){fail(e)}});
     s.querySelectorAll('.v').forEach(v=>v.onclick=()=>openFromV(v));
     s.querySelectorAll('[data-aden]').forEach(b=>b.onclick=()=>openEditor(b.parentElement,{scene:sid,ln:+b.dataset.aden,key:'en',old:'',op:'add_en'}));

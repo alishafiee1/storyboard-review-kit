@@ -134,6 +134,11 @@ def settle(page, secs=4):
     page.wait_for_timeout(250)
 
 
+def menu(page, sid):
+    """Open the «⋯» menu of a scene."""
+    page.click(f"section[data-scene={sid}] [data-mn]")
+
+
 def test(fn):
     TESTS.append(fn)
     return fn
@@ -284,15 +289,9 @@ def unknown_tone_is_flagged(proj, page):
 @test
 def status_and_note(proj, page):
     f = "figure.shot[data-id=IMG002]"
-    page.click(f + " [data-m=ok]")  # one picture only: ticking chooses it (that is what «approved» means now)
-    proj.wait_in("[IMG002]", "pick: IMG002_sign.png")
-    page.click(f + " [data-m=redo]")
-    proj.wait_in("[IMG002]", "status: redo")
-    assert "pick: IMG002_sign.png" in proj.story()
-    page.click(f + " [data-m=redo]")  # clicking the active mark clears it
-    proj.wait_in("[IMG002]", "status:", absent=True)
-    page.wait_for_timeout(300)
-    page.click(f + " [data-nt]")
+    for gone in ("[data-m=ok]", "[data-m=redo]", "[data-nt]"):
+        assert page.locator(f + " " + gone).count() == 0, gone + " buttons were removed from the page"
+    assert page.get_attribute(f + " textarea.nt", "placeholder").startswith("یادداشت برای این صحنه")  # the note is an always-visible input
     page.fill(f + " textarea.nt", "یادداشت تست")
     page.press(f + " textarea.nt", "Enter")
     proj.wait_in("[IMG002]", "note: یادداشت تست")
@@ -300,11 +299,7 @@ def status_and_note(proj, page):
 
 @test
 def edit_advice_fx(proj, page):
-    page.click("section[data-scene=scene-02] [data-sfx]")
-    page.fill("section[data-scene=scene-02] .fxs textarea", "دیپ به سفید")
-    page.press("section[data-scene=scene-02] .fxs textarea", "Enter")
-    proj.wait("scenario/story.txt", "fx: دیپ به سفید")
-    settle(page)
+    assert page.locator("[data-sfx], .fxs").count() == 0, "the whole-scene edit box was removed (each picture has its own edit)"
     page.click("figure.shot[data-id=IMG003] [data-fx]")
     page.fill("figure.shot[data-id=IMG003] .fxbox textarea", "زوم سریع")
     page.press("figure.shot[data-id=IMG003] .fxbox textarea", "Enter")
@@ -417,8 +412,7 @@ def model_and_voice_pickers(proj, page):
     code, data = proj.api("/api/project")
     ids = [m["id"] for m in data["tts"]["catalog"]]
     assert ids == sorted(ids) and "deepgram/aura-2" in ids and len(data["tts"]["tones"]) >= 10
-    page.select_option("[data-scm=scene-01]", "deepgram/aura-2")
-    proj.wait("scenario/story.txt", "model: deepgram/aura-2")
+    assert page.locator("[data-scm]").count() == 0, "the per-scene model picker was removed"
     page.click("#tabS")
     page.select_option("[data-dm]", "google/gemini-2.5-flash-tts")
     proj.wait("scenario/story.txt", "tts-model: google/gemini-2.5-flash-tts")
@@ -465,7 +459,7 @@ def picture_versions_pick(proj, page):
     assert "a1b2c3" not in page.get_attribute(f + " img", "src") and "✔" in page.inner_text(f + " .vc")
     page.click(f + " [data-vn='1']")
     proj.wait_in("[IMG001]", "pick: IMG001_start_a1b2c3.png")
-    page.click(f + " [data-m=ok]")  # ticking the chosen one again un-chooses it
+    assert proj.api("/api/image", {"id": "IMG001", "pick": ""})[0] == 200  # un-choosing is still possible through the API
     proj.wait_in("[IMG001]", "pick:", absent=True)
     for name in ("IMG001_start.png", "IMG001_start_a1b2c3.png"):
         assert os.path.exists(os.path.join(proj.root, "images", "scenes", name))
@@ -518,6 +512,7 @@ def voice_files_per_model(proj, page):
 def scene_off_and_back(proj, page):
     """A scene set aside keeps its text, pictures and audio; it just leaves the final order (off: yes)."""
     before = proj.story()
+    menu(page, "scene-02")
     page.click("section[data-scene=scene-02] [data-soff]")
     proj.wait("scenario/story.txt", "off: yes")
     assert "و روز تمام شد." in proj.story() and "[IMG003]" in proj.story()
@@ -533,6 +528,7 @@ def scene_off_and_back(proj, page):
 @test
 def picture_set_aside(proj, page):
     f = "figure.shot[data-id=IMG003]"
+    assert page.locator(f + " .idl [data-ioff]").count() == 1, "the set-aside button sits next to the picture name"
     page.click(f + " [data-ioff]")
     proj.wait_in("[IMG003]", "off: yes")
     page.wait_for_selector(f + ".off")
@@ -544,6 +540,7 @@ def picture_set_aside(proj, page):
 @test
 def move_scenes(proj, page):
     """Reordering moves whole blocks; ids and file names never change, the shown scene numbers follow the order."""
+    menu(page, "scene-02")
     page.click("section[data-scene=scene-02] [data-smv='-1']")
     page.wait_for_function("document.querySelector('section[data-scene=scene-02] h2 .num').textContent==='1'")
     st = proj.story()
@@ -551,6 +548,7 @@ def move_scenes(proj, page):
     assert page.inner_text("section[data-scene=scene-01] h2 .num").strip() == "2"
     for needle in ("[IMG001]", "[IMG002]", "[IMG003]", "say: تست | یک خط"):
         assert needle in st
+    menu(page, "scene-02")
     page.click("section[data-scene=scene-02] [data-smv='1']")
     page.wait_for_function("document.querySelector('section[data-scene=scene-01] h2 .num').textContent==='1'")
     assert proj.story().index("=== scene-01") < proj.story().index("=== scene-02")
@@ -559,7 +557,31 @@ def move_scenes(proj, page):
 
 
 @test
+def scene_menu_and_add_image(proj, page):
+    """Every scene has one «⋯» menu; Esc and outside clicks close it; «new picture» appends an empty slot to an existing scene."""
+    sec = "section[data-scene=scene-01]"
+    assert page.locator(sec + " .menu").is_hidden()
+    menu(page, "scene-01")
+    assert page.locator(sec + " .menu").is_visible() and page.get_attribute(sec + " [data-mn]", "aria-expanded") == "true"
+    page.keyboard.press("Escape")
+    assert page.locator(sec + " .menu").is_hidden()
+    menu(page, "scene-01")
+    page.click("h1, #title")
+    assert page.locator(sec + " .menu").is_hidden()
+    menu(page, "scene-01")
+    page.click(sec + " [data-addimg]")
+    proj.wait("scenario/story.txt", "[IMG004]")
+    st = proj.story()
+    assert st.index("[IMG002]") < st.index("[IMG004]") < st.index("=== scene-02"), "the new slot goes to the end of that scene"
+    assert "\n\n=== scene-02" in st
+    page.wait_for_selector("figure.shot[data-id=IMG004]")
+    assert proj.api("/api/addimage", {"scene": "scene-77"})[0] == 400
+    assert proj.api("/api/addimage", {"scene": "bad"})[0] == 400
+
+
+@test
 def add_scene(proj, page):
+    menu(page, "scene-01")
     page.click("[data-addscene=scene-01]")  # the page asks for a title and a picture count; the test accepts the defaults (1 picture)
     proj.wait("scenario/story.txt", "=== scene-03 | صحنهٔ جدید | - ===")
     st = proj.story()
@@ -621,6 +643,8 @@ def main():
                 failed.append(t.__name__)
                 if page is not None and getattr(page, "_dialogs", None):
                     print("   dialogs shown by the page:", page._dialogs)
+                if errors:
+                    print("   browser errors:", errors[:3])
                 print("FAIL %s\n%s" % (t.__name__, "".join(traceback.format_exc().splitlines(True)[-14:])))
             finally:
                 proj.close()

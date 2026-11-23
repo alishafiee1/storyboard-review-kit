@@ -1,4 +1,9 @@
 /* Picture versions, voice variants and scene management (set aside, move, add). Everything is written to story.txt; no file is renamed or deleted. */
+/* the scene «⋯» menu: opens on click, closes on any other click or Esc (also when a menu item is used) */
+const closeMenus=()=>document.querySelectorAll('.sct .menu:not([hidden])').forEach(m=>{m.hidden=true;m.previousElementSibling.setAttribute('aria-expanded','false')});
+document.addEventListener('click',e=>{const b=e.target.closest('[data-mn]');const menu=b&&b.nextElementSibling,wasOpen=menu&&!menu.hidden;closeMenus();
+  if(menu&&!wasOpen){menu.hidden=false;b.setAttribute('aria-expanded','true');const f=menu.querySelector('button');if(f&&e.detail===0)f.focus()}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeMenus()});
 const goScene=sid=>{const el=document.querySelector(`section[data-scene="${sid}"]`);if(el)el.scrollIntoView({block:'start',behavior:SMOOTH})};
 const setMark=(f,m,v)=>{f.dataset.m=v;m.status=v;stats();filt()};
 function showVersion(f,m){const im=f.querySelector('img'),v=m.versions[m.vi];if(im)im.src=v.src;m.src=v.src;
@@ -23,7 +28,8 @@ function wireVersions(){
     s.querySelectorAll('[data-soff]').forEach(b=>b.onclick=async()=>{if(!confirm('این صحنه کنار گذاشته بشه؟\nمتن، عکس‌ها و صداهاش پاک نمی‌شن؛ فقط از ترتیب نهایی بیرون می‌ره و هوش مصنوعی نادیده‌اش می‌گیره.'))return;
       try{await api('/api/sceneoff',{scene:sid,off:true});await reload()}catch(e){fail(e)}});
     s.querySelectorAll('[data-son]').forEach(b=>b.onclick=async()=>{try{await api('/api/sceneoff',{scene:sid,off:false});await reload();goScene(sid)}catch(e){fail(e)}})});
-  $$('[data-addscene]').forEach(b=>b.onclick=async()=>{const title=prompt('عنوان صحنهٔ جدید؟','صحنهٔ جدید');if(title===null)return;
+  $$('[data-addimg]').forEach(b=>b.onclick=async()=>{closeMenus();try{const r=await api('/api/addimage',{scene:b.dataset.addimg});await reload();const f=document.querySelector(`figure.shot[data-id="${r.id}"]`);if(f)f.scrollIntoView({block:'center',behavior:SMOOTH})}catch(e){fail(e)}});
+  $$('[data-addscene]').forEach(b=>b.onclick=async()=>{closeMenus();const title=prompt('عنوان صحنهٔ جدید؟','صحنهٔ جدید');if(title===null)return;
     const n=prompt('چند جای خالی برای تصویر داشته باشه؟ (۰ تا ۱۲)','1');if(n===null)return;
     try{const r=await api('/api/addscene',{after:b.dataset.addscene,title,images:+n||0});await reload();goScene(r.scene)}catch(e){fail(e)}})}
 /* the small ‹1/2› next to a voice button: next voice of that line; the one you stop on becomes the chosen (final) voice */

@@ -47,7 +47,7 @@ document.addEventListener('pointerdown',async e=>{
   for(const x of [...EDITORS]){if(!x.w.isConnected){EDITORS.delete(x);continue}if(x.w._keep||x.w.contains(t))continue;ran=true;await x.run()}
   document.querySelectorAll('.fxbox:not(.hide) textarea').forEach(x=>{if(!x.closest('.fxbox').contains(t)&&x.value!==x.dataset.orig&&x._save)x._save()});
   document.querySelectorAll('.nbox:not(.hide) textarea.nt').forEach(nt=>{const nb=nt.closest('.nbox');if(nb.contains(t))return;
-    if(nt.value!==nt.dataset.orig)nt.closest('figure.shot').querySelector('[data-sn]').click();else if(!nt.value.trim())nb.classList.add('hide')});
+    if(nt.value!==nt.dataset.orig)nt.closest('figure.shot').querySelector('[data-sn]').click()});
   if(ran&&RELOADS!==r0&&pend){const sec=document.querySelector(`section[data-scene="${pend.scene}"]`);if(!sec)return;
     if(pend.type==='v'){const v=[...sec.querySelectorAll('.v')].find(x=>x.dataset.ln===pend.ln&&x.dataset.k===pend.k);if(v)openFromV(v)}
     else{const bt=sec.querySelector(`.addbar[data-after="${pend.after}"] button[data-add="${pend.kind}"]`);if(bt)bt.click()}}

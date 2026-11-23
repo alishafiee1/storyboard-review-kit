@@ -660,6 +660,18 @@ def add_scene(lines, after, title, images):
     return sid
 
 
+def add_image(lines, scene_id):
+    """One more empty picture slot at the end of an existing scene. Returns the new id (e.g. IMG007)."""
+    s_, e = scene_span(lines, scene_id)
+    n = next_image_id(lines)
+    if n > 999:
+        raise ValueError("too many pictures")
+    while e > s_ + 1 and not lines[e - 1].strip():
+        e -= 1
+    lines[e:e] = [f"[IMG{n:03d}]"]
+    return f"IMG{n:03d}"
+
+
 def mark_stale(lines, scene_ids):
     for sid in scene_ids:
         for lg in LANGS:
@@ -1084,6 +1096,14 @@ class H(http.server.SimpleHTTPRequestHandler):
             sid = add_scene(lines, after, d.get("title", ""), d.get("images", 1))
             write_lines(STORY, lines)
             return {"ok": True, "scene": sid}
+        elif path == "/api/addimage":
+            sid = str(d["scene"])
+            if not re.fullmatch(r"scene-\d{2,3}", sid):
+                raise ValueError("bad scene")
+            lines = read_lines(STORY)
+            iid = add_image(lines, sid)
+            write_lines(STORY, lines)
+            return {"ok": True, "id": iid}
         elif path == "/api/flag":
             if d["lang"] not in LANGS or not re.fullmatch(r"scene-\d{2,3}", str(d["scene"])):
                 raise ValueError("bad scene or lang")

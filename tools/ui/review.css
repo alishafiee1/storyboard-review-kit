@@ -1083,3 +1083,14 @@ h2.sc.off{opacity:.7;background:#ece6d6}
 .vv:hover{background:#fff3d1}
 figure.shot.off{opacity:.5}
 figure.shot.off img{filter:grayscale(1)}
+
+/* ---- scene menu (⋯), image name row, always-visible note ---- */
+h2.sc{position:relative}
+h2.sc .sct{position:relative}
+h2.sc .sct .mn{font-size:20px;line-height:1;padding:2px 12px;min-width:44px;min-height:32px}
+.menu{position:absolute;inset-inline-end:0;top:calc(100% + 4px);z-index:30;display:flex;flex-direction:column;min-width:210px;padding:6px;background:#fffdf7;border:1px solid var(--line-2);border-radius:10px;box-shadow:0 8px 24px #0000002e}
+.menu[hidden]{display:none}
+h2.sc .sct .menu button{display:block;width:100%;text-align:start;padding:7px 10px;border:0;border-radius:6px;background:transparent;font-size:14px;line-height:1.4;white-space:nowrap}
+h2.sc .sct .menu button:hover,h2.sc .sct .menu button:focus-visible{background:#fff3d1}
+.idl .b{margin-inline-start:auto;font-size:12px;padding:0 8px;direction:rtl}
+.nbox textarea.nt{width:100%;font:inherit;font-size:14px;border:1px solid var(--line-2);border-radius:6px;padding:4px 8px;background:#fffdf7;resize:none}

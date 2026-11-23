@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.10.0
+- Cleaner page: a single «⋯» menu per scene (move up/down, set aside, new picture in this scene, new scene after this one) instead of a row of small buttons. The «new picture» item is new: it adds an empty `[IMG###]` slot at the end of an existing scene.
+- Removed: the whole-scene edit box, the voice «updated»/count chips and the per-scene voice-model picker (a «make voices» button shows only when the scene's voice is out of date), and the ✅ approve / 🔁 redo buttons under pictures (choosing a version with ◀ ▶ is the approval).
+- The note under a picture is now an always-visible input; «پرامپت» became «پرامپت تصویر»; «کنار بذار» sits next to the picture name.
+- New test for the menu and the new-picture button (30 tests in total).
+
 ## 1.9.0
 - Several pictures for one shot (any file name that starts with the id, random suffixes included): ◀ ▶ browse them; the one you stop on is saved as `pick:` and counts as approved (the ✅ button now chooses the shown picture). No `pick:` = the newest file.
 - Several voices for one line: `tools/tts.py` writes `audio/<lang>/<id>.<model>.mp3` (never over another model's file; the old `<id>.mp3` is the `default`). A small ‹1/3› button next to 🔊 FA / EN switches voice and plays it; the last one you stop on is saved as `voice-pick:` under the scene header and is the final voice (also used by the auto-play and the subtitles). A freshly made voice becomes the chosen one.
