@@ -1,0 +1,555 @@
+{
+ "name": "proj",
+ "refs": [
+  {
+   "kind": "CH",
+   "name": "CH_ALI",
+   "prompt": "Prompt of the character Ali.",
+   "src": "images/refs/CH/CH_ALI.png",
+   "used": [
+    "IMG000",
+    "IMG001",
+    "IMG002",
+    "IMG003"
+   ],
+   "video": null
+  }
+ ],
+ "scenes": [
+  {
+   "blocks": [
+    {
+     "images": [
+      {
+       "fx": "",
+       "id": "IMG000",
+       "issues": [],
+       "ln": 1,
+       "note": "",
+       "prompt": "[REFS TO ATTACH: STYLE_ANCHOR| CH_ALI]\nPrompt of the thumbnail.",
+       "refs": [
+        {
+         "name": "STYLE_ANCHOR",
+         "src": null,
+         "video": null
+        },
+        {
+         "name": "CH_ALI",
+         "src": "images/refs/CH/CH_ALI.png",
+         "video": null
+        }
+       ],
+       "rejected": [],
+       "src": null,
+       "stale": false,
+       "status": "",
+       "video": null,
+       "vprompt": ""
+      }
+     ],
+     "items": [
+      {
+       "en": null,
+       "en_ln": null,
+       "fa": "علی وسط خیابان ایستاده و تابلو را نگاه می‌کند.",
+       "issues": [],
+       "k": "act",
+       "label": null,
+       "ln": 2,
+       "sp": null,
+       "tone": ""
+      }
+     ]
+    }
+   ],
+   "env": [],
+   "fx": "",
+   "id": "scene-00",
+   "issues": [],
+   "model": "",
+   "time": "-",
+   "title": "تامبنیل",
+   "voice_stale": [],
+   "warnings": []
+  },
+  {
+   "blocks": [
+    {
+     "images": [
+      {
+       "fx": "",
+       "id": "IMG001",
+       "issues": [],
+       "ln": 4,
+       "note": "رنگ‌ها شاد باشه",
+       "prompt": "[REFS TO ATTACH: STYLE_ANCHOR| CH_ALI]\nPrompt of picture 1.",
+       "refs": [
+        {
+         "name": "STYLE_ANCHOR",
+         "src": null,
+         "video": null
+        },
+        {
+         "name": "CH_ALI",
+         "src": "images/refs/CH/CH_ALI.png",
+         "video": null
+        }
+       ],
+       "rejected": [],
+       "src": "images/scenes/IMG001_start.png",
+       "stale": false,
+       "status": "ok",
+       "video": null,
+       "vprompt": "[REFS TO ATTACH: STYLE_ANCHOR| CH_ALI]\n[START FRAME: IMG001]\nVideo prompt of picture 1."
+      }
+     ],
+     "items": [
+      {
+       "en": null,
+       "en_ln": null,
+       "fa": "علی با یک لیوان قهوه رد می‌شود.",
+       "issues": [],
+       "k": "act",
+       "label": null,
+       "ln": 7,
+       "sp": null,
+       "tone": ""
+      },
+      {
+       "audio": {
+        "en": "audio/en/IMG001_1.mp3?v=0",
+        "fa": "audio/fa/IMG001_1.mp3?v=0"
+       },
+       "en": "This is Ali. He is not a person before coffee.",
+       "en_ln": 9,
+       "fa": "این علیه. صبح‌ها بدون قهوه آدم نیست.",
+       "id": "IMG001_1",
+       "issues": [],
+       "k": "say",
+       "label": null,
+       "ln": 8,
+       "sp": "راوی",
+       "tone": ""
+      },
+      {
+       "audio": {
+        "en": "audio/en/IMG001_2.mp3?v=0",
+        "fa": "audio/fa/IMG001_2.mp3?v=0"
+       },
+       "en": "Where did that come from?",
+       "en_ln": 11,
+       "fa": "این دیگه از کجا پیداش شد؟",
+       "id": "IMG001_2",
+       "issues": [],
+       "k": "say",
+       "label": null,
+       "ln": 10,
+       "sp": "علی",
+       "tone": "با تعجب"
+      }
+     ]
+    },
+    {
+     "images": [
+      {
+       "fx": "",
+       "id": "IMG002",
+       "issues": [],
+       "ln": 12,
+       "note": "",
+       "prompt": "[REFS TO ATTACH: STYLE_ANCHOR| CH_ALI]\nPrompt of picture 2.",
+       "refs": [
+        {
+         "name": "STYLE_ANCHOR",
+         "src": null,
+         "video": null
+        },
+        {
+         "name": "CH_ALI",
+         "src": "images/refs/CH/CH_ALI.png",
+         "video": null
+        }
+       ],
+       "rejected": [],
+       "src": "images/scenes/IMG002_sign.png",
+       "stale": true,
+       "status": "",
+       "video": null,
+       "vprompt": ""
+      }
+     ],
+     "items": [
+      {
+       "en": null,
+       "en_ln": null,
+       "fa": "علی به تابلو نگاه می‌کند و جا می‌خورد.",
+       "issues": [],
+       "k": "act",
+       "label": "گگ",
+       "ln": 14,
+       "sp": null,
+       "tone": ""
+      },
+      {
+       "audio": {
+        "en": null,
+        "fa": null
+       },
+       "en": null,
+       "en_ln": null,
+       "fa": "یک خط با گوینده‌ای که صدایش خط‌تیره دارد.",
+       "id": "IMG002_1",
+       "issues": [],
+       "k": "say",
+       "label": null,
+       "ln": 15,
+       "sp": "تست",
+       "tone": ""
+      }
+     ]
+    }
+   ],
+   "env": [
+    {
+     "issues": [],
+     "ln": 1,
+     "text": "یک خیابان شلوغ، صبح."
+    }
+   ],
+   "fx": "فید از سیاه",
+   "id": "scene-01",
+   "issues": [],
+   "model": "",
+   "time": "0:00-0:15",
+   "title": "شروع",
+   "voice_stale": [
+    "fa"
+   ],
+   "warnings": []
+  },
+  {
+   "blocks": [
+    {
+     "images": [
+      {
+       "fx": "",
+       "id": "IMG003",
+       "issues": [],
+       "ln": 2,
+       "note": "",
+       "prompt": "[REFS TO ATTACH: STYLE_ANCHOR| CH_ALI]\nPrompt of picture 3.",
+       "refs": [
+        {
+         "name": "STYLE_ANCHOR",
+         "src": null,
+         "video": null
+        },
+        {
+         "name": "CH_ALI",
+         "src": "images/refs/CH/CH_ALI.png",
+         "video": null
+        }
+       ],
+       "rejected": [],
+       "src": "images/scenes/IMG003_sea.png",
+       "stale": false,
+       "status": "redo",
+       "video": null,
+       "vprompt": ""
+      }
+     ],
+     "items": [
+      {
+       "audio": {
+        "en": null,
+        "fa": null
+       },
+       "en": "And the day was over.",
+       "en_ln": 5,
+       "fa": "و روز تمام شد.",
+       "id": "IMG003_1",
+       "issues": [],
+       "k": "say",
+       "label": null,
+       "ln": 4,
+       "sp": "راوی",
+       "tone": "آهسته"
+      }
+     ]
+    }
+   ],
+   "env": [
+    {
+     "issues": [],
+     "ln": 1,
+     "text": "غروب، کنار دریا."
+    }
+   ],
+   "fx": "",
+   "id": "scene-02",
+   "issues": [],
+   "model": "",
+   "time": "0:15-0:30",
+   "title": "پایان",
+   "voice_stale": [],
+   "warnings": []
+  }
+ ],
+ "speakers": [
+  {
+   "color": "#1565c0",
+   "ln": 3,
+   "name": "راوی",
+   "tone": "گرم و صمیمی",
+   "voice": "george"
+  },
+  {
+   "color": "#ef6c00",
+   "ln": 4,
+   "name": "علی",
+   "tone": "کنجکاو",
+   "voice": "charlie"
+  },
+  {
+   "color": "#8e24aa",
+   "ln": 5,
+   "name": "تست",
+   "tone": "عصبانی",
+   "voice": "aura-2-thalia-en"
+  }
+ ],
+ "tts": {
+  "catalog": [
+   {
+    "id": "deepgram/aura-2",
+    "name": "Aura-2",
+    "note": "",
+    "price": "0.03",
+    "tags": "unknown",
+    "tested": "",
+    "voices": [
+     {
+      "accent": "en-US",
+      "gender": "",
+      "name": "aura-2-thalia-en",
+      "note": "",
+      "tested": ""
+     },
+     {
+      "accent": "en-US",
+      "gender": "",
+      "name": "aura-2-apollo-en",
+      "note": "",
+      "tested": ""
+     }
+    ]
+   },
+   {
+    "id": "elevenlabs/eleven-v4-turbo",
+    "name": "Eleven v4 Turbo",
+    "note": "",
+    "price": "0.04",
+    "tags": "unknown",
+    "tested": "",
+    "voices": [
+     {
+      "accent": "؟",
+      "gender": "",
+      "name": "george",
+      "note": "",
+      "tested": ""
+     },
+     {
+      "accent": "؟",
+      "gender": "",
+      "name": "charlie",
+      "note": "",
+      "tested": ""
+     },
+     {
+      "accent": "؟",
+      "gender": "",
+      "name": "sarah",
+      "note": "",
+      "tested": ""
+     }
+    ]
+   },
+   {
+    "id": "google/gemini-2.5-flash-tts",
+    "name": "Gemini 2.5 Flash TTS",
+    "note": "",
+    "price": "0.0005",
+    "tags": "unknown",
+    "tested": "",
+    "voices": []
+   }
+  ],
+  "default": "elevenlabs/eleven-v4-turbo",
+  "has_key": true,
+  "job": {
+   "done": 0,
+   "errors": [],
+   "scene": "",
+   "state": "idle",
+   "total": 0,
+   "warnings": []
+  },
+  "tones": [
+   {
+    "fa": "آهسته",
+    "id": "whisper",
+    "tag": "[whispers]",
+    "tests": {},
+    "words": [
+     "آهسته",
+     "یواشکی",
+     "نجوا"
+    ]
+   },
+   {
+    "fa": "طلبکار",
+    "id": "annoyed",
+    "tag": "[annoyed]",
+    "tests": {},
+    "words": [
+     "طلبکار"
+    ]
+   },
+   {
+    "fa": "شرمنده",
+    "id": "sheepish",
+    "tag": "[sheepishly]",
+    "tests": {},
+    "words": [
+     "شرمنده"
+    ]
+   },
+   {
+    "fa": "خنده",
+    "id": "laugh",
+    "tag": "[chuckles]",
+    "tests": {},
+    "words": [
+     "خنده",
+     "خندان"
+    ]
+   },
+   {
+    "fa": "نگران",
+    "id": "worried",
+    "tag": "[worried]",
+    "tests": {},
+    "words": [
+     "نگران"
+    ]
+   },
+   {
+    "fa": "شیطون",
+    "id": "mischievous",
+    "tag": "[mischievously]",
+    "tests": {},
+    "words": [
+     "شیطون"
+    ]
+   },
+   {
+    "fa": "شوخ",
+    "id": "playful",
+    "tag": "[playfully]",
+    "tests": {},
+    "words": [
+     "شوخ",
+     "بازیگوش"
+    ]
+   },
+   {
+    "fa": "مرموز",
+    "id": "mysterious",
+    "tag": "[mysteriously]",
+    "tests": {},
+    "words": [
+     "مرموز",
+     "رازآلود"
+    ]
+   },
+   {
+    "fa": "ترسیده",
+    "id": "scared",
+    "tag": "[scared]",
+    "tests": {},
+    "words": [
+     "ترسیده",
+     "ترس"
+    ]
+   },
+   {
+    "fa": "با تعجب",
+    "id": "surprised",
+    "tag": "[surprised]",
+    "tests": {},
+    "words": [
+     "با تعجب",
+     "متعجب",
+     "تعجب"
+    ]
+   },
+   {
+    "fa": "کنجکاو",
+    "id": "curious",
+    "tag": "[curious]",
+    "tests": {},
+    "words": [
+     "کنجکاو",
+     "پرسشی"
+    ]
+   },
+   {
+    "fa": "متفکر",
+    "id": "thoughtful",
+    "tag": "[thoughtful]",
+    "tests": {},
+    "words": [
+     "متفکر",
+     "فکور"
+    ]
+   },
+   {
+    "fa": "عادی",
+    "id": "neutral",
+    "tag": "",
+    "tests": {},
+    "words": [
+     "عادی",
+     "توصیفی",
+     "طبیعی",
+     "صمیمی",
+     "گرم"
+    ]
+   }
+  ]
+ },
+ "voices": [
+  "george",
+  "charlie",
+  "sarah",
+  "adam",
+  "alice",
+  "bella",
+  "bill",
+  "brian",
+  "callum",
+  "chris",
+  "daniel",
+  "eric",
+  "harry",
+  "jessica",
+  "laura",
+  "liam",
+  "lily",
+  "matilda",
+  "river",
+  "roger",
+  "will"
+ ]
+}

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.8.0
+- `review.html` is now a small page shell; its style and code moved, unchanged, to `tools/ui/` (`review.css` and six scripts: paper, core, render, editors, panels, player). The page looks and behaves exactly as before (checked against a recorded copy of the old page).
+- The local server no longer serves hidden files (`.env`, `.git`, `.engine-backup`), `*.py` sources or `*.tmp` files. Before, `.env` could be downloaded from 127.0.0.1.
+- Fix: on Windows a save could fail when another program (an editor, an antivirus) had the file open at that moment; saves now wait for a moment and retry.
+- New end-to-end tests in `tools/tests/` (22 browser tests on a throw-away project; not part of the engine): `python tools/tests/run.py` (needs `pip install playwright`).
+
 ## 1.7.0
 - One config file for voices: `voices/voice-config.json` (models, voices per model, tones). Built automatically from an existing `voices/catalog.txt` the first time; «Refresh voice list» merges the API list into it and keeps your own fields (accent, gender, note, tested, tags). `catalog.txt` stays as the raw list.
 - Tones come from that file (`fa` name, `match` aliases, English `tag`): `tools/tts.py` no longer has a built-in list, sends up to 2 tags per line, and warns (page alert + terminal) about a tone that is not in the file instead of silently sending nothing. A tone with an empty tag (e.g. «عادی») is known and sends nothing.

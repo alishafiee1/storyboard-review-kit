@@ -1,0 +1,11 @@
+# فهرست نمونهٔ تست
+model: elevenlabs/eleven-v4-turbo | 0.04 | Eleven v4 Turbo
+voice: george | ؟
+voice: charlie | ؟
+voice: sarah | ؟
+
+model: deepgram/aura-2 | 0.03 | Aura-2
+voice: aura-2-thalia-en | en-US
+voice: aura-2-apollo-en | en-US
+
+model: google/gemini-2.5-flash-tts | 0.0005 | Gemini 2.5 Flash TTS

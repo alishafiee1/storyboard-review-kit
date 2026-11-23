@@ -4,7 +4,7 @@
   prompts/prompts.txt    (one complete Flow prompt per image / reference)
 Run:  python tools/serve.py   (or double-click click-for-review.bat)  ->  http://127.0.0.1:8765/review.html
 Listens on 127.0.0.1 only and stops by itself ~90 s after the page is closed. tools/tts.py imports spoken_lines()."""
-import colorsys, datetime, functools, glob, http.server, json, os, random, re, sys, threading, time
+import colorsys, datetime, functools, glob, http.server, json, os, random, re, sys, threading, time, urllib.parse
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STORY = os.path.join(ROOT, "scenario", "story.txt")
@@ -31,6 +31,7 @@ CONTENT = ("act",) + SPEECH
 DEFAULT_MODEL = "elevenlabs/eleven-v4-turbo"
 MODEL_RE = re.compile(r"[A-Za-z0-9_./:-]{1,80}")
 VOICE_RE = re.compile(r"[A-Za-z0-9_.:-]{1,60}")
+HIDDEN = re.compile(r"(^|/)\.|\.(py|tmp)$")
 
 
 # ---------------------------------------------------------------- files
@@ -41,11 +42,21 @@ def read_lines(path):
         return []
 
 
+def replace_file(tmp, path):
+    """os.replace that waits a moment when Windows says the target is open (an editor, a backup tool or an antivirus reading it)."""
+    for _ in range(40):
+        try:
+            return os.replace(tmp, path)
+        except PermissionError:
+            time.sleep(0.05)
+    os.replace(tmp, path)
+
+
 def write_lines(path, lines):
     text = "\n".join(lines).rstrip("\n") + "\n"
     tmp = path + ".tmp"
     open(tmp, "w", encoding="utf-8", newline="\n").write(text)
-    os.replace(tmp, path)
+    replace_file(tmp, path)
 
 
 def clean_spoken(t):
@@ -827,6 +838,8 @@ class H(http.server.SimpleHTTPRequestHandler):
         if p == "/api/ping":
             last_ping[0], seen_ping[0] = time.time(), True
             return self._json(200, {"ok": True})
+        if HIDDEN.search(urllib.parse.unquote(p)):  # never serve .env, .git, .engine-backup, the server's own sources or temp files
+            return self._json(404, {"error": "not found"})
         if p == "/":
             self.send_response(302)
             self.send_header("Location", "/review.html")

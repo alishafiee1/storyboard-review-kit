@@ -57,6 +57,9 @@ Create a `.env` file next to `review.html` with one line `OPENROUTER_API_KEY=...
 | `subtitles/` | `fa.srt` and `en.srt` made from the scenario |
 | `skills/` | writing rules for image prompts (used by AI coding assistants) |
 
+## Development
+The page is `review.html` (shell) + `tools/ui/` (style and scripts) + `tools/*.py` (server, voices, subtitles). Tests: `pip install playwright`, then `python tools/tests/run.py` (22 browser tests on a temporary copy of a small project; nothing is generated or charged). After changing the page on purpose, refresh the recorded page with `python tools/tests/run.py --update-baseline` and read the diff in `tools/tests/baseline/`.
+
 ## Keywords
 storyboard tool, AI video production, text-to-speech voice-over, scenario editor, image prompt manager, animation pipeline, Persian / Farsi RTL, OpenRouter, ElevenLabs, Google Flow, review page, YouTube video planning.
 

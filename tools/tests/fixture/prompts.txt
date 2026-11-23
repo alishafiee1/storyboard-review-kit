@@ -1,0 +1,19 @@
+# پرامپت‌های نمونهٔ تست
+=== IMG000 ===
+[REFS TO ATTACH: STYLE_ANCHOR| CH_ALI]
+Prompt of the thumbnail.
+
+=== IMG001 ===
+[REFS TO ATTACH: STYLE_ANCHOR| CH_ALI]
+Prompt of picture 1.
+
+=== IMG002 ===
+[REFS TO ATTACH: STYLE_ANCHOR| CH_ALI]
+Prompt of picture 2.
+
+=== IMG003 ===
+[REFS TO ATTACH: STYLE_ANCHOR| CH_ALI]
+Prompt of picture 3.
+
+=== CH_ALI ===
+Prompt of the character Ali.

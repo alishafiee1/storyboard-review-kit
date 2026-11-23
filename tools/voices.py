@@ -7,7 +7,7 @@
 Usage:  python tools/voices.py     (check the key, refresh the model and voice lists; voices/catalog.txt is rewritten as the raw list)
 Key:    OPENROUTER_API_KEY in the environment, or in a .env file next to review.html (.env is git-ignored; never put the key in story.txt).
 The first time the file is needed it is built from an existing voices/catalog.txt (if any) plus the default tones below."""
-import datetime, json, os, re, sys, threading, urllib.error, urllib.request
+import datetime, json, os, re, sys, threading, time, urllib.error, urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CATALOG = os.path.join(ROOT, "voices", "catalog.txt")
@@ -109,6 +109,12 @@ def save_config(cfg):
         os.makedirs(os.path.dirname(CONFIG), exist_ok=True)
         tmp = CONFIG + ".tmp"
         open(tmp, "w", encoding="utf-8", newline="\n").write(_dump(cfg))
+        for _ in range(40):  # Windows refuses while another program has the file open
+            try:
+                os.replace(tmp, CONFIG)
+                return
+            except PermissionError:
+                time.sleep(0.05)
         os.replace(tmp, CONFIG)
 
 

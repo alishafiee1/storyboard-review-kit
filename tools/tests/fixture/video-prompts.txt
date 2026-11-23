@@ -1,0 +1,5 @@
+# پرامپت‌های ویدیوی نمونهٔ تست
+=== IMG001 ===
+[REFS TO ATTACH: STYLE_ANCHOR| CH_ALI]
+[START FRAME: IMG001]
+Video prompt of picture 1.

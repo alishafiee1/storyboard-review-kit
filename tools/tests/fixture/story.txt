@@ -1,0 +1,34 @@
+# قسمت ۱: «نمونهٔ تست» | فقط برای تست خودکار
+tts-model: elevenlabs/eleven-v4-turbo
+
+speaker: راوی | #1565c0 | george | گرم و صمیمی
+speaker: علی | #ef6c00 | charlie | کنجکاو
+speaker: تست | #8e24aa | aura-2-thalia-en | عصبانی
+
+=== scene-00 | تامبنیل | - ===
+[IMG000]
+act: علی وسط خیابان ایستاده و تابلو را نگاه می‌کند.
+
+=== scene-01 | شروع | 0:00-0:15 ===
+env: یک خیابان شلوغ، صبح.
+fx: فید از سیاه
+voice-stale: fa
+[IMG001]
+status: ok
+note: رنگ‌ها شاد باشه
+act: علی با یک لیوان قهوه رد می‌شود.
+say: راوی | این علیه. صبح‌ها بدون قهوه آدم نیست.
+en: This is Ali. He is not a person before coffee.
+say: علی (با تعجب) | این دیگه از کجا پیداش شد؟
+en: Where did that come from?
+[IMG002]
+image-stale: yes
+act: گگ | علی به تابلو نگاه می‌کند و جا می‌خورد.
+say: تست | یک خط با گوینده‌ای که صدایش خط‌تیره دارد.
+
+=== scene-02 | پایان | 0:15-0:30 ===
+env: غروب، کنار دریا.
+[IMG003]
+status: redo
+say: راوی (آهسته) | و روز تمام شد.
+en: And the day was over.
