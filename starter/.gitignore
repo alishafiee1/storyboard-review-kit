@@ -20,3 +20,4 @@ audio/_samples/
 audio/_tests/
 .kit/history/
 .kit/undone/
+.kit/migrate-report-*.md

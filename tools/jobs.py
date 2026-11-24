@@ -120,7 +120,7 @@ def line_voice_job(id_, langs, model):
                 JOB["errors"].append(f"{i}: {st[7:]}")
         for lg, its in todo:
             res = tts.make(its, lg, force=True, on_done=tick, warnings=JOB["warnings"])
-            pick_made(its, res, lg)  # the voice just made is the chosen one; the old file of the same model went to the archive
+            pick_made(its, res, lg)  # the voice just made is the chosen one; it is a new file next to the older takes
         JOB["state"] = "failed" if JOB["errors"] else "done"
     except Exception as e:
         JOB["errors"].append(str(e)[:150])

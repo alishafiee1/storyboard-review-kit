@@ -1,0 +1,41 @@
+# پروژهٔ نمونه شبیه 1-mimo-white-head (پیش از مهاجرت v1.20)
+tts-model: elevenlabs/eleven-v4-turbo
+
+speaker: راوی | #1565c0 | george | گرم
+speaker: میمو | #ef6c00 | charlie | آرام
+
+=== scene-00 | تامبنیل | - ===
+[IMG000]
+
+=== scene-01 | نیمکت | 0:00-0:20 ===
+env: پارک، صبح زود
+voice-stale: en
+voice-pick: IMG001_1.fa=eleven-v3, IMG003_2.en=eleven-v3
+[IMG001]
+pick: edfa6fe0
+act: میمو روی نیمکت نشسته است.
+say: راوی | این میمو است. سرش سفید است.
+en: This is Mimo. His head is white.
+[IMG002]
+act: نمای نزدیک نیمکت.
+[IMG003]
+say: راوی | رهگذرها نگاه می‌کنند.
+en: Passersby look.
+say: میمو (آرام) | من فقط می‌خواهم بنشینم.
+en: I only want to sit.
+[IMG004]
+[IMG005]
+say: راوی | این بلوک مشترک است: دو تصویر و یک خط.
+en: This block is shared by two pictures.
+
+=== scene-02 | کارخانه | 0:20-0:40 ===
+voice-pick: IMG999_1.fa=eleven-v3
+[IMG006]
+say: میمو | این خط شناسهٔ قدیمی دارد.
+id: L007
+en: This line has an old id.
+voice: fa=eleven-v3
+voice-stale: fa
+[IMG010]
+say: راوی | تصویر قسمت دوم.
+en: A picture of part two.

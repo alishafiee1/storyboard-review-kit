@@ -181,7 +181,7 @@ def pick_made(items, res, lang):
         with LOCK:
             lines = read_lines(STORY)
             for it in made:
-                set_line_pick(lines, it["id"], lang, variant_tag(it["model"]))
+                set_line_pick(lines, it["id"], lang, it.get("variant") or variant_tag(it["model"]))
             write_lines(STORY, lines)
 
 

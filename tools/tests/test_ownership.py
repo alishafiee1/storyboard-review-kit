@@ -186,7 +186,7 @@ class LineAddress(unittest.TestCase):
         lineedits.add_line(ls, sid, after, "say", "علی", "خط تازه")
         new = next(i for i in says(ls, "scene-01") if i["fa"] == "خط تازه")
         self.assertEqual(new["img"], "IMG003")
-        self.assertTrue(new["id"].startswith("L") and new["vstale"] == ["fa"])
+        self.assertTrue(new["id"] == "IMG003-1" and new["vstale"] == ["fa"])  # named after the picture, not L001
         self.assertEqual(new["stale_own"], ["fa"])
         self.assertEqual([i["id"] for i in says(ls, "scene-01")], ["IMG001_1", "IMG001_2", new["id"], "L001"])  # the old names were pinned, nothing moved
 

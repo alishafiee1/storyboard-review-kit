@@ -13,7 +13,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(globals().get("__file__")
 MARK = "# --- storyboard-review-kit ignore rules: added once, edit or delete any line freely ---"
 IGNORE = [".env", ".engine-backup/", "__pycache__/", "*.tmp", "graphify-out/",
           "videos/", "*_renders/", "*.mp4", "*.mov", "*.mkv", "*.avi", "*.webm", "*.m4v", "*.rar", "*.zip", "*.7z",
-          "archive/", "audio/_samples/", "audio/_tests/", ".kit/history/", ".kit/undone/"]  # pictures (images/) and voices (audio/) are NOT ignored: they belong in git
+          "archive/", "audio/_samples/", "audio/_tests/", ".kit/history/", ".kit/undone/", ".kit/migrate-report-*.md"]  # pictures (images/) and voices (audio/) are NOT ignored: they belong in git
 
 
 def fetch():
@@ -90,6 +90,9 @@ def update():
         print(f"Updated {old_v} -> {new_v}: " + ", ".join(changed))
         print("Old copies of replaced files are in", os.path.relpath(stamp, ROOT))
         print("Restart the review server (close its window, then click click-for-review.bat again).")
+        if "tools/migrate.py" in files:
+            print("New voices and dialogue ids are named after the picture (IMG045-1). To bring an old project's voices over, first see what it would change (nothing is touched):")
+            print("  python tools/migrate.py")
 
 
 def new_project(folder):

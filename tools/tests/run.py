@@ -6,7 +6,7 @@
   python tools/tests/run.py --update-baseline  rewrite tools/tests/baseline/* from the current page (do this ONLY when the page is meant to look different)
 Every test builds a fresh throw-away project in a temp folder (fixture/ + the tools of this checkout), starts its own server on a free port and
 never touches a real project. Nothing here calls a paid service. This folder is not part of the engine (ENGINE.txt) and is not sent to projects."""
-import argparse, contextlib, json, os, re, shutil, socket, struct, subprocess, sys, tempfile, time, traceback, urllib.error, urllib.request, zlib
+import argparse, contextlib, glob, json, os, re, shutil, socket, struct, subprocess, sys, tempfile, time, traceback, urllib.error, urllib.request, zlib
 
 # The tests never use a real key (so they behave the same on every computer and can never spend money); the page only needs to see «a key exists».
 os.environ["OPENROUTER_API_KEY"] = "test-key-not-real"
@@ -688,18 +688,24 @@ def voice_dialog_manage(proj, page):
 
 
 @test
-def making_again_archives_the_old_voice(proj, page):
-    """tts.make with the same model replaces nothing: the older file goes to audio/<lang>/archive/ first (the network is faked here)."""
+def making_again_keeps_every_take(proj, page):
+    """tts.make writes <id>_<rid>.mp3 with a random 8-hex id: making a line again adds a take next to the older one (nothing is replaced or archived),
+    and voices.tsv records model / voice / tone / time of each (the network is faked here)."""
     code = ("import sys, os; sys.path.insert(0,'tools'); import tts\n"
             "tts.synth=lambda *a: b'x'*6000; tts.load_key=lambda: 'k'; tts.voice_problem=lambda m,v: None\n"
-            "it=dict(id='IMG003_1', scene='scene-02', speaker='راوی', voice='george', model='elevenlabs/eleven-v3', spoken='سلام', tone='')\n"
+            "it=dict(id='IMG003-1', scene='scene-02', speaker='راوی', voice='george', model='elevenlabs/eleven-v3', spoken='سلام', tone='')\n"
             "os.makedirs('audio/fa',exist_ok=True)\n"
-            "print(tts.make([it],'fa',force=True)); print(tts.make([it],'fa',force=True))\n"
-            "print(sorted(os.listdir('audio/fa/archive')))")
+            "print(tts.make([it],'fa',force=True), it['variant']); print(tts.make([it],'fa',force=True), it['variant'])\n"
+            "print(sorted(os.listdir('audio/fa')))")
     out = subprocess.run([sys.executable, "-c", code], cwd=proj.root, capture_output=True, text=True, encoding="utf-8")
     assert out.returncode == 0, out.stderr[-400:]
-    assert "'IMG003_1.eleven-v3.mp3'" in out.stdout and out.stdout.count("'ok'") == 2, out.stdout
-    assert os.path.exists(os.path.join(proj.root, "audio", "fa", "IMG003_1.eleven-v3.mp3"))
+    rids = re.findall(r"'ok'\} ([0-9a-f]{8})", out.stdout)
+    assert len(rids) == 2 and rids[0] != rids[1], out.stdout
+    for r in rids:
+        assert os.path.exists(os.path.join(proj.root, "audio", "fa", "IMG003-1_%s.mp3" % r))
+    assert not os.path.exists(os.path.join(proj.root, "audio", "fa", "archive"))
+    tsv = proj.read("audio/fa/voices.tsv").split("\n")
+    assert tsv[0] == "file\tmodel\tvoice\ttone\ttime" and len([l for l in tsv[1:] if l]) == 2
 
 
 @test
@@ -815,7 +821,7 @@ def voices_follow_their_lines(proj, page):
     now = {i["id"]: i for i in says()}
     assert all(now[k]["audio"]["fa"] == v for k, v in before.items()), "old lines must keep their voice files"
     new = next(i for i in now.values() if i["fa"] == "یک خط تازه وسط")
-    assert new["id"].startswith("L") and new["audio"]["fa"] is None
+    assert new["id"] == new["img"] + "-1" and new["audio"]["fa"] is None  # named after its picture: IMGnnn-k
     assert proj.story().count("id: ") == 4  # the three old ones were pinned, plus the new one
     code, _ = proj.api("/api/delete", {"scene": "scene-01", "index": first["ln"] + 1, "old": "یک خط تازه وسط"})
     assert code == 409  # that position is now an id: line, not the new dialogue: a stale page is refused, nothing is lost
@@ -989,16 +995,18 @@ def regen_makes_only_the_stale_lines(proj, page):
                          cwd=proj.root, capture_output=True, text=True, encoding="utf-8")
     assert out.returncode == 0 and out.stdout.strip() == "done []", out.stdout + out.stderr[-400:]
     st = proj.story()
-    assert os.path.exists(os.path.join(proj.root, "audio", "fa", "L001.eleven-v4-turbo.mp3")) and os.path.exists(os.path.join(proj.root, "audio", "en", "L001.eleven-v4-turbo.mp3"))
-    assert not os.path.exists(os.path.join(proj.root, "audio", "fa", "IMG001_1.eleven-v4-turbo.mp3"))
-    assert "voice: fa=eleven-v4-turbo, en=eleven-v4-turbo" in st
+    made = lambda lg, id_: glob.glob(os.path.join(proj.root, "audio", lg, id_ + "_????????.mp3"))
+    assert len(made("fa", "L001")) == 1 and len(made("en", "L001")) == 1  # the new name: <id>_<8 hex>.mp3, one take per language
+    assert not made("fa", "IMG001_1")
+    fa, en = [re.search(r"_([0-9a-f]{8})\.mp3", made(lg, "L001")[0]).group(1) for lg in ("fa", "en")]
+    assert "voice: fa=%s, en=%s" % (fa, en) in st
     assert "voice-stale: en" not in st and st.count("voice-stale: fa") == 2 and "voice-stale" not in st.split("[IMG001]")[0]
     out = subprocess.run([sys.executable, "-c", head + "jobs.regen_job(); print('end')"], cwd=proj.root, capture_output=True, text=True, encoding="utf-8")
     assert out.returncode == 0, out.stderr[-400:]
     st = proj.story()
     assert "voice-stale" not in st
-    assert os.path.exists(os.path.join(proj.root, "audio", "fa", "IMG001_2.eleven-v4-turbo.mp3"))
-    assert "voice: fa=eleven-v4-turbo" in st and "IMG001_1.fa" not in st
+    assert len(made("fa", "IMG001_2")) == 1
+    assert re.search(r"voice: fa=[0-9a-f]{8}", st) and "IMG001_1.fa" not in st
 
 
 @test
@@ -1108,6 +1116,51 @@ def move_endpoints_stale_and_four_digit(proj, page):
     while proj.api("/api/project")[1]["history"]:
         assert proj.api("/api/undo", {"force": True})[0] == 200
     assert n >= 6 and story_bytes(proj) == orig
+
+
+PROBE = """async () => {
+  const out = [];
+  for (const b of document.querySelectorAll('button.ab[data-src]')) {
+    const src = b.dataset.src, buf = await (await fetch(src)).arrayBuffer();
+    const h = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-1', buf))).map(x => x.toString(16).padStart(2, '0')).join('').slice(0, 10);
+    const dur = await new Promise(ok => { const a = new Audio(src); a.onloadedmetadata = () => ok(a.duration); a.onerror = () => ok(-1); });
+    out.push([b.dataset.lg, src.split('?')[0], h, dur > 0.1]);
+  }
+  return out;
+}"""
+
+
+@test
+def migrated_fixture_loads_and_plays_the_same_audio(proj, page):
+    """An old project in the style of 1-mimo-white-head (old voice names, shared block, scene-level voice-pick, Premiere XML with D:/ paths) is migrated
+    with tools/migrate.py --apply: the page loads, every 🔊 button plays (a real decodable mp3) the same bytes as before, from the new file names;
+    --undo brings the old names back and the page shows the old files again."""
+    sys.path.insert(0, HERE)
+    import mimo
+    for d in ("audio", "scenario"):  # (the default pictures stay: the open page may still ask for them)
+        shutil.rmtree(os.path.join(proj.root, d), ignore_errors=True)
+    mimo.build(proj.root, tools=False)
+    page.reload()
+    page.wait_for_selector("section.blk")
+    before = page.evaluate(PROBE)
+    assert len(before) >= 10 and all(x[3] for x in before), before
+    assert any("/IMG001_1" in x[1] or "IMG001_1." in x[1] for x in before) and not any("IMG001-1" in x[1] for x in before)
+    run = lambda *a: subprocess.run([sys.executable, "tools/migrate.py"] + list(a), cwd=proj.root, capture_output=True, text=True, encoding="utf-8")
+    dry = run()
+    assert dry.returncode == 0 and "IMG001-1" in dry.stdout and os.path.exists(os.path.join(proj.root, "audio", "en", "IMG001_1.mp3"))
+    done = run("--apply")
+    assert done.returncode == 0, done.stdout[-500:] + done.stderr[-500:]
+    stamp = re.search(r"--undo (\d{8}-\d{6})", done.stdout).group(1)
+    page.reload()
+    page.wait_for_selector("section.blk")
+    after = page.evaluate(PROBE)
+    assert [(x[0], x[2], x[3]) for x in after] == [(x[0], x[2], x[3]) for x in before], "every button plays the same audio"
+    assert any("IMG001-1" in x[1] for x in after) and not any("IMG001_1" in x[1] or "/L007" in x[1] for x in after)
+    assert "id: IMG006-1" in proj.story()
+    assert run("--undo", stamp).returncode == 0
+    page.reload()
+    page.wait_for_selector("section.blk")
+    assert page.evaluate(PROBE) == before
 
 
 @test

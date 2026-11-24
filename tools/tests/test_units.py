@@ -175,8 +175,8 @@ class StableLineIds(unittest.TestCase):
         after = self.ids(ls)
         self.assertEqual(len(after), len(before) + 1)
         self.assertEqual([i for i in after if i in before], before)  # nobody was renamed
-        self.assertEqual(after[1][0], "L")  # the new one sits second and has its own id
-        self.assertIn("id: L001", ls)
+        self.assertEqual(after[1], "IMG001-1")  # the new one sits second and is named after its picture (the first free k of IMG001)
+        self.assertIn("id: IMG001-1", ls)
 
     def test_deleting_a_line_keeps_the_ids_of_the_others(self):
         ls = lines()

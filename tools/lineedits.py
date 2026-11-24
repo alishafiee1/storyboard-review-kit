@@ -66,6 +66,25 @@ def next_line_id(lines):
     return "L%03d" % (max(used or [0]) + 1)
 
 
+def owner_image(lines, a, s):
+    """The [IMG] a line at index `a` belongs to (the nearest marker above it inside the scene that starts at `s`), or None above the first picture."""
+    for i in range(a, s, -1):
+        m = MARKER.match(lines[i].strip())
+        if m:
+            return m.group(1)
+    return None
+
+
+def next_say_id(lines, image):
+    """IMG045-1, IMG045-2 ...: the next k of this picture that is not used by an id: line or by a voice file of any language (archived ones too),
+    so a deleted line's number is never given to a new line (its voices could still be around)."""
+    pat = re.escape(image) + r"-(\d+)"
+    used = [int(m.group(1)) for l in lines for m in [re.match(r"\s*id:\s*" + pat + r"\s*$", l)] if m]
+    used += [int(m.group(1)) for f in glob.glob(os.path.join(glob.escape(ROOT), "audio", "**", image + "-*"), recursive=True)
+             for m in [re.match(pat + r"(?!\d)", os.path.basename(f))] if m]
+    return "%s-%d" % (image, max(used or [0]) + 1)
+
+
 def after_say(lines, a, e):
     """Index just after a say line and its id: line (where an en: line goes)."""
     return a + 2 if a + 1 < e and lines[a + 1].strip().startswith("id:") else a + 1
@@ -200,7 +219,11 @@ def add_line(lines, scene_id, after, kind, speaker, text, label="", tone=""):
         if not k2 or k2.group(1) not in skip:
             break
         pos += 1
-    lines[pos:pos] = [new] + (["id: " + next_line_id(lines), "voice-stale: fa"] if kind == "say" else [])  # a new line has no voice yet
+    new_id = None
+    if kind == "say":  # a new line is named after the picture it belongs to; above the first picture the old L001 form is all there is
+        img = owner_image(lines, a, s)
+        new_id = next_say_id(lines, img) if img else next_line_id(lines)
+    lines[pos:pos] = [new] + (["id: " + new_id, "voice-stale: fa"] if kind == "say" else [])  # a new line has no voice yet
     if name:
         ensure_speaker(lines, name)
 

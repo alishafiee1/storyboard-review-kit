@@ -1,14 +1,15 @@
 # -*- coding: utf-8 -*-
-"""Narration maker: one mp3 per dialogue line -> audio/<lang>/<id>.mp3, through OpenRouter's /audio/speech endpoint.
+"""Narration maker: one mp3 per dialogue line and take -> audio/<lang>/<id>_<rid>.mp3 (id = IMG045-1, rid = 8 random hex digits: every take is its own
+version and nothing is overwritten), through OpenRouter's /audio/speech endpoint. Who made it (model, voice, tone, time) goes to audio/<lang>/voices.tsv.
 Voice = the line's speaker (speaker: line at the top of scenario/story.txt); model = the scene's «model:» line, else the file's «tts-model:» line.
 The page's «بازسازی صدا» button calls make(); from a terminal:
   python tools/tts.py fa|en [id ...]       (existing files are skipped unless TTS_FORCE=1)
 Key: OPENROUTER_API_KEY (environment or .env). Do not use google/gemini-3.8-*-tts for Persian: it reads Persian wrongly (tested)."""
-import concurrent.futures as cf, json, os, subprocess, sys, time, urllib.error, urllib.request, wave
+import concurrent.futures as cf, json, os, secrets, subprocess, sys, threading, time, urllib.error, urllib.request, wave
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from kitcore import ROOT  # noqa: E402
-from media import archive_dir, archive_move, variant_tag  # noqa: E402
+from media import audio_index, audio_variants, variant_tag  # noqa: E402
 from edits import pick_made  # noqa: E402
 from story import spoken_lines  # noqa: E402
 import voices  # noqa: E402
@@ -56,6 +57,34 @@ def synth(model, voice, text, key):
         os.remove(tmp)
 
 
+TSV_LOCK = threading.Lock()
+TSV_HEAD = "file\tmodel\tvoice\ttone\ttime"
+
+
+def log_voice(out_dir, name, it):
+    """One line in audio/<lang>/voices.tsv for the file just made (the model is not part of the file name any more)."""
+    clean = lambda s: str(s or "").replace("\t", " ").replace("\n", " ")
+    path = os.path.join(out_dir, "voices.tsv")
+    with TSV_LOCK:
+        new = not os.path.exists(path)
+        with open(path, "a", encoding="utf-8", newline="") as fh:
+            fh.write((TSV_HEAD + "\n" if new else "") + "\t".join([name, clean(it["model"]), clean(it["voice"]), clean(it.get("tone")), time.strftime("%Y-%m-%d %H:%M:%S")]) + "\n")
+
+
+def made_by(out_dir, lang, id_, model, idx):
+    """True when this line already has a voice of this model: an old <id>.<tag>.mp3, or a take recorded in voices.tsv with that model."""
+    tag = variant_tag(model)
+    for v in audio_variants(lang, id_, idx):
+        if v["name"] == tag:
+            return True
+    try:
+        rows = [l.split("\t") for l in open(os.path.join(out_dir, "voices.tsv"), encoding="utf-8").read().split("\n")[1:] if l.strip()]
+    except OSError:
+        return False
+    have = {os.path.basename(v["path"]) for v in audio_variants(lang, id_, idx)}
+    return any(len(r) > 1 and r[1] == model and r[0] in have for r in rows)
+
+
 def voice_problem(model, voice):
     """A text when the config knows this model's voices and the voice is not one of them."""
     return voices.known_voice(model, voice)
@@ -74,10 +103,12 @@ def make(items, lang, force=False, workers=4, on_done=None, warnings=None):
     out_dir = os.path.join(ROOT, "audio", lang)
     os.makedirs(out_dir, exist_ok=True)
     result = {}
+    idx = audio_index(lang)  # read the folder once, not once per line
 
     def one(it):
-        mp3 = os.path.join(out_dir, "%s.%s.mp3" % (it["id"], variant_tag(it["model"])))  # one file per model: voices never overwrite each other
-        if os.path.exists(mp3) and not force:
+        rid = secrets.token_hex(4)  # every take is a new version: IMG045-1_ab12cd34.mp3, nothing is overwritten or archived
+        mp3 = os.path.join(out_dir, "%s_%s.mp3" % (it["id"], rid))
+        if not force and made_by(out_dir, lang, it["id"], it["model"], idx):
             return it["id"], "cached"
         if not key:
             return it["id"], "FAILED no key"
@@ -90,9 +121,9 @@ def make(items, lang, force=False, workers=4, on_done=None, warnings=None):
                 data = synth(it["model"], it["voice"], style_text(it["spoken"], it.get("tone", ""), lang, it["model"], warn), key)
                 tmp = mp3 + ".tmp"
                 open(tmp, "wb").write(data)
-                if os.path.exists(mp3):  # making the same model again: the older voice goes to the archive, never lost
-                    archive_move(mp3, archive_dir("voice", lang))
                 os.replace(tmp, mp3)
+                log_voice(out_dir, os.path.basename(mp3), it)
+                it["variant"] = rid  # the page's choice for this line: pick_made() writes it under the line
                 return it["id"], "ok"
             except (urllib.error.URLError, RuntimeError, TimeoutError, subprocess.CalledProcessError) as e:
                 err = str(e)[:100]

@@ -33,7 +33,9 @@ Layers, each importing only from the ones above it:
 | `api.py` | one small function per write endpoint, registered with `@route("/api/...")` |
 | `serve.py` | only the HTTP layer: GET files, GET `/api/project`, POST → `api.handle` under the file lock |
 | `tts.py`, `voices.py`, `voice_test.py`, `subtitles.py` | voice making, the voice / model / tone config (`voices/voice-config.json`), samples, `.srt` files |
-| `pack.py`, `premiere_check.py` | hand the project to an editor; check a Premiere XML |
+| `pack.py`, `premiere_check.py` | hand the project to an editor; check a Premiere XML (`--fix` repairs paths of renamed voices from `.kit/renames.tsv`; `rewrite_pathurls` is the one place that edits `<pathurl>` bytes) |
+| `migrate.py` | one-time reversible migration to image-based voice names: `--dry-run` (default, Markdown report in `.kit/`), `--apply` (backup in `.engine-backup/migrate-<time>/`, renames logged in `.kit/renames.tsv`), `--undo <time>` |
+| `premiere_export.py` | simple xmeml timeline from story order via `media.resolve()` (named differently from a project's own `export_premiere.py` so updates never replace it) |
 | `update.py` | update a project from GitHub (only files listed in `ENGINE.txt`) |
 
 Rules that keep it safe: the server listens on 127.0.0.1 only; dotfiles, `.py` and `.tmp` are never served; every edit re-reads the file, changes
@@ -48,9 +50,9 @@ tts-model: elevenlabs/eleven-v4-turbo           default voice model
 env: ...  fx: ...  model: ...  off: yes         scene-level keys right under the header (old files may also have voice-stale: / voice-pick: here; still read)
 [IMG001]                                        a picture slot; every act / say below it, up to the next [IMG], belongs to it
 status: redo | pick: <rid> (or an old file name) | off: yes | note: ... | fx: ... | image-stale: yes
-act: ...   say: speaker (tone) | text   id: L007   en: translation   voice: fa=eleven-v3, en=default   voice-stale: fa   format-issue: ...
+act: ...   say: speaker (tone) | text   id: IMG045-1   en: translation   voice: fa=eleven-v3, en=default   voice-stale: fa   format-issue: ...
 (voice: / voice-stale: = the chosen voice and the out-of-date flag of that dialogue line; the old scene-level forms are read and moved to the lines when the page writes.
-id: = the stable name of the dialogue line above; its voice files are audio/<lang>/L007.mp3. Old files have no id: and
+id: = the stable name of the dialogue line above; its voice files are audio/<lang>/IMG045-1_<rid>.mp3 (new takes), IMG045-1.<model>.mp3 / IMG045-1.mp3 (older). New lines are named IMGnnn-k (nnn = the picture the line sits under, k = next free number, never reused); L007 and positional names are only read. Old files have no id: and
 read as IMG001_2 (picture id + position in the block); the page writes that id explicitly before the first add / delete.)
 ```
 The full writing rules for AI assistants are in `starter/skills/how-to-write-prompts-for-flow.md`.
@@ -88,8 +90,8 @@ To change a shared value from several files, put it in `S` (`S.P = ...`), not in
 
 | Command | What |
 |---|---|
-| `python -m unittest discover -s tools/tests -p "test_*.py"` | 62 unit tests (text rules, ownership / voice keys / undo, imports/exports of the page modules, old-import compatibility), in milliseconds |
-| `python tools/tests/run.py` | 43 browser tests (needs `pip install playwright`) on a temporary copy of `tools/tests/fixture/`; nothing is charged |
+| `python -m unittest discover -s tools/tests -p "test_*.py"` | 144 unit tests (text rules, migration, Premiere export, ownership / voice keys / undo, imports/exports of the page modules, old-import compatibility), in milliseconds |
+| `python tools/tests/run.py` | 47 browser tests (needs `pip install playwright`) on a temporary copy of `tools/tests/fixture/`; nothing is charged |
 | `python tools/tests/run.py --update-baseline` | refresh the recorded page after a deliberate change; read the diff in `tools/tests/baseline/` |
 
 Both run on every push (`.github/workflows/tests.yml`).
@@ -107,6 +109,10 @@ Both run on every push (`.github/workflows/tests.yml`).
 - No formatter or linter is installed in the repo. The page scripts were pretty-printed once by a one-off tool; keep new code in the same style (2 spaces, one statement per line).
 - Long HTML template strings in `render.js` / `dialogs.js` stay on single lines (about 50 lines are over 200 characters); splitting them would only add noise.
 - `editors.js` is the largest page file (about 550 lines); a unit test fails at 700 lines, which is the signal to split it.
+
+## Voice names and migration (v1.20)
+- tts writes `audio/<lang>/<id>_<rid>.mp3` (8 random hex), one file per take; `audio/<lang>/voices.tsv` (`file, model, voice, tone, time`) records who made it. Without `force` a line that already has a voice of the model is skipped (old `<id>.<tag>.mp3` or a `voices.tsv` row).
+- `python tools/migrate.py` (dry-run) → `--apply` → `--undo <time>`. Id of a line = `IMGnnn-k` (nnn = owner picture, k = position among its lines, bumped when taken); files keep their model tag / rid / ` (1)` suffix; the renames of every `audio/<lang>/` folder (archive included, `_samples`/`_tests` not) and the `<pathurl>` of every XML follow; a taken target name = the line keeps its old id and files (reported). Refuses with uncommitted git changes unless `--allow-dirty`; undo refuses when story/XML changed since unless `--force`.
 
 ## Versions and file names (v1.18)
 - A picture version is `(base, rid)` (random 8-hex id from Flow), else `(base, slug)`, else `(base, "")`. `_1K/_2K/_4K` files of one version are one version; the best (4K, 2K, 1K, plain) is shown and exported; a browser copy ` (1)` is ignored while the original exists. `pick:` stores the rid, so a better file arriving later keeps the pick. No image file is ever renamed.
