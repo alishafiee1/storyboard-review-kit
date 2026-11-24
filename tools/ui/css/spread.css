@@ -661,3 +661,120 @@ figure.shot.off .frame img {
   direction:ltr;
   font-size:13px;
 }
+
+/* scale round (v2.0.1) */
+.imgs {
+  padding:22px 36px 14px;
+}
+
+figure.shot {
+  width:min(100%,calc((100vh - 250px) * 16 / 9 + 34px));
+}
+
+.mount {
+  padding:18px;
+}
+
+.tape {
+  width:92px;
+  height:30px;
+}
+
+.tape.a {
+  left:-30px;
+  top:-10px;
+}
+
+.tape.b {
+  right:-30px;
+  top:-10px;
+}
+
+.txt {
+  padding:0 40px 28px;
+}
+
+.pghead {
+  padding-top:30px;
+  font-size:15px;
+}
+
+.slabel,
+.cnt {
+  font-size:15px;
+}
+
+.env {
+  font-size:15px;
+}
+
+.it {
+  padding:20px 20px 18px;
+  margin:0 -20px;
+}
+
+.who {
+  font-size:14px;
+  min-height:32px;
+  gap:4px 12px;
+}
+
+.who .nm {
+  font-size:14px;
+  line-height:28px;
+  padding:0 16px;
+}
+
+.who .tn {
+  font-size:14px;
+}
+
+.ab .ic {
+  width:20px;
+  height:20px;
+}
+
+.ab small {
+  font-size:11px;
+}
+
+.fa {
+  font-size:20px;
+  font-weight:500;
+  line-height:1.8;
+}
+
+.en {
+  font-size:15px;
+  line-height:1.6;
+}
+
+.act {
+  font-size:17px;
+}
+
+.lt-b {
+  width:30px;
+  height:30px;
+}
+
+.lt-b .ic {
+  width:17px;
+  height:17px;
+}
+
+.addbar button {
+  font-size:15px;
+}
+
+.idrow {
+  font-size:13px;
+}
+
+.vmeta > span {
+  font-size:13px;
+}
+
+.nbox textarea {
+  font-size:15px;
+}

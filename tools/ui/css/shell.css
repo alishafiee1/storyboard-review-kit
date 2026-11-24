@@ -557,3 +557,93 @@
   font-size:13px;
   line-height:1.9;
 }
+
+/* scale round (v2.0.1): everything about 1.3x of the first pass, like the mock-up */
+:root {
+  --bar-h:64px;
+}
+
+.ib {
+  width:42px;
+  height:42px;
+}
+
+.ib .ic {
+  width:24px;
+  height:24px;
+  stroke-width:1.6;
+}
+
+#title {
+  font-size:22px;
+  font-weight:500;
+}
+
+#ep {
+  font-size:15px;
+}
+
+#nav {
+  margin-top:8px;
+  height:36px;
+}
+
+#nav .ib {
+  width:36px;
+  height:36px;
+}
+
+#pos {
+  font-size:24px;
+  min-width:104px;
+}
+
+#apr {
+  font-size:15px;
+}
+
+.pill {
+  font-size:15px;
+  line-height:30px;
+}
+
+#foot {
+  height:72px;
+}
+
+#ttime {
+  font-size:15px;
+}
+
+.playb {
+  width:42px;
+  height:42px;
+}
+
+.playb .ic {
+  width:21px;
+  height:21px;
+}
+
+.stamp {
+  font-size:18px;
+  padding:7px 22px;
+}
+
+.stamp .ic {
+  width:22px;
+  height:22px;
+}
+
+#aside {
+  font-size:17px;
+}
+
+.drow {
+  font-size:17px;
+  height:52px;
+}
+
+#dtitle {
+  font-size:20px;
+}
