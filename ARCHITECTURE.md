@@ -36,6 +36,8 @@ Layers, each importing only from the ones above it:
 | `pack.py`, `premiere_check.py` | hand the project to an editor; check a Premiere XML (`--fix` repairs paths of renamed voices from `.kit/renames.tsv`; `rewrite_pathurls` is the one place that edits `<pathurl>` bytes) |
 | `migrate.py` | one-time reversible migration to image-based voice names: `--dry-run` (default, Markdown report in `.kit/`), `--apply` (backup in `.engine-backup/migrate-<time>/`, renames logged in `.kit/renames.tsv`), `--undo <time>` |
 | `premiere_export.py` | simple xmeml timeline from story order via `media.resolve()` (named differently from a project's own `export_premiere.py` so updates never replace it) |
+| `watch.py` | the Downloads watcher: moves (cuts) Flow-named files whose base is known in this project and whose slug fits the expected output name into `images/scenes/bNN/` or `images/refs/<KIND>/`, logs `.kit/imports.tsv`; started by `serve.py` when `kit-config.json` has `watch_downloads: true`, or run by hand (`--once`, `--dry-run`) |
+| `batch.py` | the copy-ready text of one batch (`b05` = IMG041-IMG050): header, `[REFS TO ATTACH]` with real file names, prompt, expected output name; CLI and `GET /api/batch` |
 | `update.py` | update a project from GitHub (only files listed in `ENGINE.txt`) |
 
 Rules that keep it safe: the server listens on 127.0.0.1 only; dotfiles, `.py` and `.tmp` are never served; every edit re-reads the file, changes
@@ -119,3 +121,6 @@ Both run on every push (`.github/workflows/tests.yml`).
 - Scans (`images/scenes`, `images/refs`, `audio/<lang>`) are recursive and skip `archive/`, `_rejected/`, `inbox/`. Voice files `<id>_<rid>.mp3`, `<id>.<model>.mp3` and `<id>.mp3` are variants of one line.
 - Per project, `kit-config.json` may hold `name_pattern` (regex with the named groups `base`, `slug`, `rid`, `q`) and `quality` (best first).
 
+
+## Intake (v1.21)
+`watch.run_once(root, downloads)` is one pass over the top level of Downloads. A file moves only if it parses (`flowname.parse`), its base is known (`[IMGnnn]` in story.txt, a prompts.txt header, or a file in `images/refs/`) and, with `match_slug` (default true), its slug fits `flowname.output_slug(prompt)` (`[OUTPUT NAME: IMG045_cave_wall]`) or the slugs of the versions on disk (`flowname.slugs_match`: case, underscores and Flow's `…` cut-off are ignored; a file with no slug fits). Partial downloads and files whose size or time changes during the pass are skipped. Never overwrites: same bytes already in the project -> only removed from Downloads; same name, other bytes -> ` (n)`. Cross-drive moves go through `shutil.move` to a `.tmp` and `os.replace`. `GET /api/project` also has `inbox` (files of `inbox/`, with a kind guess), `triage` (picture files in `images/refs/` whose names are not reference names; they are no longer listed as references) and `imports` (last rows of `.kit/imports.tsv`); `GET /api/imports` and `GET /api/batch?b=b05[&format=text]` are read-only.

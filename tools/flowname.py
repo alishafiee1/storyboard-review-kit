@@ -20,19 +20,19 @@ AUDIO_RID = re.compile(r"^(?P<id>.+)_(?P<rid>[0-9a-f]{8})$")
 _cache = {}
 
 
-def config():
-    """kit-config.json at the project root, or {} (a missing or broken file never stops the page)."""
+def config(root=None):
+    """kit-config.json at the project root (`root`, default this project), or {} (a missing or broken file never stops the page)."""
     try:
-        with open(os.path.join(ROOT, "kit-config.json"), encoding="utf-8") as fh:
+        with open(os.path.join(root or ROOT, "kit-config.json"), encoding="utf-8") as fh:
             c = json.load(fh)
         return c if isinstance(c, dict) else {}
     except (OSError, ValueError):
         return {}
 
 
-def settings():
+def settings(root=None):
     """(compiled name pattern, quality order best first). A pattern that does not compile falls back to the default."""
-    cfg = config()
+    cfg = config(root)
     src = cfg.get("name_pattern") if isinstance(cfg.get("name_pattern"), str) else DEFAULT_PATTERN
     if src not in _cache:
         try:
@@ -66,6 +66,33 @@ def batch_of(base):
     """IMG001..IMG010 -> b01, IMG011..IMG020 -> b02, IMG000 -> b00. Anything that is not IMG<number> -> ''."""
     m = re.fullmatch(r"IMG(\d{3,4})", base or "")
     return "b%02d" % math.ceil(int(m.group(1)) / 10) if m else ""
+
+
+OUTPUT_NAME = re.compile(r"\[OUTPUT NAME:\s*([^\]\s]+)\s*\]", re.I)
+REF_KINDS = ("CH", "LOC", "PROP", "STYLE", "GRP", "CAR")  # the prefixes of reference names (images/refs/<KIND>/)
+
+
+def output_slug(prompt, base):
+    """The slug a prompt asks for with «[OUTPUT NAME: IMG045_cave_wall]» -> 'cave_wall' ('' for «[OUTPUT NAME: CH_MIMO]»); None when the prompt has no such line
+    or the name does not start with `base`."""
+    m = OUTPUT_NAME.search(prompt or "")
+    if not m or not (m.group(1) == base or m.group(1).startswith(base + "_")):
+        return None
+    return m.group(1)[len(base) + 1:]
+
+
+def slugs_match(got, want):
+    """Does the slug of a downloaded file fit the expected one? Case, underscores and spaces do not matter, and Flow's «…» cut-off name matches the start of the full one.
+    A file with no slug at all claims nothing, so it fits (a file of another episode always carries its own slug)."""
+    def norm(s):
+        head, cut, _ = (s or "").partition("…")
+        return re.sub(r"[^a-z0-9]", "", head.lower()), bool(cut)
+    (g, gc), (w, wc) = norm(got), norm(want)
+    if not g and not gc:
+        return True
+    if gc or wc:
+        return bool(g) and (w.startswith(g) if gc else g.startswith(w) if wc else False)
+    return g == w
 
 
 def walk(folder, skip=SKIP_DIRS):

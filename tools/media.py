@@ -83,7 +83,9 @@ def scan_refs(prompts):
     for f in walk(root):
         if f.lower().endswith(IMG_EXT):
             name = os.path.basename(f)
-            p = parse(name, cfg) or dict(base=re.sub(r"_[0-9a-f]{8}$", "", re.sub(r"\s\(\d+\)$", "", os.path.splitext(name)[0])), slug="", rid="", q="", dup=False, name=name)
+            p = parse(name, cfg)
+            if not p:
+                continue  # not a reference name: listed by refs_triage(), never shown as a reference
             p.setdefault("key", (p["base"], ""))
             top = os.path.relpath(f, root).replace("\\", "/").split("/")[0]
             by.setdefault(p["base"], dict(kind=top if top != name else p["base"].split("_")[0], files=[]))["files"].append((f, p))
@@ -92,6 +94,32 @@ def scan_refs(prompts):
         vs = group(r["files"], cfg)
         out.append(dict(name=name, kind=r["kind"], src=rel(vs[-1]["best"]), used=used.get(name, []), versions=len(vs), prompt=(prompts.get(name) or {}).get("prompt", "")))
     return out
+
+
+def refs_triage():
+    """[{name, src}] of the picture files in images/refs/ whose names do not parse as a reference (a browser's cut-off name, a stray photo): they need to be sorted by hand
+    or by the AI (inbox/), and are not shown as references."""
+    cfg, root = settings(), os.path.join(ROOT, "images", "refs")
+    return [dict(name=os.path.basename(f), src=rel(f)) for f in walk(root) if f.lower().endswith(IMG_EXT) and not parse(os.path.basename(f), cfg)]
+
+
+INBOX_KINDS = (("image", IMG_EXT), ("video", VID_EXT), ("audio", (".mp3", ".wav", ".m4a", ".ogg", ".flac")), ("text", (".txt", ".md", ".srt", ".json", ".csv", ".docx", ".pdf")),
+               ("archive", (".zip", ".rar", ".7z")))
+
+
+def scan_inbox(limit=300):
+    """[{name, size, kind}] of the files in inbox/ (all levels; name is relative to inbox/). kind is a guess from the extension: image, video, audio, text, archive, other."""
+    out, root = [], os.path.join(ROOT, "inbox")
+    for d, ds, fs in os.walk(root):
+        ds[:] = sorted(x for x in ds if not x.startswith("."))
+        for f in sorted(fs):
+            if f.startswith("."):
+                continue
+            p = os.path.join(d, f)
+            ext = os.path.splitext(f)[1].lower()
+            out.append(dict(name=os.path.relpath(p, root).replace("\\", "/"), size=os.path.getsize(p),
+                            kind=next((k for k, e in INBOX_KINDS if ext in e), "other")))
+    return out[:limit]
 
 
 def scan_videos():

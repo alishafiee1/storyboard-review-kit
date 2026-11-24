@@ -1164,6 +1164,58 @@ def migrated_fixture_loads_and_plays_the_same_audio(proj, page):
 
 
 @test
+def intake_inbox_imports_batch(proj, page):
+    """Inbox files, odd files of refs/ and the import log are in the project JSON and listed in the references tab; GET /api/batch gives the copy-ready batch text;
+    with "watch_downloads": true the server moves a matching download by itself."""
+    def put(rel, data):
+        p = os.path.join(proj.root, *rel.split("/"))
+        os.makedirs(os.path.dirname(p), exist_ok=True)
+        open(p, "wb").write(data)
+    put("inbox/sub/stray.jpg", png())
+    put("images/refs/Engineering_sketch_a…_be66d232 (1).jpg", png())
+    put(".kit/imports.tsv", "2026-11-24T10:00:00\tD:/Downloads/IMG001_x.jpg\timages/scenes/b01/IMG001_x.jpg\t9\n".encode("utf-8"))
+    P = json.loads(urllib.request.urlopen(proj.url + "/api/project").read().decode("utf-8"))
+    assert [(f["name"], f["kind"]) for f in P["inbox"]] == [("sub/stray.jpg", "image")], P["inbox"]
+    assert [t["name"] for t in P["triage"]] == ["Engineering_sketch_a…_be66d232 (1).jpg"] and "Engineering" not in " ".join(r["name"] for r in P["refs"])
+    assert P["imports"][0]["to"] == "images/scenes/b01/IMG001_x.jpg"
+    page.reload()
+    page.wait_for_selector("section.blk")
+    page.click("#tabF")
+    assert page.locator("#refs ul[data-inbox] li").count() == 1 and page.locator("#refs ul[data-triage] li").count() == 1 and page.locator("#refs ul[data-imports] li").count() == 1
+    code, b = proj.api("/api/batch?b=b01")
+    assert code == 200 and b["ids"][:2] == ["IMG001", "IMG002"] and "=== IMG001 ===" in b["text"] and "[REFS TO ATTACH: STYLE_ANCHOR| CH_ALI.png]" in b["text"], b
+    assert "Output name: IMG001" in b["text"]
+    assert proj.api("/api/batch?b=zz")[0] == 400
+    txt = urllib.request.urlopen(proj.url + "/api/batch?b=b01&format=text").read().decode("utf-8")
+    assert txt == b["text"]
+    # the server's own watcher thread
+    dl = os.path.join(proj.tmp, "dl")
+    os.makedirs(dl)
+    open(os.path.join(proj.root, "kit-config.json"), "w").write(json.dumps({"watch_downloads": True, "downloads": dl}))
+    proj.proc.terminate()
+    proj.proc.wait(5)
+    env = dict(os.environ, PORT=str(proj.port), IDLE_SECONDS="3600", PYTHONIOENCODING="utf-8")
+    proj.proc = subprocess.Popen([sys.executable, os.path.join(proj.root, "tools", "serve.py")], cwd=proj.root, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+    for _ in range(50):
+        try:
+            urllib.request.urlopen(proj.url + "/api/ping", timeout=1)
+            break
+        except OSError:
+            time.sleep(0.1)
+    open(os.path.join(dl, "IMG002_sign_a1b2c3d4_2K.png"), "wb").write(png() + b"\0")
+    open(os.path.join(dl, "IMG002_other_ep_a1b2c3d5.png"), "wb").write(png() + b"\1")
+    dst = os.path.join(proj.root, "images", "scenes", "b01", "IMG002_sign_a1b2c3d4_2K.png")
+    for _ in range(100):
+        if os.path.exists(dst):
+            break
+        time.sleep(0.1)
+    assert os.path.exists(dst) and not os.path.exists(os.path.join(dl, "IMG002_sign_a1b2c3d4_2K.png"))
+    assert os.path.exists(os.path.join(dl, "IMG002_other_ep_a1b2c3d5.png"))  # another slug: left alone
+    code, imp = proj.api("/api/imports")
+    assert code == 200 and imp["watching"] is True and imp["imports"][0]["to"].endswith("IMG002_sign_a1b2c3d4_2K.png"), imp
+
+
+@test
 def engine_manifest_is_complete(proj, page):
     files = [l.strip() for l in open(os.path.join(KIT, "ENGINE.txt"), encoding="utf-8") if l.strip() and not l.startswith("#")]
     missing = [f for f in files if not os.path.exists(os.path.join(KIT, *f.split("/")))]

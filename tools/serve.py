@@ -10,6 +10,8 @@ from kitcore import Conflict, HIDDEN, IDLE, LOCK, PORT, ROOT
 from api import handle
 from jobs import JOB, SLOW
 from project import project
+import batch, watch
+from flowname import config
 
 # Older project scripts do «from serve import ROOT, spoken_lines, ...» (serve.py used to hold everything). Keep those names importable from here.
 from kitcore import *  # noqa: F401,F403,E402
@@ -20,6 +22,7 @@ from lineedits import *  # noqa: F401,F403,E402
 from promptedits import *  # noqa: F401,F403,E402
 
 last_ping, seen_ping = [time.time()], [False]
+WATCHING = [False]  # True while the Downloads watcher thread runs (kit-config.json "watch_downloads": true)
 
 
 class H(http.server.SimpleHTTPRequestHandler):
@@ -35,6 +38,23 @@ class H(http.server.SimpleHTTPRequestHandler):
         p = self.path.split("?")[0]
         if p == "/api/project":
             return self._json(200, project())
+        if p == "/api/imports":
+            return self._json(200, dict(imports=watch.recent_imports(), watching=WATCHING[0], downloads=watch.downloads_dir()))
+        if p == "/api/batch":
+            q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            try:
+                r = batch.batch_text((q.get("b") or [""])[0])
+            except ValueError as e:
+                return self._json(400, {"error": str(e)})
+            if (q.get("format") or [""])[0] == "text":
+                b = r["text"].encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "text/plain; charset=utf-8")
+                self.send_header("Content-Length", str(len(b)))
+                self.end_headers()
+                self.wfile.write(b)
+                return
+            return self._json(200, r)
         if p == "/api/job":
             return self._json(200, JOB)
         if p == "/api/ping":
@@ -85,5 +105,9 @@ if __name__ == "__main__":
                 return
 
     threading.Thread(target=watchdog, daemon=True).start()
+    if config().get("watch_downloads") is True:
+        WATCHING[0] = True
+        threading.Thread(target=watch.watch_loop, daemon=True).start()
+        print("watching " + watch.downloads_dir(), flush=True)
     srv.serve_forever()
     print("stopped (page closed)", flush=True)

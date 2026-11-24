@@ -3,9 +3,9 @@
 import datetime, os
 from kitcore import LANGS, ROOT, STORY, VOICE_LIST, VPROMPTS, read_lines
 from story import default_model, parse_prompts, parse_speakers, story_scenes
-from media import archived_images, archived_voices, audio_index, audio_url, image_state, scan_images, scan_refs, scan_videos, video_for
+from media import archived_images, archived_voices, audio_index, audio_url, image_state, refs_triage, scan_inbox, scan_images, scan_refs, scan_videos, video_for
 from jobs import JOB
-import history
+import history, watch
 
 
 def project():
@@ -37,5 +37,5 @@ def project():
                     it["audio_v"] = {lg: dict(au[lg][1], archived=archived_voices(lg, it["id"])) for lg in LANGS}
         scenes.append(dict(id=sc["id"], title=sc["title"], time=sc["time"], env=sc["env"], issues=sc["issues"],
                            warnings=sc["warnings"], model=sc["model"], fx=sc["fx"], off=sc["off"], voice_stale=sorted(sc["voice_stale"]), blocks=sc["blocks"]))
-    return dict(name=os.path.basename(ROOT), scenes=scenes, refs=refs, speakers=parse_speakers(lines), voices=VOICE_LIST, history=[dict(id=h["id"], label=h["label"], time=h["time"]) for h in history.entries()],
+    return dict(name=os.path.basename(ROOT), scenes=scenes, refs=refs, speakers=parse_speakers(lines), voices=VOICE_LIST, inbox=scan_inbox(), triage=refs_triage(), imports=watch.recent_imports(n=20), history=[dict(id=h["id"], label=h["label"], time=h["time"]) for h in history.entries()],
                 tts=dict(default=dm, catalog=cat, tones=voices.tones_for_page(), job=JOB, **voices.status()), time=datetime.datetime.now().isoformat(timespec="seconds"))

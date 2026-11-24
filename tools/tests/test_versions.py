@@ -175,7 +175,8 @@ class Versions(Folder):
 
     def test_references_are_found_recursively_and_listed_once(self):
         refs = {r["name"]: r for r in media.scan_refs({})}
-        self.assertEqual(sorted(refs)[0::2], ["CH_MIMO", "LOC_FACTORY_YARD"])  # (an odd file in refs/ is still listed, as in old projects, under its cleaned-up name)
+        self.assertEqual(sorted(refs), ["CH_MIMO", "LOC_FACTORY_YARD"])  # an odd file in refs/ is not a reference any more (v1.21): it is listed by refs_triage()
+        self.assertEqual(len(media.refs_triage()), 1)
         self.assertNotIn("(1)", " ".join(refs))
         self.assertEqual((refs["LOC_FACTORY_YARD"]["kind"], refs["CH_MIMO"]["kind"]), ("LOC", "CH"))
 

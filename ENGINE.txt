@@ -40,5 +40,7 @@ tools/pack.py
 tools/premiere_check.py
 tools/migrate.py
 tools/premiere_export.py
+tools/watch.py
+tools/batch.py
 tools/update.py
 VERSION
