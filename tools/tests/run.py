@@ -460,7 +460,7 @@ def picture_versions_pick(proj, page):
     page.click(f + " [data-vn='-1']")
     proj.wait_in("[IMG001]", "pick: IMG001_start.png")
     assert "status: ok" not in proj.story().split("[IMG002]")[0], "choosing a picture replaces the old plain «ok» mark"
-    assert "a1b2c3" not in page.get_attribute(f + " img", "src") and "✔" in page.inner_text(f + " .vc")
+    page.wait_for_function("(() => { const f = document.querySelector('%s'); return !f.querySelector('img').src.includes('a1b2c3') && f.querySelector('.vc').textContent.includes('✔'); })()" % f)  # the file is written before the page has redrawn
     page.click(f + " [data-vn='1']")
     proj.wait_in("[IMG001]", "pick: IMG001_start_a1b2c3.png")
     assert proj.api("/api/image", {"id": "IMG001", "pick": ""})[0] == 200  # un-choosing is still possible through the API
