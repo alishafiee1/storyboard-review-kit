@@ -1,0 +1,31 @@
+# یک پروژهٔ قدیمی (پیش از نسخهٔ ۱٫۱۷): بلوک مشترک، خط بدون شناسه، و انتخاب و کهنگی صدا در سطح صحنه
+tts-model: elevenlabs/eleven-v4-turbo
+
+speaker: راوی | #1565c0 | george | گرم و صمیمی
+speaker: علی | #ef6c00 | charlie | کنجکاو
+
+=== scene-00 | تامبنیل | - ===
+[IMG000]
+
+=== scene-01 | بلوک مشترک | 0:00-0:10 ===
+env: یک خیابان شلوغ، صبح.
+voice-stale: fa
+voice-pick: IMG001_1.fa=eleven-v3, IMG001_2.en=default
+[IMG001]
+[IMG002]
+note: دو تصویر، یک بلوک دیالوگ
+act: علی با یک لیوان قهوه رد می‌شود.
+say: راوی | این علیه. صبح‌ها بدون قهوه آدم نیست.
+en: This is Ali.
+say: علی (با تعجب) | این دیگه از کجا پیداش شد؟
+[IMG003]
+say: راوی | خطی که شناسهٔ خودش را دارد.
+id: L001
+en: A line with its own id.
+voice: fa=eleven-v4
+voice-stale: en
+
+=== scene-02 | خط پیش از تصویر | 0:10-0:20 ===
+act: این خط بالای اولین تصویر است.
+[IMG004]
+say: علی | آخرین خط.

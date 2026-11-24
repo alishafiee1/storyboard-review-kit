@@ -1,4 +1,5 @@
 {
+ "history": [],
  "name": "proj",
  "refs": [
   {
@@ -22,6 +23,7 @@
      "images": [
       {
        "archived": [],
+       "end": 4,
        "fx": "",
        "id": "IMG000",
        "issues": [],
@@ -58,6 +60,7 @@
        "en": null,
        "en_ln": null,
        "fa": "علی وسط خیابان ایستاده و تابلو را نگاه می‌کند.",
+       "img": "IMG000",
        "issues": [],
        "k": "act",
        "label": null,
@@ -85,6 +88,7 @@
      "images": [
       {
        "archived": [],
+       "end": 12,
        "fx": "",
        "id": "IMG001",
        "issues": [],
@@ -130,6 +134,7 @@
        "en": null,
        "en_ln": null,
        "fa": "علی با یک لیوان قهوه رد می‌شود.",
+       "img": "IMG001",
        "issues": [],
        "k": "act",
        "label": null,
@@ -166,12 +171,18 @@
        "en_ln": 9,
        "fa": "این علیه. صبح‌ها بدون قهوه آدم نیست.",
        "id": "IMG001_1",
+       "img": "IMG001",
        "issues": [],
        "k": "say",
        "label": null,
        "ln": 8,
        "sp": "راوی",
-       "tone": ""
+       "stale_own": [],
+       "tone": "",
+       "voice": {},
+       "vstale": [
+        "fa"
+       ]
       },
       {
        "audio": {
@@ -198,12 +209,18 @@
        "en_ln": 11,
        "fa": "این دیگه از کجا پیداش شد؟",
        "id": "IMG001_2",
+       "img": "IMG001",
        "issues": [],
        "k": "say",
        "label": null,
        "ln": 10,
        "sp": "علی",
-       "tone": "با تعجب"
+       "stale_own": [],
+       "tone": "با تعجب",
+       "voice": {},
+       "vstale": [
+        "fa"
+       ]
       }
      ]
     },
@@ -211,6 +228,7 @@
      "images": [
       {
        "archived": [],
+       "end": 17,
        "fx": "",
        "id": "IMG002",
        "issues": [],
@@ -252,6 +270,7 @@
        "en": null,
        "en_ln": null,
        "fa": "علی به تابلو نگاه می‌کند و جا می‌خورد.",
+       "img": "IMG002",
        "issues": [],
        "k": "act",
        "label": "گگ",
@@ -280,12 +299,18 @@
        "en_ln": null,
        "fa": "یک خط با گوینده‌ای که صدایش خط‌تیره دارد.",
        "id": "IMG002_1",
+       "img": "IMG002",
        "issues": [],
        "k": "say",
        "label": null,
        "ln": 15,
        "sp": "تست",
-       "tone": ""
+       "stale_own": [],
+       "tone": "",
+       "voice": {},
+       "vstale": [
+        "fa"
+       ]
       }
      ]
     }
@@ -315,6 +340,7 @@
      "images": [
       {
        "archived": [],
+       "end": 7,
        "fx": "",
        "id": "IMG003",
        "issues": [],
@@ -373,12 +399,16 @@
        "en_ln": 5,
        "fa": "و روز تمام شد.",
        "id": "IMG003_1",
+       "img": "IMG003",
        "issues": [],
        "k": "say",
        "label": null,
        "ln": 4,
        "sp": "راوی",
-       "tone": "آهسته"
+       "stale_own": [],
+       "tone": "آهسته",
+       "voice": {},
+       "vstale": []
       }
      ]
     }

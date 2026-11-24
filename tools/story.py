@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Reading story.txt and prompts.txt: scenes, dialogue lines, speakers, prompts. Pure text in, plain dicts out (no network, no file writes except through kitcore)."""
 import colorsys, random, re
-from kitcore import LINE_ID, CONTENT, DEFAULT_MODEL, HEADER, KEYLINE, LANGS, MARKER, MARKS, PALETTE, PHEADER, PROMPTS, SPEECH, SPK, STORY, VOICE_LIST, read_lines
+from kitcore import VARIANT, LINE_ID, CONTENT, DEFAULT_MODEL, HEADER, KEYLINE, LANGS, MARKER, MARKS, PALETTE, PHEADER, PROMPTS, SPEECH, SPK, STORY, VOICE_LIST, read_lines
 
 
 def clean_spoken(t):
@@ -60,12 +60,32 @@ def clean_label(s):
     return s
 
 
+def parse_voice_map(val):
+    """'fa=3a9c01de, en=default' -> {'fa': '3a9c01de', 'en': 'default'} (only known languages, only valid variant names)."""
+    out = {}
+    for part in val.split(","):
+        k, _, v = part.partition("=")
+        if k.strip() in LANGS and VARIANT.fullmatch(v.strip()):
+            out[k.strip()] = v.strip()
+    return out
+
+
+def parse_langs(val):
+    return {x.strip() for x in val.split(",") if x.strip() in LANGS}
+
+
 def parse_scene(raw_lines):
-    """raw_lines = the scene block (header first). ln = line index inside the block. Every part can carry format-issue notes."""
+    """raw_lines = the scene block (header first). ln = line index inside the block. Every part can carry format-issue notes.
+    Ownership: every act / say line belongs to the nearest [IMG] marker above it (one block per picture: blocks[i]["images"] has exactly that
+    picture). Lines before the first marker are scene-level (a block without a picture; they are reported in warnings). Voice choices and
+    out-of-date flags belong to the dialogue line («voice:» / «voice-stale:» under it); the old scene-level «voice-pick:» / «voice-stale:»
+    lines are still read and mapped onto the lines (sc["legacy_pick"], sc["legacy_stale"])."""
     m = HEADER.match(raw_lines[0].strip())
     sc = dict(id=m.group(1), title=m.group(2), time=m.group(3), env=[], model="", fx="", voice_stale=set(), blocks=[], warnings=[], issues=[],
-              off=False, voice_pick={})
-    cur = last_img = last_speech = last_obj = None
+              off=False, voice_pick={}, legacy_pick={}, legacy_stale=set(), legacy_ln={"voice-pick": [], "voice-stale": []})
+    last_img = last_speech = last_obj = cur = grp = None
+    # the old "block" (consecutive markers share the lines after them) is only kept to name lines that have no id: line, exactly as before
+    grp_base, grp_n, grp_open = sc["id"], 0, False
 
     def warn(text, i):
         nonlocal last_obj
@@ -78,11 +98,13 @@ def parse_scene(raw_lines):
             continue
         mk = MARKER.match(s)
         if mk:
-            if cur is None or cur["items"]:
-                cur = dict(images=[], items=[])
-                sc["blocks"].append(cur)
-            last_img = last_obj = dict(id=mk.group(1), status="", note="", fx="", stale=False, pick="", off=False, ln=i, issues=[])
-            cur["images"].append(last_img)
+            last_img = last_obj = dict(id=mk.group(1), status="", note="", fx="", stale=False, pick="", off=False, ln=i, end=len(raw_lines), issues=[])
+            if sc["blocks"] and sc["blocks"][-1]["images"]:
+                sc["blocks"][-1]["images"][0]["end"] = i
+            cur = dict(images=[last_img], items=[])
+            sc["blocks"].append(cur)
+            if grp is None or grp["items"]:  # a marker right after a marker keeps the old shared name base
+                grp = dict(base=mk.group(1), n=0, items=0)
             last_speech = None
             continue
         kv = KEYLINE.match(s)
@@ -101,10 +123,17 @@ def parse_scene(raw_lines):
             sc["fx"] = val.replace("\\n", "\n")
         elif key == "off" and last_img is None:  # before the first picture: the whole scene is set aside (nothing is deleted)
             sc["off"] = val.lower() in ("yes", "true", "1")
-        elif key == "voice-pick":  # «IMG001_1.fa=eleven-v3, IMG001_2.en=default»: the voice variant the user chose as final
-            sc["voice_pick"] = {k.strip(): v.strip() for k, _, v in (x.partition("=") for x in val.split(",")) if k.strip() and v.strip()}
-        elif key == "voice-stale":
-            sc["voice_stale"] = {x.strip() for x in val.split(",") if x.strip() in LANGS}
+        elif key == "voice-pick":  # old scene-level form «IMG001_1.fa=eleven-v3, IMG001_2.en=default»: still read, mapped onto the lines
+            sc["legacy_pick"] = {k.strip(): v.strip() for k, _, v in (x.partition("=") for x in val.split(",")) if k.strip() and v.strip()}
+            sc["legacy_ln"]["voice-pick"].append(i)
+        elif key == "voice-stale" and last_speech is None:  # old scene-level flag (under the scene header); under a dialogue line it is that line's own
+            sc["legacy_stale"] = parse_langs(val)
+            sc["legacy_ln"]["voice-stale"].append(i)
+        elif key in ("voice", "voice-stale"):  # per-line keys, right under the dialogue line they belong to
+            if last_speech is None or last_speech.get(key):
+                warn(s, i)
+            else:
+                last_speech[key], last_obj = (parse_voice_map(val) if key == "voice" else sorted(parse_langs(val))), last_speech
         elif key in ("status", "note", "image-stale", "fx", "pick", "off"):
             if last_img is None:
                 warn(s, i)
@@ -123,9 +152,11 @@ def parse_scene(raw_lines):
                 else:
                     last_img["stale"] = val.lower() in ("yes", "true", "1")
         elif key in CONTENT:
-            if cur is None:
+            if cur is None:  # lines above the first picture: scene-level items (kept so old files do not break; the page shows a warning)
                 cur = dict(images=[], items=[])
                 sc["blocks"].append(cur)
+            if grp is None:
+                grp = dict(base=sc["id"], n=0, items=0)
             sp, tone = None, ""
             if key == "say":
                 head, bar, text = val.partition("|")
@@ -138,8 +169,15 @@ def parse_scene(raw_lines):
             if key == "act":
                 label, val = split_act(val)
                 val = DEC(val)
-            it = last_obj = dict(k=key, sp=sp, tone=tone if key == "say" else "", label=label, fa=val, en=None, ln=i, en_ln=None, issues=[])
+            it = last_obj = dict(k=key, sp=sp, tone=tone if key == "say" else "", label=label, fa=val, en=None, ln=i, en_ln=None, issues=[],
+                                 img=cur["images"][0]["id"] if cur["images"] else None)
+            if last_img is None:
+                sc["warnings"].append(dict(text=("%s before the first [IMG]: %s" % (key, s))[:80], ln=i, issues=[]))
             cur["items"].append(it)
+            grp["items"] += 1
+            if key == "say":
+                grp["n"] += 1
+                it["legacy_id"] = f"{grp['base']}_{grp['n']}"
             last_speech = it if key in SPEECH else None
         elif key == "en":
             if last_speech is None:
@@ -153,13 +191,20 @@ def parse_scene(raw_lines):
                 last_speech["eid"], last_speech["id_ln"], last_obj = val, i, last_speech
         else:
             warn(s, i)
-    # speech ids: the line's own «id:» when it has one, else {first image id or scene id}_{n} (n counted inside the block, the old way)
+    # speech ids: the line's own «id:», else the old position name {first picture of the old shared block or scene id}_{n}
+    pick, stale = dict(sc["legacy_pick"]), set(sc["legacy_stale"])
     for b in sc["blocks"]:
-        base, n = (b["images"][0]["id"] if b["images"] else sc["id"]), 0
         for it in b["items"]:
             if it["k"] in SPEECH:
-                n += 1
-                it["id"] = it.get("eid") or f"{base}_{n}"
+                legacy = it.pop("legacy_id")
+                it["id"] = it.get("eid") or legacy
+                it["voice"] = it.get("voice") or {}
+                it["stale_own"] = it.pop("voice-stale", None) or []
+                it["vstale"] = sorted(set(it["stale_own"]) | sc["legacy_stale"])
+                for lg, v in it["voice"].items():  # the line's own choice wins over an old scene-level one
+                    pick[f"{it['id']}.{lg}"] = v
+                stale |= set(it["vstale"])
+    sc["voice_pick"], sc["voice_stale"] = pick, stale
     return sc
 
 
@@ -193,7 +238,7 @@ def spoken_lines(lang="fa"):
                 if it["k"] in SPEECH:
                     sp = clean_spoken(it["fa"] if lang == "fa" else it["en"])
                     if sp:
-                        out.append(dict(id=it["id"], scene=sc["id"], speaker=it["sp"], voice=spk.get(it["sp"], {}).get("voice") or "george",
+                        out.append(dict(id=it["id"], scene=sc["id"], image=it["img"], stale=it["vstale"], speaker=it["sp"], voice=spk.get(it["sp"], {}).get("voice") or "george",
                                         model=sc["model"] or dm, spoken=sp, tone=it["tone"] or spk.get(it["sp"], {}).get("tone", "")))
     return out
 

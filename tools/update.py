@@ -13,7 +13,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(globals().get("__file__")
 MARK = "# --- storyboard-review-kit ignore rules: added once, edit or delete any line freely ---"
 IGNORE = [".env", ".engine-backup/", "__pycache__/", "*.tmp", "graphify-out/",
           "videos/", "*_renders/", "*.mp4", "*.mov", "*.mkv", "*.avi", "*.webm", "*.m4v", "*.rar", "*.zip", "*.7z",
-          "archive/", "audio/_samples/", "audio/_tests/"]  # pictures (images/) and voices (audio/) are NOT ignored: they belong in git
+          "archive/", "audio/_samples/", "audio/_tests/", ".kit/history/", ".kit/undone/"]  # pictures (images/) and voices (audio/) are NOT ignored: they belong in git
 
 
 def fetch():

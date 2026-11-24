@@ -1,9 +1,43 @@
 # -*- coding: utf-8 -*-
 """Edits of single lines in story.txt: change, add, delete a dialogue / action / translation line, and format-issue notes."""
 import glob, os, re
-from kitcore import Conflict, KEYLINE, LANGS, MARKER, ROOT, SPEECH
+from kitcore import Conflict, KEYLINE, LANGS, MARKER, ROOT, SAY_KEYS, SPEECH
 from story import DEC, ENC, clean_label, clean_line, clean_name, clean_tone, ensure_speaker, fmt_say, parse_scene, scene_span, split_act, split_say_head
-from edits import set_flag
+from edits import IMG_KEYS, image_range, stale_lines
+
+
+def locate(lines, d, key="index"):
+    """(scene id, index counted from the scene header) of the line a request means. New form: {"image": "IMG001", key: n}, n counted from the
+    image's own [IMG001] line (so the address survives moving the image to another scene). Old form: {"scene": "scene-01", key: n}."""
+    if d.get("image"):
+        img = str(d["image"])
+        if not re.fullmatch(r"IMG\d{3}", img):
+            raise ValueError("bad image")
+        sid, s, m, end = image_range(lines, img)
+        a = m + int(d[key])
+        if not m <= a < end:
+            raise ValueError("bad line index")
+        return sid, a - s
+    sid = str(d.get("scene", ""))
+    if not re.fullmatch(r"scene-\d{2,3}", sid):
+        raise ValueError("bad scene")
+    return sid, int(d[key])
+
+
+def owner_say(lines, scene_id, a):
+    """The id of the dialogue line that owns line `a` (the say line itself, or its en: line); None when it is not part of a dialogue line."""
+    s, e = scene_span(lines, scene_id)
+    for b in parse_scene(lines[s:e])["blocks"]:
+        for it in b["items"]:
+            if it["k"] == "say" and a - s in (it["ln"], it["en_ln"]):
+                return it["id"]
+    return None
+
+
+def flag_line(lines, scene_id, line_id, langs):
+    """Its voice is out of date (only this line, in the languages given)."""
+    if line_id:
+        stale_lines(lines, scene_id, lambda it: it["id"] == line_id, langs, True)
 
 
 def materialize_ids(lines, scene_id):
@@ -44,6 +78,7 @@ def edit_line(lines, scene_id, index, old, new, op="edit"):
     if not (s < a < e):
         raise ValueError("bad line index")
     kv = KEYLINE.match(lines[a].strip())
+    lid = owner_say(lines, scene_id, a)  # the line's id is read first: later steps may move line numbers (a new speaker line goes to the top)
     if op == "say":
         if not kv or kv.group(1) != "say":
             raise Conflict("این خط دیگر دیالوگ نیست؛ صفحه را دوباره بارگذاری کن.")
@@ -60,11 +95,7 @@ def edit_line(lines, scene_id, index, old, new, op="edit"):
         lines[a] = fmt_say(nn, nt, ENC(nx))
         if nn != name:
             ensure_speaker(lines, nn)
-        if nn != name or nt != tone:  # another speaker or tone means another delivery
-            for lg in LANGS:
-                set_flag(lines, scene_id, lg, True)
-        else:
-            set_flag(lines, scene_id, "fa", True)
+        flag_line(lines, scene_id, lid, LANGS if nn != name or nt != tone else ["fa"])  # another speaker or tone means another delivery
         return
     if op == "speaker":
         text = clean_name(new)
@@ -83,7 +114,7 @@ def edit_line(lines, scene_id, index, old, new, op="edit"):
         if at < e and lines[at].strip().startswith("en:"):
             raise Conflict("برای این خط ترجمه از قبل هست؛ صفحه را دوباره بارگذاری کن.")
         lines[at:at] = [f"en: {ENC(text)}"]
-        set_flag(lines, scene_id, "en", True)
+        flag_line(lines, scene_id, lid, ["en"])
         return
     if not kv or kv.group(1) not in ("env", "act", "en") + SPEECH:
         raise Conflict("این خط بیرون از مرورگر عوض شده؛ صفحه را دوباره بارگذاری کن.")
@@ -111,22 +142,20 @@ def edit_line(lines, scene_id, index, old, new, op="edit"):
                 return
             lines[a] = fmt_say(text, tone, body)
             ensure_speaker(lines, text)
-            for lg in LANGS:  # another speaker means another voice
-                set_flag(lines, scene_id, lg, True)
+            flag_line(lines, scene_id, lid, LANGS)  # another speaker means another voice
             return
         if op == "tone":
             if tone != str(old).strip():
                 raise Conflict("لحن این خط بیرون از مرورگر عوض شده؛ صفحه را دوباره بارگذاری کن.")
             if text != tone:
                 lines[a] = fmt_say(name, text, body)
-                for lg in LANGS:  # another tone means another delivery
-                    set_flag(lines, scene_id, lg, True)
+                flag_line(lines, scene_id, lid, LANGS)  # another tone means another delivery
             return
         if DEC(body) != str(old).strip():
             raise Conflict("این خط بیرون از مرورگر عوض شده؛ صفحه را دوباره بارگذاری کن.")
         if text != DEC(body):
             lines[a] = fmt_say(name, tone, ENC(text))
-            set_flag(lines, scene_id, "fa", True)
+            flag_line(lines, scene_id, lid, ["fa"])
         return
     if op == "speaker" or DEC(val) != str(old).strip():
         raise Conflict("این خط بیرون از مرورگر عوض شده؛ صفحه را دوباره بارگذاری کن.")
@@ -134,7 +163,7 @@ def edit_line(lines, scene_id, index, old, new, op="edit"):
         return
     lines[a] = f"{key}: {ENC(text)}"
     if key == "en":
-        set_flag(lines, scene_id, "en", True)
+        flag_line(lines, scene_id, lid, ["en"])
 
 
 def add_line(lines, scene_id, after, kind, speaker, text, label="", tone=""):
@@ -160,9 +189,9 @@ def add_line(lines, scene_id, after, kind, speaker, text, label="", tone=""):
     l0 = lines[a].strip()
     kv = KEYLINE.match(l0)
     if MARKER.match(l0):
-        skip = ("status", "note", "image-stale", "fx", "format-issue")
+        skip = IMG_KEYS + ("format-issue",)
     elif kv and kv.group(1) in SPEECH:
-        skip = ("en", "id", "format-issue")
+        skip = SAY_KEYS
     else:
         skip = ("format-issue",)
     pos = a + 1
@@ -171,10 +200,9 @@ def add_line(lines, scene_id, after, kind, speaker, text, label="", tone=""):
         if not k2 or k2.group(1) not in skip:
             break
         pos += 1
-    lines[pos:pos] = [new] + (["id: " + next_line_id(lines)] if kind == "say" else [])
+    lines[pos:pos] = [new] + (["id: " + next_line_id(lines), "voice-stale: fa"] if kind == "say" else [])  # a new line has no voice yet
     if name:
         ensure_speaker(lines, name)
-        set_flag(lines, scene_id, "fa", True)
 
 
 def delete_line(lines, scene_id, index, old):
@@ -194,7 +222,8 @@ def delete_line(lines, scene_id, index, old):
         ins = materialize_ids(lines, scene_id)
         a = sa + shift(index, ins)
         sa, e = scene_span(lines, scene_id)
-    skip = ("en", "id", "format-issue") if key == "say" else ("format-issue",) if key == "act" else ()
+    skip = SAY_KEYS if key == "say" else ("format-issue",) if key == "act" else ()
+    lid = owner_say(lines, scene_id, a) if key == "en" else None
     end, had_en = a + 1, False
     while end < e:
         k2 = KEYLINE.match(lines[end].strip())
@@ -203,10 +232,8 @@ def delete_line(lines, scene_id, index, old):
         had_en = had_en or k2.group(1) == "en"
         end += 1
     del lines[a:end]
-    if key == "say":
-        set_flag(lines, scene_id, "fa", True)
-    if key == "en" or had_en:
-        set_flag(lines, scene_id, "en", True)
+    if key == "en":  # the line stays; its English voice no longer matches (a deleted dialogue line takes its voice keys with it)
+        flag_line(lines, scene_id, lid, ["en"])
 
 
 def add_issue(lines, scene_id, index, message):
@@ -218,9 +245,9 @@ def add_issue(lines, scene_id, index, message):
     kv = KEYLINE.match(lines[a].strip())
     pos = a + 1
     if MARKER.match(lines[a].strip()):
-        skip = ("status", "note", "image-stale", "fx", "format-issue")
+        skip = IMG_KEYS + ("format-issue",)
     elif kv and kv.group(1) in SPEECH:
-        skip = ("en", "id", "format-issue")
+        skip = SAY_KEYS
     else:
         skip = ("format-issue",)
     while pos < e:

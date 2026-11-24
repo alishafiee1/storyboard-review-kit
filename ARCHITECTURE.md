@@ -22,10 +22,11 @@ Layers, each importing only from the ones above it:
 | `kitcore.py` | paths, constants, the regexes of `story.txt`, safe read / write / replace of files, the file lock |
 | `story.py` | parse `story.txt` / `prompts.txt` into plain dicts (scenes, lines, speakers, prompts); no writes |
 | `media.py` | what is on disk: picture versions, references, videos, voice variants, archive folders |
-| `edits.py` | scene / picture / voice-pick edits as small raw-line edits (nothing else in the file is touched) |
+| `edits.py` | scene / picture / per-line voice choice and out-of-date flag edits as small raw-line edits (nothing else in the file is touched) |
 | `lineedits.py` | edits of single lines: change, add, delete a dialogue / action / translation line, format-issue notes |
 | `promptedits.py` | edits of `prompts.txt`: save a prompt, attach references |
 | `jobs.py` | slow network actions (voices, samples, subtitles) and the shared state of the running job |
+| `history.py` | snapshots of `story.txt` before structural edits (`.kit/history/`, last 30) and `undo` |
 | `project.py` | builds the one JSON the page loads |
 | `api.py` | one small function per write endpoint, registered with `@route("/api/...")` |
 | `serve.py` | only the HTTP layer: GET files, GET `/api/project`, POST → `api.handle` under the file lock |
@@ -34,7 +35,7 @@ Layers, each importing only from the ones above it:
 | `update.py` | update a project from GitHub (only files listed in `ENGINE.txt`) |
 
 Rules that keep it safe: the server listens on 127.0.0.1 only; dotfiles, `.py` and `.tmp` are never served; every edit re-reads the file, changes
-the lines it owns and writes it back (a stale page gets a 409); nothing is ever deleted (set aside = `off: yes`, archive = move to an archive folder).
+the lines it owns and writes it back (a stale page gets a 409); before a structural edit the file is copied to `.kit/history/` (`POST /api/undo` restores it byte for byte); nothing is ever deleted (set aside = `off: yes`, archive = move to an archive folder).
 
 ## `story.txt` in one screen
 
@@ -42,21 +43,21 @@ the lines it owns and writes it back (a stale page gets a 409); nothing is ever 
 speaker: راوی | #1565c0 | george | tone          speakers (colour, voice, default tone)
 tts-model: elevenlabs/eleven-v4-turbo           default voice model
 === scene-01 | title | 0:00-0:15 ===            scene header (ids may have 2-3 digits; order = order in the file)
-env: ...  fx: ...  model: ...  off: yes         scene-level keys right under the header
-voice-stale: fa   voice-pick: IMG001_1.fa=eleven-v3      flags and the chosen voice per line
-[IMG001]                                        a picture slot; its dialogue follows it
+env: ...  fx: ...  model: ...  off: yes         scene-level keys right under the header (old files may also have voice-stale: / voice-pick: here; still read)
+[IMG001]                                        a picture slot; every act / say below it, up to the next [IMG], belongs to it
 status: redo | pick: file.png | off: yes | note: ... | fx: ... | image-stale: yes
-act: ...   say: speaker (tone) | text   id: L007   en: translation   format-issue: ...
-(id: = the stable name of the dialogue line above; its voice files are audio/<lang>/L007.mp3. Old files have no id: and
+act: ...   say: speaker (tone) | text   id: L007   en: translation   voice: fa=eleven-v3, en=default   voice-stale: fa   format-issue: ...
+(voice: / voice-stale: = the chosen voice and the out-of-date flag of that dialogue line; the old scene-level forms are read and moved to the lines when the page writes.
+id: = the stable name of the dialogue line above; its voice files are audio/<lang>/L007.mp3. Old files have no id: and
 read as IMG001_2 (picture id + position in the block); the page writes that id explicitly before the first add / delete.)
 ```
 The full writing rules for AI assistants are in `starter/skills/how-to-write-prompts-for-flow.md`.
 
 ## Write API (`api.py`; all `POST`, JSON in, JSON out)
 
-`image`, `voicepick`, `archive`, `restore`, `sceneoff`, `scenemove`, `addscene`, `addimage`, `flag`, `line`, `add`, `speaker`, `ttsmodel`, `voicetest`,
+`undo` (`.kit/history`), `image`, `voicepick`, `archive`, `restore`, `sceneoff`, `scenemove`, `addscene`, `addimage`, `flag`, `line`, `add`, `speaker`, `ttsmodel`, `voicetest`,
 `delete`, `issue`, `scenefx`, `vprompt`, `refs`, `prompt` (each under `/api/`). Slow ones (`jobs.SLOW`, no file lock): `subtitles`, `voices/refresh`,
-`sample`, `regen`, `linevoice`. Reads: `GET /api/project`, `/api/job`, `/api/ping`. Errors: 400 bad input, 409 the file changed outside the page.
+`sample`, `regen`, `linevoice`. Reads: `GET /api/project`, `/api/job`, `/api/ping`. Line endpoints (`line`, `add`, `delete`, `issue`) address a line as `{image, index}` (counted from the `[IMG]` line) or the old `{scene, index}`; `voicepick`/`flag` use the line id; `regen` takes nothing (all stale lines), `image` or `scene`. Errors: 400 bad input, 409 the file changed outside the page.
 
 ## The page (`tools/ui/`)
 
@@ -85,8 +86,8 @@ To change a shared value from several files, put it in `S` (`S.P = ...`), not in
 
 | Command | What |
 |---|---|
-| `python -m unittest discover -s tools/tests -p "test_*.py"` | 31 unit tests (text rules, imports/exports of the page modules, old-import compatibility), in milliseconds |
-| `python tools/tests/run.py` | 36 browser tests (needs `pip install playwright`) on a temporary copy of `tools/tests/fixture/`; nothing is charged |
+| `python -m unittest discover -s tools/tests -p "test_*.py"` | 62 unit tests (text rules, ownership / voice keys / undo, imports/exports of the page modules, old-import compatibility), in milliseconds |
+| `python tools/tests/run.py` | 43 browser tests (needs `pip install playwright`) on a temporary copy of `tools/tests/fixture/`; nothing is charged |
 | `python tools/tests/run.py --update-baseline` | refresh the recorded page after a deliberate change; read the diff in `tools/tests/baseline/` |
 
 Both run on every push (`.github/workflows/tests.yml`).

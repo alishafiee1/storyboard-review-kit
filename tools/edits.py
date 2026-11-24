@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """Every change the page can make, as small raw-line edits of story.txt / prompts.txt. Nothing else in a file is ever touched."""
 import re
-from kitcore import HEADER, KEYLINE, LANGS, LOCK, MARKER, STORY, read_lines, write_lines
-from story import parse_prompts, scene_ranges, scene_span, story_scenes
+from kitcore import HEADER, KEYLINE, LANGS, LOCK, MARKER, SAY_KEYS, STORY, read_lines, write_lines
+from story import parse_prompts, parse_scene, scene_ranges, scene_span, story_scenes
 from media import scan_images, variant_tag
 
 
@@ -48,25 +48,141 @@ def patch_image(lines, img_id, status=None, note=None, stale=None, fx=None, pick
     lines[idx + 1:j] = new
 
 
-def set_flag(lines, scene_id, lang, value):
-    s, e = next(((s, e) for i, s, e in scene_ranges(lines) if i == scene_id), (None, None))
-    if s is None:
-        raise ValueError("scene not found")
-    flags, pos = set(), None
-    for i in range(s + 1, e):
-        if lines[i].strip().startswith("voice-stale:"):
-            flags = {x.strip() for x in lines[i].split(":", 1)[1].split(",") if x.strip() in LANGS}
-            pos = i
+def image_range(lines, img_id):
+    """(scene id, scene start, marker line, end) of a picture: the lines marker+1 .. end-1 belong to it (up to the next marker or the scene's end)."""
+    for sid, s, e in scene_ranges(lines):
+        for i in range(s + 1, e):
+            if lines[i].strip() == f"[{img_id}]":
+                return sid, s, i, next((j for j in range(i + 1, e) if MARKER.match(lines[j].strip())), e)
+    raise ValueError("image not in story")
+
+
+def say_attr_span(lines, a):
+    """End (exclusive) of the keys that hang under the dialogue line at `a`: id:, en:, voice:, voice-stale:, format-issue:."""
+    e = a + 1
+    while e < len(lines):
+        kv = KEYLINE.match(lines[e].strip())
+        if not kv or kv.group(1) not in SAY_KEYS:
             break
-    (flags.add if value else flags.discard)(lang)
-    new = [f"voice-stale: {', '.join(x for x in LANGS if x in flags)}"] if flags else []
-    if pos is not None:
-        lines[pos:pos + 1] = new
+        e += 1
+    return e
+
+
+def set_say_attr(lines, a, key, text):
+    """Write (or, when text is empty, remove) one key under the dialogue line at `a`, in the usual order id, en, voice, voice-stale, issues."""
+    end = say_attr_span(lines, a)
+    keys = [KEYLINE.match(lines[j].strip()).group(1) for j in range(a + 1, end)]
+    new = [f"{key}: {text}"] if text else []
+    if key in keys:
+        j = a + 1 + keys.index(key)
+        lines[j:j + 1] = new
     elif new:
-        k = s + 1
-        while k < e and lines[k].strip().startswith("env:"):
-            k += 1
-        lines[k:k] = new
+        at = next((a + 1 + k for k, x in enumerate(keys) if SAY_KEYS.index(x) > SAY_KEYS.index(key)), end)
+        lines[at:at] = new
+
+
+def find_say(lines, line_id):
+    """(scene id, absolute line index) of the dialogue line with this id (its own id: or the old position name)."""
+    for sid, s, e in scene_ranges(lines):
+        for b in parse_scene(lines[s:e])["blocks"]:
+            for it in b["items"]:
+                if it["k"] == "say" and it.get("id") == line_id:
+                    return sid, s + it["ln"]
+    raise ValueError("no such dialogue line")
+
+
+def langs_text(langs):
+    return ", ".join(x for x in LANGS if x in langs)
+
+
+def migrate_scene_key(lines, scene_id, key, keep):
+    """Rewrite the old scene-level «voice-pick:» / «voice-stale:» line(s) of a scene so that only `keep` stays (a dict / set; empty = the line goes)."""
+    s, e = scene_span(lines, scene_id)
+    pos = parse_scene(lines[s:e])["legacy_ln"][key]
+    if not pos:
+        return
+    text = ""
+    if keep:
+        text = f"{key}: " + (", ".join(f"{k}={v}" for k, v in sorted(keep.items())) if isinstance(keep, dict) else langs_text(keep))
+    for k, j in enumerate(reversed(pos)):
+        lines[s + j:s + j + 1] = [text] if (k == len(pos) - 1 and text) else []
+
+
+def stale_lines(lines, scene_id, want, langs, value):
+    """Mark (value True) or clear the out-of-date flag of `langs` on the dialogue lines of a scene that `want(item)` accepts. The flag lives under
+    each line («voice-stale: fa»). An old scene-level flag for a language is first moved onto every dialogue line of the scene, so only the
+    asked lines change and nothing else loses its flag."""
+    langs = {x for x in langs if x in LANGS}
+    for lg in sorted(langs):
+        s, e = scene_span(lines, scene_id)
+        sc = parse_scene(lines[s:e])
+        if lg not in sc["legacy_stale"]:
+            continue
+        migrate_scene_key(lines, scene_id, "voice-stale", sc["legacy_stale"] - {lg})
+        s, e = scene_span(lines, scene_id)
+        for it in sorted([it for b in parse_scene(lines[s:e])["blocks"] for it in b["items"] if it["k"] == "say"], key=lambda x: -x["ln"]):
+            set_say_attr(lines, s + it["ln"], "voice-stale", langs_text(set(it["stale_own"]) | {lg}))
+    s, e = scene_span(lines, scene_id)
+    items = [it for b in parse_scene(lines[s:e])["blocks"] for it in b["items"] if it["k"] == "say" and want(it)]
+    for it in sorted(items, key=lambda x: -x["ln"]):
+        cur = set(it["stale_own"])
+        new = cur | langs if value else cur - langs
+        if new != cur:
+            set_say_attr(lines, s + it["ln"], "voice-stale", langs_text(new))
+
+
+def set_stale(lines, line_id, langs, value=True):
+    """The out-of-date flag of one dialogue line (by its id)."""
+    sid, _ = find_say(lines, line_id)
+    stale_lines(lines, sid, lambda it: it["id"] == line_id, langs, value)
+
+
+def set_flag(lines, scene_id, lang, value):
+    """Old name: flag every dialogue line of a scene (kept for old callers; new code flags single lines)."""
+    stale_lines(lines, scene_id, lambda it: True, [lang], value)
+
+
+def set_line_pick(lines, line_id, lang, variant):
+    """The voice variant the user chose for one line: «voice: fa=<variant>, en=<variant>» under the line (empty variant = no choice).
+    An old scene-level «voice-pick:» entry for the same line and language is removed (it is the one that was just replaced). False when
+    there is no such line."""
+    try:
+        sid, _ = find_say(lines, line_id)
+    except ValueError:
+        return False
+    s, e = scene_span(lines, sid)
+    legacy = dict(parse_scene(lines[s:e])["legacy_pick"])
+    if legacy.pop(f"{line_id}.{lang}", None) is not None:
+        migrate_scene_key(lines, sid, "voice-pick", legacy)
+    sid, a = find_say(lines, line_id)
+    s, e = scene_span(lines, sid)
+    it = next(it for b in parse_scene(lines[s:e])["blocks"] for it in b["items"] if it["k"] == "say" and it["id"] == line_id)
+    cur = dict(it["voice"])
+    if variant:
+        cur[lang] = variant
+    else:
+        cur.pop(lang, None)
+    set_say_attr(lines, a, "voice", ", ".join(f"{lg}={cur[lg]}" for lg in LANGS if lg in cur))
+    return True
+
+
+def set_voice_picks(lines, scene_id, picks):
+    """Old name: picks = {'IMG001_1.fa': 'eleven-v3'}; an empty value removes that choice. Each one is written under its own line."""
+    for k, v in picks.items():
+        id_, _, lang = k.rpartition(".")
+        if lang in LANGS:
+            set_line_pick(lines, id_, lang, v)
+
+
+def pick_made(items, res, lang):
+    """The voice that was just made becomes the chosen one of its line (the user can switch back on the page)."""
+    made = [it for it in items if res.get(it["id"]) == "ok"]
+    if made:
+        with LOCK:
+            lines = read_lines(STORY)
+            for it in made:
+                set_line_pick(lines, it["id"], lang, variant_tag(it["model"]))
+            write_lines(STORY, lines)
 
 
 def set_scene_fx(lines, scene_id, text):
@@ -106,44 +222,6 @@ def set_default_model(lines, model):
         return
     h = next((i for i, l in enumerate(lines) if HEADER.match(l.strip())), len(lines))
     lines[h:h] = ["# مدل پیش‌فرض تولید صدا؛ هر صحنه با یک خط «model:» می‌تواند مدل خودش را داشته باشد", f"tts-model: {model}", ""]
-
-
-def set_voice_picks(lines, scene_id, picks):
-    """picks = {'IMG001_1.fa': 'eleven-v3'}; an empty value removes that choice. One «voice-pick:» line under the scene header."""
-    s_, e = scene_span(lines, scene_id)
-    pos = next((i for i in range(s_ + 1, e) if lines[i].strip().startswith("voice-pick:")), None)
-    cur = {}
-    if pos is not None:
-        cur = {k.strip(): v.strip() for k, _, v in (x.partition("=") for x in lines[pos].split(":", 1)[1].split(",")) if k.strip() and v.strip()}
-    for k, v in picks.items():
-        if v:
-            cur[k] = v
-        else:
-            cur.pop(k, None)
-    new = ["voice-pick: " + ", ".join(f"{k}={v}" for k, v in sorted(cur.items()))] if cur else []
-    if pos is not None:
-        lines[pos:pos + 1] = new
-    elif new:
-        k = s_ + 1
-        while k < e and lines[k].strip().split(":")[0] in TOP_KEYS:
-            k += 1
-        lines[k:k] = new
-
-
-def pick_made(items, res, lang):
-    """The voice that was just made becomes the chosen one of its line (the user can switch back on the page)."""
-    picks = {f"{it['id']}.{lang}": variant_tag(it["model"]) for it in items if res.get(it["id"]) == "ok"}
-    by_scene = {}
-    for it in items:
-        k = f"{it['id']}.{lang}"
-        if k in picks:
-            by_scene.setdefault(it["scene"], {})[k] = picks[k]
-    if by_scene:
-        with LOCK:
-            lines = read_lines(STORY)
-            for sid, pk in by_scene.items():
-                set_voice_picks(lines, sid, pk)
-            write_lines(STORY, lines)
 
 
 def set_scene_off(lines, scene_id, off):
@@ -232,10 +310,11 @@ def add_image(lines, scene_id):
     return f"IMG{n:03d}"
 
 
-def mark_stale(lines, scene_ids):
-    for sid in scene_ids:
-        for lg in LANGS:
-            set_flag(lines, sid, lg, True)
+def mark_stale(lines, scene_ids=None, speaker=None):
+    """Both voices out of date, on the dialogue lines of these scenes (all scenes when none are given), only the speaker's when one is given."""
+    for sc in story_scenes(lines):
+        if scene_ids is None or sc["id"] in scene_ids:
+            stale_lines(lines, sc["id"], lambda it: speaker is None or it["sp"] == speaker, LANGS, True)
 
 
 def speech_scenes(lines, speaker=None, own_model=None):

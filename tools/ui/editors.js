@@ -6,6 +6,7 @@ import {
   esc,
   fail,
   grow,
+  lineRef,
   onLeave,
   pollJob,
   track
@@ -73,8 +74,7 @@ export function openEditor(host, {scene, ln, key, old, op}) {
         return;
       }
       await api('/api/line', {
-        scene,
-        index: ln,
+        ...lineRef(scene, ln),
         old,
         new: ta.value,
         op
@@ -112,8 +112,7 @@ async function askDelete(scene, ln, kind, old, hasEn) {
     return false;
   try {
     await api('/api/delete', {
-      scene,
-      index: ln,
+      ...lineRef(scene, ln),
       old
     });
     await reload();
@@ -210,8 +209,7 @@ export function openSayEditor(box, {scene, ln, focus}) {
       if (nm.value.trim() !== O.name && !SPK()[nm.value.trim()] && !confirm(`گویندهٔ جدید «${ nm.value.trim() }» ساخته بشه؟ رنگ و صدای خودش رو می‌گیره.`))
         return;
       await api('/api/line', {
-        scene,
-        index: ln,
+        ...lineRef(scene, ln),
         op: 'say',
         old: O,
         new: {
@@ -308,8 +306,7 @@ export function openComposer(bar, {scene, after, kind}) {
           return;
       }
       await api('/api/add', {
-        scene,
-        after,
+        ...lineRef(scene, after, 'after'),
         kind,
         speaker: name,
         text: ta.value,
@@ -503,8 +500,7 @@ export function wire() {
         return;
       try {
         await api('/api/issue', {
-          scene: sid,
-          index: +b.dataset.fl,
+          ...lineRef(sid, +b.dataset.fl),
           message: msg
         });
         await reload();
@@ -515,8 +511,7 @@ export function wire() {
     s.querySelectorAll('[data-wreg]').forEach(b => b.onclick = async () => {
       try {
         await api('/api/issue', {
-          scene: sid,
-          index: +b.dataset.wreg,
+          ...lineRef(sid, +b.dataset.wreg),
           message: 'خط با قالب ناشناخته: ' + b.parentElement.querySelector('code').textContent
         });
         await reload();
@@ -527,8 +522,7 @@ export function wire() {
     s.querySelectorAll('[data-clr]').forEach(b => b.onclick = async () => {
       try {
         await api('/api/issue', {
-          scene: sid,
-          index: +b.dataset.clr,
+          ...lineRef(sid, +b.dataset.clr),
           clear: true
         });
         await reload();

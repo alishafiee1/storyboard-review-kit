@@ -15,7 +15,7 @@
 - **Per-line listening**: every dialogue line with a generated voice file gets small 🔊 FA / 🔊 EN buttons to hear just that line.
 - **Edit suggestions** (`fx:`): short notes per scene and per picture (zoom, fade, shake, particles, light, sound) that the AI editor follows on top of its defaults.
 - **Subtitles**: one click writes `subtitles/fa.srt` and `subtitles/en.srt` from the scenario, timed by the voice files (ready to upload to YouTube).
-- **Versions and final choice**: several pictures (or voices) for the same shot are kept side by side; ◀ ▶ browse them and the one you stop on is the chosen, final one (`pick:` / `voice-pick:` in the scenario). No file is renamed or deleted.
+- **Versions and final choice**: several pictures (or voices) for the same shot are kept side by side; ◀ ▶ browse them and the one you stop on is the chosen, final one (`pick:` / `voice:` under the line in the scenario). No file is renamed or deleted.
 - **Scenes you can reorder**: move a scene up or down, set it aside (`off: yes`, nothing is deleted) or add a new one with empty picture slots, without renaming any picture or audio file.
 - **Stale flags**: when you change a text or a voice, the page marks that scene's audio or image as out of date.
 - **Updates without losing your work**: `python tools/update.py` replaces only the tool files; your scenario, prompts, images and audio stay untouched.

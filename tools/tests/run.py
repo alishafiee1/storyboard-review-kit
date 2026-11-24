@@ -142,6 +142,19 @@ def menu(page, sid):
     page.click(f"section[data-scene={sid}] [data-mn]")
 
 
+def use_story(proj, page, name="story-legacy.txt"):
+    """Swap the project's story.txt for another fixture (the server re-reads it on every request) and reload the page."""
+    shutil.copy2(os.path.join(FIX, name), os.path.join(proj.root, "scenario", "story.txt"))
+    page.reload()
+    page.wait_for_selector("section.blk")
+    page._reloads = 0
+
+
+def story_bytes(proj):
+    with open(os.path.join(proj.root, "scenario", "story.txt"), "rb") as f:
+        return f.read()
+
+
 def test(fn):
     TESTS.append(fn)
     return fn
@@ -483,17 +496,17 @@ def voice_variants_pick(proj, page):
     btn = "#b1 .vv[data-vv=fa] >> nth=0"
     assert page.inner_text(btn).strip() == "‹1/3›"  # default, eleven-v3, eleven-v4 (no pick yet: the old default plays)
     page.click(btn)
-    proj.wait("scenario/story.txt", "voice-pick: IMG001_1.fa=eleven-v3")
+    proj.wait("scenario/story.txt", "voice: fa=eleven-v3")
     page.click(btn)
-    proj.wait("scenario/story.txt", "voice-pick: IMG001_1.fa=eleven-v4")
+    proj.wait("scenario/story.txt", "voice: fa=eleven-v4")
     page.click(btn)
-    proj.wait("scenario/story.txt", "IMG001_1.fa=default")
+    proj.wait("scenario/story.txt", "voice: fa=default")
     _, data = proj.api("/api/project")
     line = data["scenes"][1]["blocks"][0]["items"][1]
     assert line["id"] == "IMG001_1" and line["audio_v"]["fa"]["chosen"] == "default" and len(line["audio_v"]["fa"]["names"]) == 3
     assert proj.api("/api/voicepick", {"scene": "scene-01", "id": "IMG001_1", "lang": "fa", "variant": "nope"})[0] == 400
     assert proj.api("/api/voicepick", {"scene": "scene-01", "id": "IMG001_1", "lang": "fa", "variant": ""})[0] == 200
-    proj.wait("scenario/story.txt", "IMG001_1.fa=", absent=True)
+    proj.wait("scenario/story.txt", "voice: fa=", absent=True)
     for tag in ("eleven-v3", "eleven-v4"):
         assert os.path.exists(os.path.join(proj.root, "audio", "fa", "IMG001_1.%s.mp3" % tag))
 
@@ -509,7 +522,7 @@ def voice_files_per_model(proj, page):
     out = subprocess.run([sys.executable, "-c", code], cwd=proj.root, capture_output=True, text=True, encoding="utf-8")
     assert out.returncode == 0, out.stderr[-400:]
     assert out.stdout.split("\n")[0] == "eleven-v4-turbo grok-voice-tts-1-0", out.stdout
-    assert "voice-pick: IMG003_1.en=eleven-v3" in proj.story()
+    assert "voice: en=eleven-v3" in proj.story() and "voice-pick" not in proj.story()  # per-line form, written under the line
 
 
 @test
@@ -611,7 +624,7 @@ def voice_dialog_manage(proj, page):
     page.wait_for_selector(dlg + " [data-dpick=fa]")
     assert page.locator(dlg + " [data-dpick=fa]").count() == 3 and page.locator(dlg + " #dmodel option").count() >= 2
     page.click(dlg + " [data-dpick=fa][value=eleven-v3]")
-    proj.wait("scenario/story.txt", "voice-pick: IMG001_1.fa=eleven-v3")
+    proj.wait("scenario/story.txt", "voice: fa=eleven-v3")
     page.wait_for_selector(dlg + " [data-dpick=fa][value=eleven-v3]:checked")
     page.click(dlg + " [data-darch=fa][data-n=eleven-v4]")
     page.wait_for_selector(dlg + " [data-drest=fa][data-n=eleven-v4]", state="attached")
@@ -619,7 +632,7 @@ def voice_dialog_manage(proj, page):
     assert not os.path.exists(os.path.join(proj.root, "audio", "fa", "IMG001_1.eleven-v4.mp3"))
     assert page.locator(dlg + " [data-dpick=fa]").count() == 2
     page.click(dlg + " [data-darch=fa][data-n=eleven-v3]")  # archiving the chosen voice also clears the pick
-    proj.wait("scenario/story.txt", "IMG001_1.fa=", absent=True)
+    proj.wait("scenario/story.txt", "voice: fa=", absent=True)
     page.wait_for_selector(dlg + " [data-drest=fa][data-n=eleven-v3]", state="attached")
     page.click(dlg + " details summary")  # the archive list is folded
     page.click(dlg + " [data-drest=fa][data-n=eleven-v3]")
@@ -770,6 +783,181 @@ def voices_follow_their_lines(proj, page):
     page.reload()
     page.wait_for_selector("section.blk")
     assert page.locator("#b1 .ab[data-lg=fa]").count() >= 2
+
+
+@test
+def old_project_keeps_its_voices_and_images_apart(proj, page):
+    """A project from before 1.17 (a block of two pictures, lines without id:, scene-level voice-pick / voice-stale) opens without any file change:
+    the pictures are shown apart, the old line names give the same voice files, and the old chosen voice still plays."""
+    use_story(proj, page)
+    assert story_bytes(proj) == open(os.path.join(FIX, "story-legacy.txt"), "rb").read(), "opening a project must not rewrite it"
+    assert page.locator("section[data-scene=scene-01] .blk").count() == 3
+    assert page.locator("section[data-scene=scene-01] .blk figure.shot").evaluate_all("els => els.map(e => e.dataset.id)") == ["IMG001", "IMG002", "IMG003"]
+    assert page.locator("#b1 .it").count() == 0 and page.locator("#b2 .it.sp").count() == 2 and page.locator("#b2 .it.act").count() == 1
+    assert page.locator("section[data-scene=scene-02] .blk.noimg .it.act").count() == 1  # the line above the first picture is still shown
+    assert "before the first [IMG]" in json.dumps(proj.api("/api/project")[1]["scenes"][2]["warnings"], ensure_ascii=False)
+    assert page.locator("#b2 .it.sp.vstale").count() == 2 and page.locator("#b3 .it.sp.vstale").count() == 1  # the old scene-level flag reaches every line
+    assert page.locator("section[data-scene=scene-01] [data-regen]").count() == 1
+    if shutil.which("ffmpeg"):
+        items = {i["id"]: i for b in proj.api("/api/project")[1]["scenes"][1]["blocks"] for i in b["items"] if i["k"] == "say"}
+        assert list(items) == ["IMG001_1", "IMG001_2", "L001"]
+        assert items["IMG001_1"]["audio"]["fa"].startswith("audio/fa/IMG001_1.eleven-v3.mp3")  # the old scene-level voice-pick
+        assert items["IMG001_2"]["audio"]["fa"].startswith("audio/fa/IMG001_2.mp3") and items["IMG001_2"]["audio"]["en"].startswith("audio/en/IMG001_2.mp3")
+
+
+@test
+def editing_in_a_shared_block_is_per_picture_and_per_line(proj, page):
+    """Lines are sent by picture id; the changed line alone is marked out of date, and the old scene-level flag is moved onto the lines."""
+    use_story(proj, page)
+    sent = []
+    page.on("request", lambda r: sent.append(r.post_data) if r.url.endswith("/api/line") else None)
+    page.click("#b2 .it.sp .fa .v >> nth=0")
+    page.fill(".ie.say textarea", "متن تازهٔ بلوک مشترک")
+    page.press(".ie.say textarea", "Enter")
+    proj.wait("scenario/story.txt", "say: راوی | متن تازهٔ بلوک مشترک")
+    assert sent and '"image":"IMG002"' in sent[0] and '"scene"' not in sent[0], sent
+    st = proj.story()
+    head = st.split("[IMG001]")[0]
+    assert "voice-stale" not in head, "the old scene-level flag was moved onto the lines"
+    assert "voice-pick: IMG001_1.fa=eleven-v3, IMG001_2.en=default" in head  # the old picks are not touched by a text edit
+    assert st.count("voice-stale: fa") == 3 and "voice-stale: fa, en" in st  # every line of the scene got the flag it had before
+    page.wait_for_selector("text=متن تازهٔ بلوک مشترک")
+    assert page.locator("section[data-scene=scene-01] .it.sp.vstale").count() == 3
+
+
+@test
+def choosing_a_voice_is_written_under_its_line(proj, page):
+    """The ‹2/3› button writes «voice: fa=...» under the dialogue line and takes only that entry out of the old scene-level voice-pick."""
+    if not shutil.which("ffmpeg"):
+        print("   (skipped: no ffmpeg to make test audio)", end="")
+        return
+    use_story(proj, page)
+    btn = "#b2 .vv[data-vv=fa] >> nth=0"
+    assert page.inner_text(btn).strip() == "‹2/3›"  # the old voice-pick (eleven-v3) is what plays
+    page.click(btn)
+    proj.wait("scenario/story.txt", "en: This is Ali.\nvoice: fa=eleven-v4")
+    st = proj.story()
+    i = st.index("say: راوی | این علیه.")
+    assert st[i:].split("\n")[1:3] == ["en: This is Ali.", "voice: fa=eleven-v4"], st[i:i + 200]
+    head = st.split("[IMG001]")[0]
+    assert "voice-pick: IMG001_2.en=default" in head and "IMG001_1.fa" not in head
+    page.click(btn)  # ‹1/3›: the plain old file
+    proj.wait("scenario/story.txt", "voice: fa=default")
+    assert proj.api("/api/voicepick", {"id": "IMG001_2", "lang": "en", "variant": ""})[0] == 200  # no scene needed any more
+    proj.wait("scenario/story.txt", "voice-pick", absent=True)
+    assert proj.api("/api/voicepick", {"id": "NOPE_1", "lang": "en", "variant": ""})[0] == 400
+
+
+@test
+def line_endpoints_take_a_picture_id(proj, page):
+    """/api/line, /add, /delete and /issue address a line by picture id (index counted from its [IMG] line); the old scene form still works."""
+    use_story(proj, page)
+    base = {"image": "IMG002"}
+    code, r = proj.api("/api/line", dict(base, index=3, old="این علیه. صبح‌ها بدون قهوه آدم نیست.", new="با شناسهٔ تصویر", op="edit"))
+    assert code == 200
+    proj.wait_in("[IMG002]", "say: راوی | با شناسهٔ تصویر")
+    assert proj.api("/api/line", dict(base, index=3, old="چیز دیگر", new="x", op="edit"))[0] == 409
+    assert proj.api("/api/line", dict(base, index=40, old="x", new="x"))[0] == 400
+    assert proj.api("/api/line", {"image": "IMG001", "index": 1, "old": "x", "new": "x"})[0] == 400  # IMG001 owns no lines
+    assert proj.api("/api/line", {"image": "bad", "index": 1, "old": "x", "new": "x"})[0] == 400
+    assert proj.api("/api/add", dict(base, after=5, kind="act", text="توضیح تازه"))[0] == 200
+    proj.wait_in("[IMG002]", "act: توضیح تازه")
+    assert "act: توضیح تازه" not in proj.story().split("[IMG003]")[1], "the new line belongs to the picture it was added to"
+    assert proj.api("/api/issue", dict(base, index=2, message="نگاه کن"))[0] == 200
+    proj.wait_in("[IMG002]", "format-issue: نگاه کن")
+    assert proj.api("/api/issue", dict(base, index=3, clear=True))[0] == 200
+    proj.wait_in("[IMG002]", "format-issue:", absent=True)
+    _, data = proj.api("/api/project")
+    act = next(i for b in data["scenes"][1]["blocks"] for i in b["items"] if i["k"] == "act" and i["fa"] == "توضیح تازه")
+    assert proj.api("/api/delete", dict(base, index=act["ln"] - data["scenes"][1]["blocks"][1]["images"][0]["ln"], old="توضیح تازه"))[0] == 200
+    proj.wait_in("[IMG002]", "توضیح تازه", absent=True)
+    data = proj.api("/api/project")[1]
+    old_form = next(i for b in data["scenes"][1]["blocks"] for i in b["items"] if i["k"] == "say" and i["id"] == "L001")
+    assert proj.api("/api/line", {"scene": "scene-01", "index": old_form["ln"], "old": "خطی که شناسهٔ خودش را دارد.", "new": "فرم قدیمی", "op": "edit"})[0] == 200
+    proj.wait_in("[IMG003]", "say: راوی | فرم قدیمی")
+    assert proj.api("/api/flag", {"id": "L001", "lang": "fa", "value": False})[0] == 200
+    assert proj.api("/api/flag", {"id": "NOPE_1", "lang": "fa", "value": True})[0] == 400
+    assert proj.api("/api/regen", {"scene": "bad"})[0] == 400 and proj.api("/api/regen", {"image": "IMG9"})[0] == 400
+
+
+@test
+def undo_restores_story_byte_for_byte(proj, page):
+    """Every structural edit keeps the file as it was in .kit/history/ (30 at most); POST /api/undo puts the newest back, byte for byte."""
+    use_story(proj, page, "story.txt")
+    orig = story_bytes(proj)
+    assert proj.api("/api/undo", {})[0] == 400 and proj.api("/api/project")[1]["history"] == []
+    assert proj.api("/api/addimage", {"scene": "scene-01"})[0] == 200
+    step1 = story_bytes(proj)
+    assert proj.api("/api/sceneoff", {"scene": "scene-02", "off": True})[0] == 200
+    assert proj.api("/api/addscene", {"after": "scene-01", "title": "تازه", "images": 1})[0] == 200
+    assert proj.api("/api/scenemove", {"scene": "scene-02", "step": -1})[0] == 200
+    assert proj.api("/api/add", {"scene": "scene-01", "after": 5, "kind": "act", "text": "خط تازه"})[0] == 200
+    assert proj.api("/api/delete", {"scene": "scene-01", "index": 5, "old": "علی با یک لیوان قهوه رد می‌شود."})[0] in (200, 409)
+    assert proj.api("/api/addimage", {"scene": "scene-77"})[0] == 400  # a failed edit leaves no snapshot
+    hist = proj.api("/api/project")[1]["history"]
+    assert [h["label"] for h in hist][:5] == ["addimage", "sceneoff", "addscene", "scenemove", "add"], hist
+    assert proj.api("/api/image", {"id": "IMG001", "note": "ordinary edits keep no snapshot"})[0] == 200
+    assert len(proj.api("/api/project")[1]["history"]) == len(hist)
+    code, r = proj.api("/api/undo", {})
+    assert code == 409 and "force" in r["error"], "the file was edited after the last structural edit: refuse unless forced"
+    assert proj.api("/api/undo", {"id": "20000101-000000-000000_add_00000000"})[0] == 409
+    assert proj.api("/api/undo", {"force": True})[0] == 200
+    assert os.path.isdir(os.path.join(proj.root, ".kit", "undone")) and os.listdir(os.path.join(proj.root, ".kit", "undone"))
+    while proj.api("/api/project")[1]["history"]:
+        assert proj.api("/api/undo", {"id": proj.api("/api/project")[1]["history"][-1]["id"]})[0] == 200
+    assert story_bytes(proj) == orig, "undoing every structural edit gives back the very first file"
+    assert step1 != orig
+    for i in range(32):
+        assert proj.api("/api/addimage", {"scene": "scene-01"})[0] == 200
+    hist = proj.api("/api/project")[1]["history"]
+    assert len(hist) == 30
+    names = os.listdir(os.path.join(proj.root, ".kit", "history"))
+    assert ".gitignore" in names and len([n for n in names if n.endswith(".txt")]) == 30
+    for path in ("/.kit/history/%s.txt" % hist[0]["id"], "/.kit/history/.gitignore", "/.kit/"):
+        try:
+            urllib.request.urlopen(proj.url + path)
+            raise AssertionError(path + " was served")
+        except urllib.error.HTTPError as e:
+            assert e.code == 404, (path, e.code)
+    page.reload()
+    page.wait_for_selector("section.blk")
+    assert page.locator("figure.shot").count() == 4 + 32
+
+
+@test
+def undo_after_a_page_edit(proj, page):
+    """The page's own add / delete go through the same snapshot: delete a dialogue line in the page, undo, and the file is the one before."""
+    before = story_bytes(proj)
+    page.locator("#b3 .it.sp [data-del]").click()  # the page asks, the test accepts
+    proj.wait("scenario/story.txt", "و روز تمام شد.", absent=True)
+    assert [h["label"] for h in proj.api("/api/project")[1]["history"]] == ["delete"]
+    assert proj.api("/api/undo", {})[0] == 200
+    assert story_bytes(proj) == before
+    page.reload()
+    page.wait_for_selector("text=و روز تمام شد.")
+
+
+@test
+def regen_makes_only_the_stale_lines(proj, page):
+    """Making voices works per stale line: all of them, or only the lines of one picture. A made line loses its flag, the others keep theirs
+    (the old scene-level flag is moved onto the lines first). The network is faked here."""
+    use_story(proj, page)
+    head = ("import sys, os; sys.path.insert(0,'tools'); import tts, jobs\n"
+            "tts.synth=lambda *a: b'x'*6000; tts.load_key=lambda: 'k'; tts.voice_problem=lambda m,v: None\n")
+    out = subprocess.run([sys.executable, "-c", head + "jobs.regen_job(image='IMG003'); print(jobs.JOB['state'], jobs.JOB['errors'])"],
+                         cwd=proj.root, capture_output=True, text=True, encoding="utf-8")
+    assert out.returncode == 0 and out.stdout.strip() == "done []", out.stdout + out.stderr[-400:]
+    st = proj.story()
+    assert os.path.exists(os.path.join(proj.root, "audio", "fa", "L001.eleven-v4-turbo.mp3")) and os.path.exists(os.path.join(proj.root, "audio", "en", "L001.eleven-v4-turbo.mp3"))
+    assert not os.path.exists(os.path.join(proj.root, "audio", "fa", "IMG001_1.eleven-v4-turbo.mp3"))
+    assert "voice: fa=eleven-v4-turbo, en=eleven-v4-turbo" in st
+    assert "voice-stale: en" not in st and st.count("voice-stale: fa") == 2 and "voice-stale" not in st.split("[IMG001]")[0]
+    out = subprocess.run([sys.executable, "-c", head + "jobs.regen_job(); print('end')"], cwd=proj.root, capture_output=True, text=True, encoding="utf-8")
+    assert out.returncode == 0, out.stderr[-400:]
+    st = proj.story()
+    assert "voice-stale" not in st
+    assert os.path.exists(os.path.join(proj.root, "audio", "fa", "IMG001_2.eleven-v4-turbo.mp3"))
+    assert "voice: fa=eleven-v4-turbo" in st and "IMG001_1.fa" not in st
 
 
 @test

@@ -49,7 +49,9 @@ PHEADER = re.compile(r"^=== ([A-Za-z0-9_]+) ===$")
 
 
 SPEECH = ("say",)
+SAY_KEYS = ("id", "en", "voice", "voice-stale", "format-issue")  # the keys that hang under a dialogue line, in the order they are written
 LINE_ID = re.compile(r"[A-Za-z0-9_-]{1,40}")  # the id: line of a dialogue line
+VARIANT = re.compile(r"[A-Za-z0-9_.-]{1,60}")  # a voice variant name in «voice: fa=<variant>»
 
 
 SPK = re.compile(r"^speaker:\s*(.*?)\s*\|\s*(#[0-9a-fA-F]{6})\s*(?:\|\s*([A-Za-z0-9_.:-]*)\s*)?(?:\|\s*(.*?)\s*)?$")

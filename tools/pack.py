@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import premiere_check  # noqa: E402
 
 ROOT = premiere_check.ROOT
-SKIP_DIRS = {".git", ".engine-backup", "__pycache__", "graphify-out", "archive", "_samples", "_tests", "_tmp"}
+SKIP_DIRS = {".git", ".kit", ".engine-backup", "__pycache__", "graphify-out", "archive", "_samples", "_tests", "_tmp"}
 VID_EXT = (".mp4", ".mov", ".m4v", ".webm", ".mkv", ".avi")
 STORED = (".mp3", ".jpg", ".jpeg", ".png", ".webp", ".mp4", ".mov", ".m4v", ".webm", ".zip")  # already compressed: no point squeezing
 

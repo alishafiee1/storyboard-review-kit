@@ -30,6 +30,23 @@ export async function api(path, body) {
   return j;
 }
 export const fail = e => alert(e.message || e);
+/* How a line is addressed to the server: by its picture (index counted from the picture's own [IMG] line, so it survives moving the
+   picture), or by the scene for lines above the first picture. `key` is the name of the number ('index', or 'after' when adding). */
+export function lineRef(scene, ln, key = 'index') {
+  const sc = S.P.scenes.find(s => s.id === scene);
+  for (const b of sc ? sc.blocks : []) {
+    const im = b.images[0];
+    if (im && ln >= im.ln && ln < im.end)
+      return {
+        image: im.id,
+        [key]: ln - im.ln
+      };
+  }
+  return {
+    scene,
+    [key]: ln
+  };
+}
 export const TT = () => S.P.tts || {
     default: '',
     catalog: []

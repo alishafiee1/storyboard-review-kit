@@ -2,20 +2,24 @@
 """The page's write API: one small function per endpoint, registered with @route. Each runs under the file lock and may raise
 ValueError (-> 400) or Conflict (-> 409); returning nothing means {"ok": true}."""
 import os, re
+import history
 from kitcore import LANGS, MARKS, MODEL_RE, PROMPTS, STORY, VPROMPTS, read_lines, write_lines
 from story import clean_name, clean_tone, ensure_speaker, parse_prompts, parse_speakers, story_scenes
 from media import archive_item, audio_variants, scan_images, scan_refs
-from edits import add_image, add_scene, mark_stale, move_scene, patch_image, set_default_model, set_flag, set_scene_fx, set_scene_model, set_scene_off, set_voice_picks, speech_scenes
-from lineedits import add_issue, add_line, clear_issue, delete_line, edit_line
+from edits import add_image, add_scene, mark_stale, move_scene, patch_image, set_default_model, set_flag, set_line_pick, set_scene_fx, set_scene_model, set_scene_off, set_stale, speech_scenes
+from lineedits import add_issue, add_line, clear_issue, delete_line, edit_line, locate
 from promptedits import replace_prompt, set_prompt_refs, upsert_prompt
 
 ROUTES = {}
+STRUCTURAL = set()  # endpoints that change the structure of story.txt: a snapshot is kept before each (see history.py)
 
 
-def route(*paths):
+def route(*paths, snapshot=False):
     def reg(fn):
         for p in paths:
             ROUTES[p] = fn
+            if snapshot:
+                STRUCTURAL.add(p)
         return fn
     return reg
 
@@ -25,8 +29,17 @@ def handle(path, d):
     fn = ROUTES.get(path)
     if fn is None:
         raise ValueError("unknown endpoint")
+    before = history.read_story() if path in STRUCTURAL else None
     res = fn(d)
+    if path in STRUCTURAL:
+        history.record(path.rsplit("/", 1)[-1], before)  # only when the edit succeeded and really changed the file
     return {"ok": True} if res is None else res
+
+
+@route("/api/undo")
+def undo(d):
+    """put story.txt back as it was before the last structural edit (byte for byte); `id` = the snapshot the page thinks is the newest, `force` = even if the file changed since"""
+    return dict(ok=True, undone=history.undo(str(d["id"]) if d.get("id") else None, bool(d.get("force"))))
 
 
 @route("/api/image")
@@ -50,14 +63,15 @@ def image(d):
 
 @route("/api/voicepick")
 def voicepick(d):
-    """the voice variant the user listened to and chose for one line"""
-    sid, id_, lang, variant = str(d["scene"]), str(d["id"]), str(d["lang"]), str(d.get("variant", ""))
-    if not re.fullmatch(r"scene-\d{2,3}", sid) or not re.fullmatch(r"[A-Za-z0-9_-]+", id_) or lang not in LANGS:
-        raise ValueError("bad scene, id or lang")
+    """the voice variant the user listened to and chose for one line (found by its id; an old request may also carry the scene, which is ignored)"""
+    id_, lang, variant = str(d["id"]), str(d["lang"]), str(d.get("variant", ""))
+    if not re.fullmatch(r"[A-Za-z0-9_-]+", id_) or lang not in LANGS:
+        raise ValueError("bad id or lang")
     if variant and variant not in [v["name"] for v in audio_variants(lang, id_)]:
         raise ValueError("no such voice file")
     lines = read_lines(STORY)
-    set_voice_picks(lines, sid, {f"{id_}.{lang}": variant})
+    if not set_line_pick(lines, id_, lang, variant):
+        raise ValueError("no such dialogue line")
     write_lines(STORY, lines)
 
 
@@ -84,13 +98,13 @@ def _archive_or_restore(d, back):
                 patch_image(lines, id_, pick="")
                 write_lines(STORY, lines)
         else:
-            sc = next((s for s in story_scenes(lines) if str(d.get("scene", "")) == s["id"]), None)
+            sc = next((s for s in story_scenes(lines) if any(it.get("id") == id_ for b in s["blocks"] for it in b["items"])), None)
             if sc and sc["voice_pick"].get(f"{id_}.{lang}") == name:
-                set_voice_picks(lines, sc["id"], {f"{id_}.{lang}": ""})
+                set_line_pick(lines, id_, lang, "")
                 write_lines(STORY, lines)
 
 
-@route("/api/sceneoff")
+@route("/api/sceneoff", snapshot=True)
 def sceneoff(d):
     """set a scene aside or bring it back (off: yes)"""
     sid = str(d["scene"])
@@ -101,7 +115,7 @@ def sceneoff(d):
     write_lines(STORY, lines)
 
 
-@route("/api/scenemove")
+@route("/api/scenemove", snapshot=True)
 def scenemove(d):
     """move a scene one place up or down (only the block moves)"""
     sid = str(d["scene"])
@@ -112,7 +126,7 @@ def scenemove(d):
     write_lines(STORY, lines)
 
 
-@route("/api/addscene")
+@route("/api/addscene", snapshot=True)
 def addscene(d):
     """new scene with 0 to 12 empty picture slots, after a given scene"""
     after = str(d.get("after", ""))
@@ -124,7 +138,7 @@ def addscene(d):
     return {"ok": True, "scene": sid}
 
 
-@route("/api/addimage")
+@route("/api/addimage", snapshot=True)
 def addimage(d):
     """one more empty picture slot at the end of a scene"""
     sid = str(d["scene"])
@@ -138,31 +152,34 @@ def addimage(d):
 
 @route("/api/flag")
 def flag(d):
-    """mark a scene's voice (fa / en) as out of date or up to date"""
-    if d["lang"] not in LANGS or not re.fullmatch(r"scene-\d{2,3}", str(d["scene"])):
-        raise ValueError("bad scene or lang")
+    """mark the voice (fa / en) of one dialogue line (by id) as out of date or up to date; the old form with a scene marks every line of it"""
+    if d["lang"] not in LANGS:
+        raise ValueError("bad lang")
     lines = read_lines(STORY)
-    set_flag(lines, d["scene"], d["lang"], bool(d["value"]))
+    if d.get("id"):
+        set_stale(lines, str(d["id"]), [d["lang"]], bool(d["value"]))
+    elif re.fullmatch(r"scene-\d{2,3}", str(d.get("scene", ""))):
+        set_flag(lines, d["scene"], d["lang"], bool(d["value"]))
+    else:
+        raise ValueError("bad id or scene")
     write_lines(STORY, lines)
 
 
 @route("/api/line")
 def line(d):
-    """change the text, speaker or tone of one line"""
-    if not re.fullmatch(r"scene-\d{2,3}", str(d["scene"])):
-        raise ValueError("bad scene")
+    """change the text, speaker or tone of one line: {image, index} (index counted from the [IMG] line), or the old {scene, index}"""
     lines = read_lines(STORY)
-    edit_line(lines, d["scene"], d["index"], d.get("old", ""), d["new"], d.get("op", "edit"))
+    sid, idx = locate(lines, d)
+    edit_line(lines, sid, idx, d.get("old", ""), d["new"], d.get("op", "edit"))
     write_lines(STORY, lines)
 
 
-@route("/api/add")
+@route("/api/add", snapshot=True)
 def add(d):
-    """add a dialogue or action line after a given line"""
-    if not re.fullmatch(r"scene-\d{2,3}", str(d["scene"])):
-        raise ValueError("bad scene")
+    """add a dialogue or action line after a given line: {image, after} (counted from the [IMG] line), or the old {scene, after}"""
     lines = read_lines(STORY)
-    add_line(lines, d["scene"], d["after"], d["kind"], d.get("speaker", ""), d["text"], d.get("label", ""), d.get("tone", ""))
+    sid, after = locate(lines, d, "after")
+    add_line(lines, sid, after, d["kind"], d.get("speaker", ""), d["text"], d.get("label", ""), d.get("tone", ""))
     write_lines(STORY, lines)
 
 
@@ -181,7 +198,7 @@ def speaker(d):
     before = next((x["voice"] for x in parse_speakers(lines) if x["name"] == name), None)
     ensure_speaker(lines, name, color, voice, tone)
     if voice and before is not None and voice != before:  # another voice = every line of this speaker must be made again
-        mark_stale(lines, speech_scenes(lines, name))
+        mark_stale(lines, speaker=name)
     write_lines(STORY, lines)
 
 
@@ -196,7 +213,7 @@ def ttsmodel(d):
         if not re.fullmatch(r"scene-\d{2,3}", str(scene)):
             raise ValueError("bad scene")
         set_scene_model(lines, scene, model)
-        mark_stale(lines, [scene] if scene in speech_scenes(lines) else [])
+        mark_stale(lines, [scene])
     else:
         if not model:
             raise ValueError("model is empty")
@@ -213,26 +230,24 @@ def voicetest(d):
                      result=str(d.get("result", "")), tags=d.get("tags"))
 
 
-@route("/api/delete")
+@route("/api/delete", snapshot=True)
 def delete(d):
-    """delete one dialogue / action / translation line"""
-    if not re.fullmatch(r"scene-\d{2,3}", str(d["scene"])):
-        raise ValueError("bad scene")
+    """delete one dialogue / action / translation line: {image, index} or the old {scene, index}"""
     lines = read_lines(STORY)
-    delete_line(lines, d["scene"], d["index"], d.get("old", ""))
+    sid, idx = locate(lines, d)
+    delete_line(lines, sid, idx, d.get("old", ""))
     write_lines(STORY, lines)
 
 
 @route("/api/issue")
 def issue(d):
-    """add or clear a format-issue note on a line"""
-    if not re.fullmatch(r"scene-\d{2,3}", str(d["scene"])):
-        raise ValueError("bad scene")
+    """add or clear a format-issue note on a line: {image, index} or the old {scene, index}"""
     lines = read_lines(STORY)
+    sid, idx = locate(lines, d)
     if d.get("clear"):
-        clear_issue(lines, d["scene"], d["index"])
+        clear_issue(lines, sid, idx)
     else:
-        add_issue(lines, d["scene"], d["index"], d.get("message", ""))
+        add_issue(lines, sid, idx, d.get("message", ""))
     write_lines(STORY, lines)
 
 
