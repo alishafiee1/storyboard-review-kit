@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.3.0
+- Cleanup: the page no longer writes a scene-level `model:` (`set_scene_model` and the scene branch of `/api/ttsmodel` are gone; old `model:` lines are still read).
+- `python tools/update.py` prints a `python tools/migrate.py` (dry run) hint when `story.txt` or the audio names are in the old format (`update.old_format_reasons`, with tests).
+- Phone: a dialogue line's chip and icons share one row (44px hit areas kept); new `mobile-review.png`.
+- README (EN, FA), ARCHITECTURE.md, the AI guide and starter/CLAUDE.md describe the image-based model. No new engine files.
+
 ## 2.2.0
 - The «تأیید» stamp button is gone from the footer (JS, CSS and tests too). Approval is still «stopping on a version»; the check on the picture and «تأیید شده» in the top bar stay.
 - Gallery fidelity: 5-6 columns, 8px gaps, 24px page padding, hairline ink border on tiles, 22px paper number badge (13px digits), 10px status dot; top bar shows centered «n / m تأیید شده» with a thin bar and percent, search (id / scene title / line text) and filter (opens the drawer's filter panel) icons on the left; «جابه‌جایی» (reorder mode) toggle so touch scrolling does not drag, long-press (350ms) still works.

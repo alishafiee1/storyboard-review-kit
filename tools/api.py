@@ -6,7 +6,7 @@ import history
 from kitcore import LANGS, MARKS, MODEL_RE, PROMPTS, STORY, VPROMPTS, read_lines, write_lines
 from story import clean_name, clean_tone, ensure_speaker, parse_prompts, parse_speakers, scene_ranges, story_scenes
 from media import archive_item, audio_variants, find_version, scan_images, scan_refs
-from edits import add_image, add_scene, mark_stale, move_scene, patch_image, set_default_model, set_flag, set_line_pick, set_scene_fx, set_scene_model, set_scene_off, set_stale, speech_scenes
+from edits import add_image, add_scene, mark_stale, move_scene, patch_image, set_default_model, set_flag, set_line_pick, set_scene_fx, set_scene_off, set_stale, speech_scenes
 from moves import add_image_at, move_images, scene_mark
 from lineedits import add_issue, add_line, clear_issue, delete_line, edit_line, locate
 from promptedits import replace_prompt, set_prompt_refs, upsert_prompt
@@ -247,21 +247,13 @@ def speaker(d):
 
 @route("/api/ttsmodel")
 def ttsmodel(d):
-    """set the default model (file) or a scene's model"""
-    model, scene = str(d.get("model", "")).strip(), d.get("scene")
-    if model and not MODEL_RE.fullmatch(model):
+    """set the default model (a scene-level «model:» line in an old story.txt is still read, but no longer written)"""
+    model = str(d.get("model", "")).strip()
+    if not model or not MODEL_RE.fullmatch(model):
         raise ValueError("bad model")
     lines = read_lines(STORY)
-    if scene:
-        if not re.fullmatch(r"scene-\d{2,3}", str(scene)):
-            raise ValueError("bad scene")
-        set_scene_model(lines, scene, model)
-        mark_stale(lines, [scene])
-    else:
-        if not model:
-            raise ValueError("model is empty")
-        set_default_model(lines, model)
-        mark_stale(lines, speech_scenes(lines, own_model=False))
+    set_default_model(lines, model)
+    mark_stale(lines, speech_scenes(lines, own_model=False))
     write_lines(STORY, lines)
 
 

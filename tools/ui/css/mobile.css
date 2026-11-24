@@ -297,6 +297,35 @@
     min-width:44px;
   }
 
+  /* a dialogue line's chip and its icons share one row: the 44px hit areas overlap the row (negative margins), they do not make it taller */
+  .who {
+    flex-wrap:nowrap;
+    gap:0 6px;
+    min-height:28px;
+  }
+
+  .who .nm {
+    min-width:0;
+    min-height:28px;
+    flex:0 1 auto;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+
+  .who .lt {
+    flex:none;
+    gap:0;
+  }
+
+  .who button,
+  .who .ab {
+    margin:-8px -5px;
+    min-width:44px;
+    min-height:44px;
+    justify-content:center;
+  }
+
   .ib,
   .drow,
   .opt {

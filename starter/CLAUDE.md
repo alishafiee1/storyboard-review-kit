@@ -13,4 +13,6 @@
 | `inbox/` | منابع متفرقه؛ وقتی کاربر خواست، طبق بخش «ورود فایل‌ها» در `skills/how-to-write-prompts-for-flow.md` مرتبشان کن (جابه‌جایی به پوشهٔ درست، ثبت در `.kit/imports.tsv`، هرگز حذف) |
 | `tools/watch.py`, `tools/batch.py` | نگهبان `Downloads` به `images/scenes/bNN/` و متن پرامپت‌های یک دسته (`python tools/batch.py b05`) |
 | `tools/tts.py`, `tools/voices.py` | ساخت صدا و فهرست صداها (کلید `OPENROUTER_API_KEY` در `.env`) |
+| `.kit/history` | عکس‌های لحظه‌ای برای برگشت (undo) از منو؛ دست نزن |
+| `tools/migrate.py` | بردن پروژهٔ قدیمی به شناسه‌های تصویرمحور؛ همیشه اول بدون `--apply` (فقط گزارش) |
 | `tools/update.py` | به‌روزرسانی موتور از GitHub بدون دست زدن به داده‌های پروژه |

@@ -201,20 +201,6 @@ def set_scene_fx(lines, scene_id, text):
         lines[k:k] = new
 
 
-def set_scene_model(lines, scene_id, model):
-    """Write (or remove, when model is empty) the scene's «model:» line."""
-    s, e = scene_span(lines, scene_id)
-    pos = next((i for i in range(s + 1, e) if lines[i].strip().startswith("model:")), None)
-    new = [f"model: {model}"] if model else []
-    if pos is not None:
-        lines[pos:pos + 1] = new
-    elif new:
-        k = s + 1
-        while k < e and lines[k].strip().split(":")[0] in TOP_KEYS:
-            k += 1
-        lines[k:k] = new
-
-
 def set_default_model(lines, model):
     pos = next((i for i, l in enumerate(lines) if l.startswith("tts-model:")), None)
     if pos is not None:

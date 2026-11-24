@@ -5,19 +5,21 @@
 [فارسی](README.fa.md) · [Website](https://alishafiee1.github.io/storyboard-review-kit/) · License: MIT
 
 ## What it does
-- **One review page** (`review.html`): every scene with its generated image, the dialogue, the scene description and the image-generation prompt. Approve, mark for redo, add notes.
+- **One review page** (`review.html`): a spread per picture (image, its dialogue lines, prompt) plus a gallery of all pictures you can drag to reorder; a drawer menu holds the rest. On phones it is one picture per screen with a bottom bar. Mark for redo, add notes.
 - **Plain-text project**: `scenario/story.txt` and `prompts/prompts.txt` are the only sources of truth. Edit them in the page or in any editor; git-friendly.
 - **Bilingual lines** (Persian + English, right-to-left friendly), speakers with colours and voices, tone per line.
 - **In-browser editing**: click a text, edit, press Enter. Clicking elsewhere saves it.
-- **Voice-over**: pick a text-to-speech model and voice per speaker and scene (ElevenLabs, Gemini, Qwen, ... through one [OpenRouter](https://openrouter.ai) key), listen to a sample, rebuild only the scenes whose text changed.
+- **Voice-over**: pick a text-to-speech model and voice per speaker and per line (ElevenLabs, Gemini, Qwen, ... through one [OpenRouter](https://openrouter.ai) key), listen to a sample, rebuild only the lines whose text changed.
 - **Video prompts and clips**: every picture also has an image-to-video prompt (`prompts/video-prompts.txt`); pictures and references that already have a video get a ▶ play button.
-- **Auto-play button**: a round floating button plays on from the line you last clicked (FA or EN), in that language.
+- **Playback**: play on from the active line in FA or EN from the bar.
 - **Per-line listening**: every dialogue line with a generated voice file gets small 🔊 FA / 🔊 EN buttons to hear just that line.
 - **Edit suggestions** (`fx:`): short notes per scene and per picture (zoom, fade, shake, particles, light, sound) that the AI editor follows on top of its defaults.
 - **Subtitles**: one click writes `subtitles/fa.srt` and `subtitles/en.srt` from the scenario, timed by the voice files (ready to upload to YouTube).
 - **Versions and final choice**: several pictures (or voices) for the same shot are kept side by side; ◀ ▶ browse them and the one you stop on is the chosen, final one (`pick:` / `voice:` under the line in the scenario). No file is renamed or deleted.
-- **Scenes you can reorder**: move a scene up or down, set it aside (`off: yes`, nothing is deleted) or add a new one with empty picture slots, without renaming any picture or audio file.
-- **Stale flags**: when you change a text or a voice, the page marks that scene's audio or image as out of date.
+- **Image-based model**: a scene is only a marker line; every picture (`[IMG045]`) owns its dialogue lines (`IMG045-1`, `IMG045-2`, ...). Move pictures or scene markers and nothing is renamed. Flow versions (random id, 2K/4K) sit side by side; `pick:` is the final one.
+- **Inbox and batches**: `tools/watch.py` files Flow downloads from `Downloads`, `tools/batch.py b05` prints a batch's prompts, `inbox/` takes loose files.
+- **Undo**: every change is snapshotted in `.kit/history`; undo from the drawer.
+- **Stale flags**: when you change a text or a voice, the page marks that line's voice or picture as out of date.
 - **Updates without losing your work**: `python tools/update.py` replaces only the tool files; your scenario, prompts, images and audio stay untouched.
 
 ## Quick start (Windows, macOS, Linux)
@@ -43,6 +45,10 @@ Replaced files are copied to `.engine-backup/` first. To add the updater to a pr
 
 ## Voice-over setup (optional)
 Create a `.env` file next to `review.html` with one line `OPENROUTER_API_KEY=...` (it is git-ignored), then open the menu (hamburger, top right) → **Voices & speakers** and press "Refresh voice list", or run `python tools/voices.py`. Pick a voice per speaker and a model per scene; press "Rebuild voice" on a scene to generate it. Nothing is generated (and nothing is charged) until you press a button. Tones (the Persian word after a speaker's name, e.g. `علی (مرموز)`) are mapped to English audio tags in `voices/voice-config.json`; to hear which models, voices and tones work, run `python tools/voice_test.py` (it shows the cost first; add `--yes` to generate).
+
+## Old projects
+
+After `python tools/update.py` the updater tells you if `story.txt` or the audio names are in the old format. Run `python tools/migrate.py` first (a dry run, nothing changes), then `python tools/migrate.py --apply` if the report looks right.
 
 ## Folder layout
 | Path | What |

@@ -41,6 +41,45 @@ def local_version():
     return open(p, encoding="utf-8").read().strip() if os.path.exists(p) else "none"
 
 
+def old_format_reasons(root):
+    """What in this project is still in the pre-image format (nothing is changed): [] when story.txt and the audio folder are current."""
+    out, story = [], os.path.join(root, "story.txt")
+    if os.path.exists(story):
+        lines = [l.strip() for l in open(story, encoding="utf-8").read().splitlines()]
+        in_scene, seen_img, no_id, scene_level = False, False, False, False
+        pending = None  # a say: line still waiting for its id:
+        for l in lines + ["=== end ==="]:
+            if l.startswith("===") or re.fullmatch(r"\[IMG\d+\]", l) or l.startswith("say:"):
+                if pending:
+                    no_id = True
+                pending = True if l.startswith("say:") else None
+            elif l.startswith("id:"):
+                pending = None
+            if l.startswith("==="):
+                in_scene, seen_img = True, False
+            elif re.fullmatch(r"\[IMG\d+\]", l):
+                seen_img = True
+            elif in_scene and not seen_img and l.startswith(("voice-pick:", "voice-stale:")):
+                scene_level = True
+        if no_id:
+            out.append("dialogue lines without id:")
+        if scene_level:
+            out.append("scene-level voice-pick: / voice-stale:")
+    for _, _, names in os.walk(os.path.join(root, "audio")):
+        if any(re.fullmatch(r"IMG\d+_\d+(\..*)?\.\w+", n) for n in names):
+            out.append("audio files named IMGnnn_k")
+            break
+    return out
+
+
+def migrate_hint(root):
+    reasons = old_format_reasons(root)
+    if reasons:
+        print("This project still has old-format data (" + "; ".join(reasons) + ").")
+        print("See what migrating would change first (a dry run, nothing is touched):")
+        print("  python tools/migrate.py")
+
+
 def write(z, pre, rel, dest_root):
     data = z.read(pre + rel)
     dest = os.path.join(dest_root, *rel.split("/"))
@@ -93,6 +132,7 @@ def update():
         if "tools/migrate.py" in files:
             print("New voices and dialogue ids are named after the picture (IMG045-1). To bring an old project's voices over, first see what it would change (nothing is touched):")
             print("  python tools/migrate.py")
+    migrate_hint(ROOT)
 
 
 def new_project(folder):

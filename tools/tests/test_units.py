@@ -204,6 +204,24 @@ class StableLineIds(unittest.TestCase):
         self.assertEqual(lineedits.next_line_id(["id: L003", "voice-pick: L007.fa=x"]), "L008")
 
 
+class OldFormatHint(unittest.TestCase):
+    def check(self, story, audio=()):
+        import tempfile, update
+        with tempfile.TemporaryDirectory() as d:
+            open(os.path.join(d, "story.txt"), "w", encoding="utf-8").write(story)
+            os.makedirs(os.path.join(d, "audio", "fa"))
+            for n in audio:
+                open(os.path.join(d, "audio", "fa", n), "wb").close()
+            return update.old_format_reasons(d)
+
+    def test_current_project_gets_no_hint(self):
+        self.assertEqual(self.check("=== scene-01 | a | - ===\n[IMG001]\nsay: x | y\nid: IMG001-1\nvoice-stale: fa\n", ["IMG001-1.mp3"]), [])
+
+    def test_old_forms_are_named(self):
+        r = self.check("=== scene-01 | a | - ===\nvoice-stale: fa\n[IMG001]\nsay: x | y\n", ["IMG001_1.mp3"])
+        self.assertEqual(len(r), 3, r)
+
+
 class GitIgnoreRules(unittest.TestCase):
     def test_starter_gitignore_matches_the_updater_and_keeps_pictures_and_voices(self):
         import update

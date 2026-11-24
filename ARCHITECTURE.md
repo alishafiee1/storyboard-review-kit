@@ -49,7 +49,7 @@ the lines it owns and writes it back (a stale page gets a 409); before a structu
 speaker: راوی | #1565c0 | george | tone          speakers (colour, voice, default tone)
 tts-model: elevenlabs/eleven-v4-turbo           default voice model
 === scene-01 | title | 0:00-0:15 ===            scene header (ids may have 2-3 digits; order = order in the file)
-env: ...  fx: ...  model: ...  off: yes         scene-level keys right under the header (old files may also have voice-stale: / voice-pick: here; still read)
+env: ...  fx: ...  off: yes                     scene-level keys right under the header (old files may also have model: / voice-stale: / voice-pick: here; still read, no longer written)
 [IMG001]                                        a picture slot; every act / say below it, up to the next [IMG], belongs to it
 status: redo | pick: <rid> (or an old file name) | off: yes | note: ... | fx: ... | image-stale: yes
 act: ...   say: speaker (tone) | text   id: IMG045-1   en: translation   voice: fa=eleven-v3, en=default   voice-stale: fa   format-issue: ...
@@ -142,3 +142,8 @@ Both run on every push (`.github/workflows/tests.yml`).
 
 ## Phone layout and gallery bar (v2.2)
 Below 900px `body` is one CSS grid (7 columns; rows bar / picture / playback line / text / action bar). `#list`, `.blk.on`, `#foot > .ftp` and `.mact` are `display:contents`, so `.imgs`, `.txt`, `#tbar`, `#ttime` and the footer buttons are placed straight into it (`css/mobile.css`). Buttons marked `data-fwd="id"` (`#playS`, `.mact`) only click the real button of that id (handler in `player.js`), so there is one code path. The gallery bar (`#gstat`, `#gSearch`, `#gq`, `#gFilter`) lives in `#bar` and is shown by `body.gal`; the count is computed in `gallery.js` (`stat`). `#gMove` toggles `#gallery.reorder` (touch-action none, drag starts on move).
+
+## Cleanup (v2.3)
+- The page no longer writes a scene-level `model:` (`/api/ttsmodel` sets only the default model); old `model:` lines are still read. Scene routes (`scenemove`, `sceneoff`, `addscene`) stay: the scene menu in `versions.js` calls them. The model is image-based: scenes are marker lines, each picture owns its lines.
+- `update.old_format_reasons(root)` spots an old project (dialogue without `id:`, scene-level `voice-pick:` / `voice-stale:`, audio named `IMGnnn_k`); `update.py` then prints the `python tools/migrate.py` dry-run hint.
+- Phone: a line's chip and its icons share one row; the 44px hit areas overlap the row through negative margins (`css/mobile.css`).
