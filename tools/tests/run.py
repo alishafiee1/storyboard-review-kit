@@ -8,6 +8,9 @@ Every test builds a fresh throw-away project in a temp folder (fixture/ + the to
 never touches a real project. Nothing here calls a paid service. This folder is not part of the engine (ENGINE.txt) and is not sent to projects."""
 import argparse, contextlib, json, os, re, shutil, socket, struct, subprocess, sys, tempfile, time, traceback, urllib.error, urllib.request, zlib
 
+# The tests never use a real key (so they behave the same on every computer and can never spend money); the page only needs to see «a key exists».
+os.environ["OPENROUTER_API_KEY"] = "test-key-not-real"
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 KIT = os.path.dirname(os.path.dirname(HERE))
 FIX, BASE = os.path.join(HERE, "fixture"), os.path.join(HERE, "baseline")
@@ -127,10 +130,10 @@ def settle(page, secs=4):
     """After a save the page fetches the project and re-draws itself (RELOADS counts those); wait for that before the next click,
     otherwise the click lands on elements that are about to be replaced."""
     try:
-        page.wait_for_function("RELOADS>%d" % page._reloads, timeout=secs * 1000)
+        page.wait_for_function("window.__kit.S.RELOADS>%d" % page._reloads, timeout=secs * 1000)
     except Exception:
         pass
-    page._reloads = page.evaluate("RELOADS")
+    page._reloads = page.evaluate("window.__kit.S.RELOADS")
     page.wait_for_timeout(250)
 
 

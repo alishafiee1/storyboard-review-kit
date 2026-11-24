@@ -1,3 +1,28 @@
+import {
+  $,
+  $$,
+  RO,
+  TT,
+  audio,
+  esc,
+  fail,
+  fitBlock,
+  fmt,
+  grow,
+  modelById,
+  track
+} from './core.js';
+import { S } from './state.js';
+import {
+  filt,
+  labelList,
+  refsTab,
+  reload,
+  speakersTab,
+  stats,
+  toneList
+} from './panels.js';
+import { wire } from './editors.js';
 /* Drawing the page: scenes, dialogue lines, pictures with their buttons. */
 /* ---------- render */
 let NUM = {};
@@ -8,7 +33,7 @@ const issHtml = a => (a || []).map(x => `<div class="issue">⚠ فرمت: ${ esc
 const flagBtn = ln => `<button class="flag" data-fl="${ ln }" aria-label="ثبت مشکل فرمت" title="ثبت مشکل فرمت این قسمت برای هوش مصنوعی">⚑</button>`;
 const val = (txt, ln, key, x = '') => `<span class="v" data-ln="${ ln }" data-k="${ key }" data-old="${ esc(txt) }" ${ x } title="کلیک برای ویرایش">${ fmt(txt) }</span>`;
 const delBtn = (ln, k, txt, hasEn) => `<button class="flag del" data-del="${ ln }" data-dk="${ k }" data-old="${ esc(txt) }" data-hasen="${ hasEn ? 1 : 0 }" aria-label="حذف" title="حذف">✕</button>`;
-const SPK = () => Object.fromEntries((P.speakers || []).map(s => [
+export const SPK = () => Object.fromEntries((S.P.speakers || []).map(s => [
   s.name,
   s
 ]));
@@ -22,15 +47,15 @@ const FALLBACK = [
 const colorOf = n => (SPK()[n] || {}).color || FALLBACK[[...String(n)].reduce((a, c) => a + c.charCodeAt(0), 0) % FALLBACK.length];
 const addBar = ln => `<div class="addbar" data-after="${ ln }"><button data-add="say">+ دیالوگ</button><button data-add="act">+ توضیح صحنه</button></div>`;
 const defTone = n => (SPK()[n] || {}).tone || '';
-const toneKnown = t => !String(t || '').trim() || (P.tts.tones || []).some(x => x.words.some(w => String(t).includes(w)));
-const unknownTones = () => {
+export const toneKnown = t => !String(t || '').trim() || (S.P.tts.tones || []).some(x => x.words.some(w => String(t).includes(w)));
+export const unknownTones = () => {
   const m = new Map(), add = t => {
       t = String(t || '').trim();
       if (t && !toneKnown(t))
         m.set(t, (m.get(t) || 0) + 1);
     };
-  (P.speakers || []).forEach(s => add(s.tone));
-  P.scenes.forEach(s => s.blocks.forEach(b => b.items.forEach(i => add(i.tone))));
+  (S.P.speakers || []).forEach(s => add(s.tone));
+  S.P.scenes.forEach(s => s.blocks.forEach(b => b.items.forEach(i => add(i.tone))));
   return m;
 };
 const toneHtml = it => {
@@ -49,8 +74,8 @@ const lineBtns = (it, sc) => [
   const vv = v.names.length > 1 ? `<button class="vv" data-vv="${ lg }" data-sc="${ sc.id }" data-iid="${ it.id }" aria-label="صدای بعدی" title="${ lg === 'fa' ? 'صدای فارسی' : 'English voice' }: ${ esc(v.chosen) } · کلیک = صدای بعدی (همونی که آخر می‌ذاری، صدای نهایی می‌شه)">‹${ v.names.indexOf(v.chosen) + 1 }/${ v.names.length }›</button>` : '';
   return `<button class="ab" data-lg="${ lg }" data-src="${ esc(it.audio[lg]) }" title="${ lg === 'fa' ? 'پخش صدای فارسی این دیالوگ' : 'Play the English voice of this line' }">🔊 ${ lg.toUpperCase() }</button>${ vv }`;
 }).join('');
-let LA = null, LB = null, START = null;
-function stopLine() {
+let LA = null, LB = null;
+export function stopLine() {
   if (LA) {
     LA.pause();
     LA = null;
@@ -60,33 +85,6 @@ function stopLine() {
     LB = null;
   }
 }
-document.addEventListener('click', e => {
-  const b = e.target.closest('.ab');
-  if (!b)
-    return;
-  if (LB === b) {
-    stopLine();
-    return;
-  }
-  stopLine();
-  token++;
-  audio.pause();
-  playing = false;
-  $('#play').textContent = '▶ پخش';
-  const m = /^i(\d+)_(\d+)$/.exec(b.closest('.it').id);
-  if (m)
-    START = {
-      n: +m[1],
-      j: +m[2],
-      lg: b.dataset.lg
-    };
-  LA = new Audio(b.dataset.src);
-  LB = b;
-  b.classList.add('on');
-  LA.playbackRate = +$('#speed').value;
-  LA.onended = LA.onerror = () => stopLine();
-  LA.play().catch(() => stopLine());
-});
 function itemHtml(it, sc, i, j) {
   if (it.k === 'act')
     return `<div class="itw"><div class="it act${ it.label === 'گگ' ? ' gag' : '' }" id="i${ i }_${ j }">${ it.label ? `<span class="v alab" data-ln="${ it.ln }" data-k="label" data-old="${ esc(it.label) }" title="کلیک برای عوض‌کردن یا پاک‌کردن برچسب">${ esc(it.label) }</span>` : '' }${ val(it.fa, it.ln, 'act') }${ flagBtn(it.ln) }${ delBtn(it.ln, 'act', it.fa, false) }${ issHtml(it.issues) }</div></div>`;
@@ -96,7 +94,7 @@ function itemHtml(it, sc, i, j) {
 }
 const FX_PH = 'توصیهٔ ادیت (زوم، پن، فید، لرزش، نور، ذرات، صدا...) · Enter = ذخیره · Shift+Enter = خط بعد · Esc = برگشت';
 const fxBox = (key, v, title) => `<div class="fxbox${ v ? '' : ' hide' }" data-key="panel:fx:${ key }"><span class="fxl">🎬 ${ title }</span><textarea rows="1" data-key="fx:${ key }" data-orig="${ esc(v) }" placeholder="${ FX_PH }">${ esc(v) }</textarea></div>`;
-function wireFx(box, btn, save) {
+export function wireFx(box, btn, save) {
   const t = box.querySelector('textarea');
   track(t, btn);
   let busy = false;
@@ -178,29 +176,29 @@ function figHtml(m) {
 function sceneModel(sc) {
   const m = modelById(sc.model || TT().default), need = [...new Set(sc.blocks.flatMap(b => b.items.filter(i => i.k === 'say').map(i => i.sp)))];
   const bad = m && m.voices.length ? need.filter(n => {
-    const s = (P.speakers || []).find(x => x.name === n);
+    const s = (S.P.speakers || []).find(x => x.name === n);
     return s && !m.voices.some(v => v.name === s.voice);
   }) : [];
   return `<button class="b" data-regen="${ sc.id }" ${ bad.length ? 'disabled title="اول صدای گوینده‌ها رو با مدل پیش‌فرض جور کن"' : '' }>🔊 ساخت صدای این صحنه</button><span class="jobst" data-job="${ sc.id }"></span>${ bad.length ? `<span class="bad">⚠ مدل پیش‌فرض صدای ${ bad.map(esc).join('، ') } رو نداره</span>` : '' }`;
 }
-function render() {
+export function render() {
   const list = $('#list');
   list.innerHTML = '';
-  BL = [];
+  S.BL = [];
   $('#jump').innerHTML = '';
   NUM = {};
   let nn = 0;
-  P.scenes.forEach(sc => {
+  S.P.scenes.forEach(sc => {
     if (sc.id !== 'scene-00' && !sc.off)
       NUM[sc.id] = ++nn;
   });
-  P.scenes.forEach(sc => {
+  S.P.scenes.forEach(sc => {
     if (sc.off) {
       list.insertAdjacentHTML('beforeend', offSceneHtml(sc));
       return;
     }
     const o = document.createElement('option');
-    o.value = BL.length;
+    o.value = S.BL.length;
     o.textContent = label(sc).slice(0, 40);
     $('#jump').appendChild(o);
     const items = sc.blocks.flatMap(b => b.items.filter(x => x.id));
@@ -209,8 +207,8 @@ function render() {
       ${ sc.env.map(e => `<div class="env">${ val(e.text, e.ln, 'env') }${ flagBtn(e.ln) }${ issHtml(e.issues) }</div>`).join('') }${ items.length && sc.voice_stale.length ? `<div class="vstrip">${ sceneModel(sc) }</div>` : '' }${ warns }<div class="bl"></div></section>`);
     const holder = list.lastElementChild.querySelector('.bl');
     sc.blocks.forEach(b => {
-      const i = BL.length;
-      BL.push(b);
+      const i = S.BL.length;
+      S.BL.push(b);
       const d = document.createElement('section');
       d.className = 'blk' + (b.images.length ? '' : ' noimg');
       d.id = 'b' + i;
@@ -227,8 +225,8 @@ function render() {
     d.querySelectorAll('img').forEach(i => i.addEventListener('load', () => fitBlock(d)));
     fitBlock(d);
   });
-  $('#prog').max = Math.max(0, BL.length - 1);
-  $('#title').textContent = P.name;
+  $('#prog').max = Math.max(0, S.BL.length - 1);
+  $('#title').textContent = S.P.name;
   wire();
   refsTab();
   speakersTab();
@@ -236,4 +234,33 @@ function render() {
   toneList();
   stats();
   filt();
+}
+export function boot_render() {
+  document.addEventListener('click', e => {
+    const b = e.target.closest('.ab');
+    if (!b)
+      return;
+    if (LB === b) {
+      stopLine();
+      return;
+    }
+    stopLine();
+    S.token++;
+    audio.pause();
+    S.playing = false;
+    $('#play').textContent = '▶ پخش';
+    const m = /^i(\d+)_(\d+)$/.exec(b.closest('.it').id);
+    if (m)
+      S.START = {
+        n: +m[1],
+        j: +m[2],
+        lg: b.dataset.lg
+      };
+    LA = new Audio(b.dataset.src);
+    LB = b;
+    b.classList.add('on');
+    LA.playbackRate = +$('#speed').value;
+    LA.onended = LA.onerror = () => stopLine();
+    LA.play().catch(() => stopLine());
+  });
 }

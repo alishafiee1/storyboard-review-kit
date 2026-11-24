@@ -22,7 +22,9 @@ Layers, each importing only from the ones above it:
 | `kitcore.py` | paths, constants, the regexes of `story.txt`, safe read / write / replace of files, the file lock |
 | `story.py` | parse `story.txt` / `prompts.txt` into plain dicts (scenes, lines, speakers, prompts); no writes |
 | `media.py` | what is on disk: picture versions, references, videos, voice variants, archive folders |
-| `edits.py` | every change as a small raw-line edit (nothing else in the file is touched) |
+| `edits.py` | scene / picture / voice-pick edits as small raw-line edits (nothing else in the file is touched) |
+| `lineedits.py` | edits of single lines: change, add, delete a dialogue / action / translation line, format-issue notes |
+| `promptedits.py` | edits of `prompts.txt`: save a prompt, attach references |
 | `jobs.py` | slow network actions (voices, samples, subtitles) and the shared state of the running job |
 | `project.py` | builds the one JSON the page loads |
 | `api.py` | one small function per write endpoint, registered with `@route("/api/...")` |
@@ -56,28 +58,32 @@ The full writing rules for AI assistants are in `starter/skills/how-to-write-pro
 
 ## The page (`tools/ui/`)
 
-Plain scripts that share one global scope. `review.html` loads them in this order: `paper` → `core` → `render` → `editors` → `versions` → `dialogs` → `panels` → `player`.
+ES modules. `review.html` loads only `main.js`; every file lists what it needs with `import`. Code that used to run while the scripts loaded
+(button wiring, listeners, start-up) is in each file's `boot_<name>()`, and `main.js` calls them in the old order once all modules exist.
 
 | File | Job |
 |---|---|
-| `core.js` | helpers (`$`, `api`, `fail`), shared state, jobs polling, outside-click handling for open editors |
-| `render.js` | draws scenes, lines, pictures and their buttons from `P` (the project JSON) |
+| `main.js` | entry: runs every `boot_*()` and gives the browser tests a handle (`window.__kit.S`) |
+| `state.js` | `S`: the few values several files assign (project JSON `P`, blocks `BL`, `token`, `playing`, `START`, `RELOADS`, `cur`) |
+| `core.js` | helpers (`$`, `api`, `fail`, `esc`), jobs polling, outside-click handling for open editors |
+| `render.js` | draws scenes, lines, pictures and their buttons from `S.P` |
 | `editors.js` | inline editors, composers, and `wire()` (attaches every button) |
 | `versions.js` | picture versions, voice variants, scene menu / move / set aside / add |
 | `dialogs.js` | the voice manager, picture archive and reference attach dialogs |
 | `panels.js` | tabs: speakers, references, tones, lightbox, filter, stats, `reload()` |
-| `player.js` | the auto-play, the floating button, start-up |
+| `player.js` | the auto-play, the floating button |
 | `paper.js` | the paper-edge look |
 | `css/*.css` | `base` → `scenes` → `dialogue` → `player` → `pictures` → `panels` → `polish`, imported by `review.css` |
 
-Shared mutable state (assigned from more than one file): `P` (project), `BL` (blocks), `token`, `playing`, `START`, `RELOADS`, `cur`.
-A unit test (`tools/tests/test_units.py`) fails if two files declare the same top-level name.
+Files import each other in both directions (e.g. `core` ↔ `panels`); that is fine because nothing is *run* at import time except self-contained
+constants. Keep it that way: put new start-up code in a `boot_*()`, never at the top level of a module.
+To change a shared value from several files, put it in `S` (`S.P = ...`), not in a `let` of one file.
 
 ## Tests
 
 | Command | What |
 |---|---|
-| `python -m unittest discover -s tools/tests -p "test_*.py"` | 18 unit tests of the text rules, in milliseconds |
+| `python -m unittest discover -s tools/tests -p "test_*.py"` | 22 unit tests (text rules, imports/exports of the page modules, old-import compatibility), in milliseconds |
 | `python tools/tests/run.py` | 35 browser tests (needs `pip install playwright`) on a temporary copy of `tools/tests/fixture/`; nothing is charged |
 | `python tools/tests/run.py --update-baseline` | refresh the recorded page after a deliberate change; read the diff in `tools/tests/baseline/` |
 
@@ -93,6 +99,6 @@ Both run on every push (`.github/workflows/tests.yml`).
 
 ## Known debts
 
-- The page scripts are plain scripts, not ES modules. Converting needs the 7 shared variables above turned into one `state` object and every cross-file call made an explicit import; the files also depend on each other in both directions (e.g. `core` ↔ `panels`), so it is a rewrite, not a move.
-- The JS files were pretty-printed once by a tool; there is no formatter or linter in the repo yet.
-- `edits.py` is the largest file (about 500 lines); scene operations and line operations could be split.
+- No formatter or linter is installed in the repo. The page scripts were pretty-printed once by a one-off tool; keep new code in the same style (2 spaces, one statement per line).
+- Long HTML template strings in `render.js` / `dialogs.js` stay on single lines (about 50 lines are over 200 characters); splitting them would only add noise.
+- `editors.js` is the largest page file (about 550 lines); a unit test fails at 700 lines, which is the signal to split it.

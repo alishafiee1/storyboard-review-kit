@@ -8,6 +8,8 @@ tools/ui/css/player.css
 tools/ui/css/pictures.css
 tools/ui/css/panels.css
 tools/ui/css/polish.css
+tools/ui/main.js
+tools/ui/state.js
 tools/ui/paper.js
 tools/ui/core.js
 tools/ui/render.js
@@ -23,6 +25,8 @@ tools/api.py
 tools/story.py
 tools/media.py
 tools/edits.py
+tools/lineedits.py
+tools/promptedits.py
 tools/jobs.py
 tools/project.py
 tools/tts.py

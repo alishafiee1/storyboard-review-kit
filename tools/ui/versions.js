@@ -1,24 +1,21 @@
+import {
+  $$,
+  SMOOTH,
+  api,
+  fail
+} from './core.js';
+import {
+  filt,
+  reload,
+  stats
+} from './panels.js';
+import { S } from './state.js';
+import { stopLine } from './render.js';
 /* Picture versions, voice variants and scene management (set aside, move, add). Everything is written to story.txt; no file is renamed or deleted. */
 /* the scene «⋯» menu: opens on click, closes on any other click or Esc (also when a menu item is used) */
 const closeMenus = () => document.querySelectorAll('.sct .menu:not([hidden])').forEach(m => {
   m.hidden = true;
   m.previousElementSibling.setAttribute('aria-expanded', 'false');
-});
-document.addEventListener('click', e => {
-  const b = e.target.closest('[data-mn]');
-  const menu = b && b.nextElementSibling, wasOpen = menu && !menu.hidden;
-  closeMenus();
-  if (menu && !wasOpen) {
-    menu.hidden = false;
-    b.setAttribute('aria-expanded', 'true');
-    const f = menu.querySelector('button');
-    if (f && e.detail === 0)
-      f.focus();
-  }
-});
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape')
-    closeMenus();
 });
 const goScene = sid => {
   const el = document.querySelector(`section[data-scene="${ sid }"]`);
@@ -43,9 +40,9 @@ function showVersion(f, m) {
   if (c)
     c.textContent = `${ m.vi + 1 } / ${ m.versions.length }${ m.picked && v.name === m.picked ? ' ✔' : '' }`;
 }
-function wireVersions() {
+export function wireVersions() {
   $$('figure.shot').forEach(f => {
-    const id = f.dataset.id, m = BL.flatMap(b => b.images).find(x => x.id === id);
+    const id = f.dataset.id, m = S.BL.flatMap(b => b.images).find(x => x.id === id);
     if (!m)
       return;
     /* the ✅ button chooses the picture that is shown (choosing = approving); with no picture it is the old plain mark */
@@ -190,32 +187,50 @@ function wireVersions() {
     }
   });
 }
-/* the small ‹1/2› next to a voice button: next voice of that line; the one you stop on becomes the chosen (final) voice */
-document.addEventListener('click', async e => {
-  const b = e.target.closest('.vv');
-  if (!b)
-    return;
-  const lg = b.dataset.vv, iid = b.dataset.iid, it = BL.flatMap(x => x.items).find(x => x.id === iid);
-  if (!it)
-    return;
-  const v = it.audio_v[lg], i = (v.names.indexOf(v.chosen) + 1) % v.names.length, name = v.names[i];
-  try {
-    await api('/api/voicepick', {
-      scene: b.dataset.sc,
-      id: iid,
-      lang: lg,
-      variant: name
-    });
-  } catch (err) {
-    return fail(err);
-  }
-  v.chosen = name;
-  const url = (name === 'default' ? `audio/${ lg }/${ iid }.mp3` : `audio/${ lg }/${ iid }.${ name }.mp3`) + '?v=' + Date.now();
-  it.audio[lg] = url;
-  const play = b.parentElement.querySelector(`.ab[data-lg="${ lg }"]`);
-  play.dataset.src = url;
-  b.textContent = `‹${ i + 1 }/${ v.names.length }›`;
-  b.title = `${ lg === 'fa' ? 'صدای فارسی' : 'English voice' }: ${ name } · کلیک = صدای بعدی (همونی که آخر می‌ذاری، صدای نهایی می‌شه)`;
-  stopLine();
-  play.click();
-});
+export function boot_versions() {
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-mn]');
+    const menu = b && b.nextElementSibling, wasOpen = menu && !menu.hidden;
+    closeMenus();
+    if (menu && !wasOpen) {
+      menu.hidden = false;
+      b.setAttribute('aria-expanded', 'true');
+      const f = menu.querySelector('button');
+      if (f && e.detail === 0)
+        f.focus();
+    }
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape')
+      closeMenus();
+  });
+  /* the small ‹1/2› next to a voice button: next voice of that line; the one you stop on becomes the chosen (final) voice */
+  document.addEventListener('click', async e => {
+    const b = e.target.closest('.vv');
+    if (!b)
+      return;
+    const lg = b.dataset.vv, iid = b.dataset.iid, it = S.BL.flatMap(x => x.items).find(x => x.id === iid);
+    if (!it)
+      return;
+    const v = it.audio_v[lg], i = (v.names.indexOf(v.chosen) + 1) % v.names.length, name = v.names[i];
+    try {
+      await api('/api/voicepick', {
+        scene: b.dataset.sc,
+        id: iid,
+        lang: lg,
+        variant: name
+      });
+    } catch (err) {
+      return fail(err);
+    }
+    v.chosen = name;
+    const url = (name === 'default' ? `audio/${ lg }/${ iid }.mp3` : `audio/${ lg }/${ iid }.${ name }.mp3`) + '?v=' + Date.now();
+    it.audio[lg] = url;
+    const play = b.parentElement.querySelector(`.ab[data-lg="${ lg }"]`);
+    play.dataset.src = url;
+    b.textContent = `‹${ i + 1 }/${ v.names.length }›`;
+    b.title = `${ lg === 'fa' ? 'صدای فارسی' : 'English voice' }: ${ name } · کلیک = صدای بعدی (همونی که آخر می‌ذاری، صدای نهایی می‌شه)`;
+    stopLine();
+    play.click();
+  });
+}

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.15.0
+- The page scripts are now ES modules (`main.js` is the only script; `state.js` holds the shared values; start-up code lives in `boot_*()` functions). Nothing changes on screen.
+- `edits.py` split into `edits.py`, `lineedits.py` and `promptedits.py`.
+- Unit tests now check that every import has a matching export, every file is reached from `main.js`, and no name is exported twice (22 unit tests).
+
 ## 1.14.0
 - Internal tidy-up, no change in what the page does. `tools/serve.py` (1400 lines) is now small modules: `kitcore`, `story`, `media`, `edits`, `jobs`, `project`, `api` (one small function per endpoint) and a thin `serve.py`. The page scripts were pretty-printed (readable lines) and the style was split into `tools/ui/css/*.css`.
 - New `ARCHITECTURE.md` (code map, `story.txt` format, API, how to add a feature), 18 fast unit tests, and a GitHub Actions workflow that runs the unit and browser tests on every push.

@@ -1,6 +1,31 @@
+import {
+  $$,
+  api,
+  autoGrow,
+  copy,
+  esc,
+  fail,
+  grow,
+  onLeave,
+  pollJob,
+  track
+} from './core.js';
+import {
+  SPK,
+  wireFx
+} from './render.js';
+import {
+  filt,
+  lightbox,
+  playVideo,
+  reload,
+  stats
+} from './panels.js';
+import { S } from './state.js';
+import { wireVersions } from './versions.js';
 /* Inline editing of dialogue, notes, edit advice and prompts, and wiring every button. */
 /* ---------- inline editing: only the text after "key:" can be changed; the file format itself is never touched */
-function openEditor(host, {scene, ln, key, old, op}) {
+export function openEditor(host, {scene, ln, key, old, op}) {
   op = op || (key === 'speaker' ? 'speaker' : key === 'label' ? 'label' : key === 'tone' ? 'tone' : 'edit');
   const k = `line:${ scene }:${ ln }:${ key }:${ op }`;
   if (document.querySelector(`[data-key="${ k }"]`))
@@ -98,7 +123,7 @@ async function askDelete(scene, ln, kind, old, hasEn) {
     return false;
   }
 }
-function openSayEditor(box, {scene, ln, focus}) {
+export function openSayEditor(box, {scene, ln, focus}) {
   const pick = a => {
     const f = focus === 'nm' ? a.nm : focus === 'tn' ? a.tn : a.tx;
     f.focus();
@@ -234,7 +259,7 @@ function tabComplete(inp) {
     const v = inp.value;
     if (!v.trim())
       return;
-    const m = (P.speakers || []).map(s => s.name).find(n => n.startsWith(v) && n !== v);
+    const m = (S.P.speakers || []).map(s => s.name).find(n => n.startsWith(v) && n !== v);
     if (m) {
       e.preventDefault();
       inp.value = m;
@@ -242,7 +267,7 @@ function tabComplete(inp) {
     }
   });
 }
-function openComposer(bar, {scene, after, kind}) {
+export function openComposer(bar, {scene, after, kind}) {
   const k = `add:${ scene }:${ after }:${ kind }`;
   if (document.querySelector(`[data-key="${ k }"]`))
     return;
@@ -331,7 +356,7 @@ function openComposer(bar, {scene, after, kind}) {
     tn
   };
 }
-function openFromV(v) {
+export function openFromV(v) {
   const sid = v.closest('section[data-scene]').dataset.scene, k = v.dataset.k, ln = +v.dataset.ln;
   return [
     'speaker',
@@ -351,9 +376,9 @@ function openFromV(v) {
     old: v.dataset.old
   });
 }
-function wire() {
+export function wire() {
   $$('figure.shot').forEach(f => {
-    const id = f.dataset.id, m = BL.flatMap(b => b.images).find(x => x.id === id);
+    const id = f.dataset.id, m = S.BL.flatMap(b => b.images).find(x => x.id === id);
     const nt = f.querySelector('.nt'), pt = f.querySelector('.pr:not(.vpr) textarea'), vt = f.querySelector('.vpr textarea');
     track(nt, f.querySelector('[data-sn]'));
     track(pt, f.querySelector('[data-sp]'));

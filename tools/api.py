@@ -5,7 +5,9 @@ import os, re
 from kitcore import LANGS, MARKS, MODEL_RE, PROMPTS, STORY, VPROMPTS, read_lines, write_lines
 from story import clean_name, clean_tone, ensure_speaker, parse_prompts, parse_speakers, story_scenes
 from media import archive_item, audio_variants, scan_images, scan_refs
-from edits import add_image, add_issue, add_line, add_scene, clear_issue, delete_line, edit_line, mark_stale, move_scene, patch_image, replace_prompt, set_default_model, set_flag, set_prompt_refs, set_scene_fx, set_scene_model, set_scene_off, set_voice_picks, speech_scenes, upsert_prompt
+from edits import add_image, add_scene, mark_stale, move_scene, patch_image, set_default_model, set_flag, set_scene_fx, set_scene_model, set_scene_off, set_voice_picks, speech_scenes
+from lineedits import add_issue, add_line, clear_issue, delete_line, edit_line
+from promptedits import replace_prompt, set_prompt_refs, upsert_prompt
 
 ROUTES = {}
 

@@ -7,7 +7,7 @@ import os, sys, unittest
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
 
-import edits, media, pack, premiere_check, story  # noqa: E402
+import edits, lineedits, media, pack, premiere_check, promptedits, story  # noqa: E402
 from kitcore import Conflict  # noqa: E402
 
 FIXTURE = open(os.path.join(HERE, "fixture", "story.txt"), encoding="utf-8").read().split("\n")
@@ -88,7 +88,7 @@ class LineEdits(unittest.TestCase):
         ls = lines()
         sc = scene(ls, "scene-01")
         it = next(i for b in sc["blocks"] for i in b["items"] if i["k"] == "say")
-        edits.edit_line(ls, "scene-01", it["ln"], it["fa"], "متن تازه", "edit")
+        lineedits.edit_line(ls, "scene-01", it["ln"], it["fa"], "متن تازه", "edit")
         self.assertTrue(any(l.startswith("say: راوی | متن تازه") for l in ls))
         self.assertIn("fa", scene(ls, "scene-01")["voice_stale"])
 
@@ -97,7 +97,7 @@ class LineEdits(unittest.TestCase):
         sc = scene(ls, "scene-01")
         it = next(i for b in sc["blocks"] for i in b["items"] if i["k"] == "say")
         with self.assertRaises(Conflict):
-            edits.edit_line(ls, "scene-01", it["ln"], "something else", "x", "edit")
+            lineedits.edit_line(ls, "scene-01", it["ln"], "something else", "x", "edit")
 
 
 class Prompts(unittest.TestCase):
@@ -105,18 +105,18 @@ class Prompts(unittest.TestCase):
 
     def test_refs_line_is_replaced_added_removed(self):
         ls = list(self.PROMPTS)
-        self.assertTrue(edits.set_prompt_refs(ls, "IMG001", ["A"]))
+        self.assertTrue(promptedits.set_prompt_refs(ls, "IMG001", ["A"]))
         self.assertEqual(ls[1], "[REFS TO ATTACH: A]")
-        self.assertFalse(edits.set_prompt_refs(ls, "IMG001", ["A"]))
-        self.assertTrue(edits.set_prompt_refs(ls, "IMG002", ["B", "A"]))
+        self.assertFalse(promptedits.set_prompt_refs(ls, "IMG001", ["A"]))
+        self.assertTrue(promptedits.set_prompt_refs(ls, "IMG002", ["B", "A"]))
         self.assertEqual(ls[5], "[REFS TO ATTACH: B| A]")
-        self.assertTrue(edits.set_prompt_refs(ls, "IMG001", []))
+        self.assertTrue(promptedits.set_prompt_refs(ls, "IMG001", []))
         self.assertEqual(ls[:3], ["=== IMG001 ===", "Prompt one.", ""])
         self.assertEqual(story.parse_prompts(ls)["IMG002"]["refs"], ["B", "A"])
 
     def test_new_prompt_is_created(self):
         ls = list(self.PROMPTS)
-        self.assertTrue(edits.set_prompt_refs(ls, "IMG009", ["A"]))
+        self.assertTrue(promptedits.set_prompt_refs(ls, "IMG009", ["A"]))
         self.assertEqual(story.parse_prompts(ls)["IMG009"]["refs"], ["A"])
 
 
@@ -158,31 +158,85 @@ class OldImports(unittest.TestCase):
             self.assertTrue(hasattr(serve, name), name)
 
 
-class PageScripts(unittest.TestCase):
-    """The page scripts share one global scope (no modules), so two files must never declare the same top-level name,
-    and review.html must load them in an order where a file only needs names from files that load before it or are used later at run time."""
+class PageModules(unittest.TestCase):
+    """The page is ES modules: main.js is the entry and every file says what it needs with import. These checks catch the usual slips
+    (importing a name nobody exports, a file the page never reaches, a name declared twice) without opening a browser."""
     UI = os.path.join(os.path.dirname(HERE), "ui")
 
-    def declared(self):
+    def read(self, f):
+        with open(os.path.join(self.UI, f), encoding="utf-8") as fh:
+            return fh.read()
+
+    def files(self):
+        return sorted(f for f in os.listdir(self.UI) if f.endswith(".js"))
+
+    def exports(self, f):
+        """Names exported by a file: `export function a`, `export const a = 1, b = 2`, ... (declarators after a comma count too)."""
         import re
-        out = {}
-        for f in sorted(os.listdir(self.UI)):
-            if f.endswith(".js"):
-                for line in open(os.path.join(self.UI, f), encoding="utf-8"):
-                    m = re.match(r"(?:async )?function\s+([A-Za-z_$][\w$]*)|(?:const|let|var)\s+([A-Za-z_$][\w$]*)", line)
-                    if m:
-                        out.setdefault(m.group(1) or m.group(2), []).append(f)
+        text = self.read(f)
+        out = set(re.findall(r"^export (?:async )?(?:function|class)\s+([A-Za-z_$][\w$]*)", text, re.M))
+        for m in re.finditer(r"^export (?:const|let|var)\s+", text, re.M):
+            i, depth, start = m.end(), 0, m.end()
+            parts = []
+            while i < len(text):  # brackets only (quotes and regex literals are ignored on purpose: they are balanced in this code base)
+                c = text[i]
+                if c in "([{":
+                    depth += 1
+                elif c in ")]}":
+                    depth -= 1
+                elif c == "," and depth == 0:
+                    parts.append(text[start:i])
+                    start = i + 1
+                elif c == ";" and depth == 0:
+                    parts.append(text[start:i])
+                    break
+                i += 1
+            for part in parts:
+                n = re.match(r"\s*([A-Za-z_$][\w$]*)", part)
+                if n:
+                    out.add(n.group(1))
         return out
 
-    def test_no_name_is_declared_twice(self):
-        dup = {k: v for k, v in self.declared().items() if len(v) > 1}
-        self.assertEqual(dup, {}, "declared in more than one file (they would overwrite each other)")
+    def imports(self, f):
+        import re
+        out = []
+        for names, src in re.findall(r"^import \{([^}]*)\} from '\./([\w.]+)';", self.read(f), re.M):
+            out.append(([n.strip() for n in names.split(",") if n.strip()], src))
+        out += [([], src) for src in re.findall(r"^import '\./([\w.]+)';", self.read(f), re.M)]
+        return out
 
-    def test_every_script_file_is_loaded_by_the_page(self):
+    def test_every_import_is_exported_by_its_file(self):
+        for f in self.files():
+            for names, src in self.imports(f):
+                self.assertIn(src, self.files(), "%s imports a file that does not exist: %s" % (f, src))
+                for n in names:
+                    self.assertIn(n, self.exports(src), "%s imports %s from %s, which does not export it" % (f, n, src))
+
+    def test_every_file_is_reached_from_main(self):
+        seen, todo = set(), ["main.js"]
+        while todo:
+            f = todo.pop()
+            if f not in seen:
+                seen.add(f)
+                todo += [src for _, src in self.imports(f)]
+        self.assertEqual(sorted(seen), self.files())
+
+    def test_the_page_loads_only_main(self):
         import re
         html = open(os.path.join(os.path.dirname(os.path.dirname(HERE)), "review.html"), encoding="utf-8").read()
-        loaded = re.findall(r'src="tools/ui/([^"]+\.js)"', html)
-        self.assertEqual(sorted(loaded), sorted(f for f in os.listdir(self.UI) if f.endswith(".js")))
+        self.assertEqual(re.findall(r'<script[^>]*src="([^"]+)"', html), ["tools/ui/main.js"])
+        self.assertIn('type="module"', html)
+
+    def test_no_name_is_exported_twice(self):
+        seen = {}
+        for f in self.files():
+            for n in self.exports(f):
+                self.assertNotIn(n, seen, "%s is exported by both %s and %s" % (n, seen.get(n), f))
+                seen[n] = f
+
+    def test_files_stay_small(self):
+        for f in self.files():
+            self.assertLess(len(self.read(f).split("\n")), 700, f + " is getting too big: split it")
 
 
 if __name__ == "__main__":

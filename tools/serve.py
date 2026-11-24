@@ -16,6 +16,8 @@ from kitcore import *  # noqa: F401,F403,E402
 from story import *  # noqa: F401,F403,E402
 from media import *  # noqa: F401,F403,E402
 from edits import *  # noqa: F401,F403,E402
+from lineedits import *  # noqa: F401,F403,E402
+from promptedits import *  # noqa: F401,F403,E402
 
 last_ping, seen_ping = [time.time()], [False]
 
