@@ -150,6 +150,14 @@ class Handoff(unittest.TestCase):
         self.assertEqual(premiere_check.resolve("../images/a%20b.png", base), os.path.normpath(os.path.join(base, "..", "images", "a b.png")))
 
 
+class OldImports(unittest.TestCase):
+    def test_serve_still_exports_what_older_project_scripts_import(self):
+        import serve
+        for name in ("ROOT", "STORY", "spoken_lines", "audio_path", "clean_spoken", "story_scenes", "archive_dir", "archive_move",
+                     "pick_made", "variant_tag", "parse_speakers", "read_lines"):
+            self.assertTrue(hasattr(serve, name), name)
+
+
 class PageScripts(unittest.TestCase):
     """The page scripts share one global scope (no modules), so two files must never declare the same top-level name,
     and review.html must load them in an order where a file only needs names from files that load before it or are used later at run time."""

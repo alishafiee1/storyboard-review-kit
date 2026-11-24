@@ -11,6 +11,12 @@ from api import handle
 from jobs import JOB, SLOW
 from project import project
 
+# Older project scripts do «from serve import ROOT, spoken_lines, ...» (serve.py used to hold everything). Keep those names importable from here.
+from kitcore import *  # noqa: F401,F403,E402
+from story import *  # noqa: F401,F403,E402
+from media import *  # noqa: F401,F403,E402
+from edits import *  # noqa: F401,F403,E402
+
 last_ping, seen_ping = [time.time()], [False]
 
 
