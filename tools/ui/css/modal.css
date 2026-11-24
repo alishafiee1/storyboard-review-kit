@@ -1,0 +1,264 @@
+/* Paper dialogs: the prompt card, the voice manager, the reference attacher, the scene editor */
+dialog.dlg {
+  width:min(560px,92vw);
+  max-height:88vh;
+  padding:24px 28px;
+  color:var(--ink);
+  background:var(--paper-bright);
+  border:1px solid var(--line);
+  border-radius:0;
+  box-shadow:0 2px 4px rgba(42,39,35,.08),0 18px 44px rgba(42,39,35,.14);
+  overflow:auto;
+}
+
+dialog.dlg::backdrop {
+  background:var(--overlay);
+}
+
+dialog.dlg h3 {
+  margin:0 0 10px;
+  font:500 19px/1.5 'Vazirmatn',sans-serif;
+}
+
+dialog.dlg .dq {
+  margin:0 0 12px;
+  padding:8px 12px;
+  background:var(--paper-shade);
+  font-size:14px;
+}
+
+dialog.dlg .dlang {
+  margin:10px 0;
+}
+
+dialog.dlg .dlang > b {
+  font-weight:500;
+  font-size:13px;
+  color:var(--ink-muted);
+}
+
+dialog.dlg .vrow {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:5px 0;
+  flex-wrap:wrap;
+  border-bottom:1px solid var(--line-soft);
+}
+
+dialog.dlg .vrow label {
+  flex:1;
+  min-width:140px;
+  cursor:pointer;
+}
+
+dialog.dlg .dthumb {
+  width:96px;
+  aspect-ratio:16/9;
+  object-fit:cover;
+  border:1px solid var(--line);
+}
+
+dialog.dlg .dgen {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+  margin:10px 0;
+}
+
+dialog.dlg .dgen select {
+  max-width:100%;
+  font-size:13px;
+  background:var(--paper);
+  border:1px solid var(--line);
+  padding:3px 6px;
+}
+
+dialog.dlg .dgen label:first-child {
+  flex:1 1 100%;
+}
+
+dialog.dlg .dgen label:first-child select {
+  width:100%;
+  margin-top:4px;
+}
+
+dialog.dlg .dbar {
+  display:flex;
+  align-items:center;
+  gap:12px;
+  margin-top:16px;
+}
+
+dialog.dlg small {
+  display:block;
+  color:var(--ink-muted);
+  line-height:1.8;
+}
+
+dialog.dlg .none {
+  color:var(--ink-muted);
+  font-size:13px;
+}
+
+dialog.dlg details {
+  margin:6px 0;
+}
+
+dialog.dlg hr {
+  border:0;
+  border-top:1px solid var(--line-soft);
+}
+
+dialog.dlg .arefs {
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(210px,1fr));
+  gap:8px;
+  margin:10px 0;
+}
+
+dialog.dlg .aref {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:6px;
+  border:1px solid var(--line);
+  cursor:pointer;
+}
+
+dialog.dlg .aref:has(input:checked) {
+  background:var(--wash-sand);
+}
+
+dialog.dlg span.dthumb.none {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:var(--paper-shade);
+  font-size:11px;
+}
+
+dialog.dlg .fld {
+  display:block;
+  margin:10px 0;
+  font-size:13px;
+  color:var(--ink-muted);
+}
+
+dialog.dlg .fld input,
+dialog.dlg .fld textarea {
+  display:block;
+  width:100%;
+  margin-top:3px;
+  padding:6px 10px;
+  background:var(--paper);
+  border:1px solid var(--line);
+  border-radius:2px;
+  font-size:15px;
+  color:var(--ink);
+  line-height:1.7;
+  resize:vertical;
+}
+
+/* the prompt card: about 760x560, a washi tape at each top corner */
+dialog.pm {
+  width:min(760px,94vw);
+  height:min(560px,90vh);
+  max-height:none;
+  padding:0;
+  overflow:visible;
+  border-color:var(--ink);
+}
+
+.pmc {
+  position:relative;
+  height:100%;
+  display:flex;
+  flex-direction:column;
+  padding:28px 32px 22px;
+}
+
+.pmc .tape.a {
+  left:-26px;
+  top:-6px;
+  background:var(--tape-sand);
+}
+
+.pmc .tape.b {
+  right:-26px;
+  top:-6px;
+  background:var(--tape-sand);
+}
+
+.pmc header {
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:12px;
+}
+
+.pmc h3 {
+  margin:0;
+  font:500 22px/1.4 'Vazirmatn',sans-serif;
+}
+
+.pmc .sub {
+  margin:0;
+  font-size:14px;
+  color:var(--ink-muted);
+}
+
+.prefs {
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:6px 8px;
+  margin:12px 0 0;
+  font-size:13px;
+  color:var(--ink-muted);
+}
+
+.prefs .rl {
+  margin-inline-end:4px;
+}
+
+.ptxt {
+  flex:1;
+  min-height:0;
+  margin-top:12px;
+  padding:16px 18px;
+  resize:none;
+  background:var(--paper-bright);
+  border:1px solid var(--line);
+  border-radius:0;
+  font:400 14px/1.75 'Vazirmatn',ui-monospace,monospace;
+  color:var(--ink);
+  caret-color:var(--accent);
+}
+
+.ptxt:focus-visible {
+  outline:none;
+  border-color:var(--ink-muted);
+}
+
+.ptxt.dirty {
+  border-color:var(--approve);
+}
+
+.pmc footer {
+  display:flex;
+  align-items:center;
+  gap:14px;
+  margin-top:10px;
+}
+
+.pmeta {
+  font-size:13px;
+  color:var(--ink-muted);
+}
+
+dialog.dlg .okm {
+  display:inline;
+  color:var(--approve);
+}

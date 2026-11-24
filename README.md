@@ -42,7 +42,7 @@ python tools/update.py --check  # only tells you if a newer version exists
 Replaced files are copied to `.engine-backup/` first. To add the updater to a project that does not have it yet, copy `tools/update.py` from this repository into the project's `tools/` folder once.
 
 ## Voice-over setup (optional)
-Create a `.env` file next to `review.html` with one line `OPENROUTER_API_KEY=...` (it is git-ignored), then press "Refresh voice list" in the **Voices & speakers** tab, or run `python tools/voices.py`. Pick a voice per speaker and a model per scene; press "Rebuild voice" on a scene to generate it. Nothing is generated (and nothing is charged) until you press a button. Tones (the Persian word after a speaker's name, e.g. `علی (مرموز)`) are mapped to English audio tags in `voices/voice-config.json`; to hear which models, voices and tones work, run `python tools/voice_test.py` (it shows the cost first; add `--yes` to generate).
+Create a `.env` file next to `review.html` with one line `OPENROUTER_API_KEY=...` (it is git-ignored), then open the menu (hamburger, top right) → **Voices & speakers** and press "Refresh voice list", or run `python tools/voices.py`. Pick a voice per speaker and a model per scene; press "Rebuild voice" on a scene to generate it. Nothing is generated (and nothing is charged) until you press a button. Tones (the Persian word after a speaker's name, e.g. `علی (مرموز)`) are mapped to English audio tags in `voices/voice-config.json`; to hear which models, voices and tones work, run `python tools/voice_test.py` (it shows the cost first; add `--yes` to generate).
 
 ## Folder layout
 | Path | What |

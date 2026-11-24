@@ -2,7 +2,6 @@ import {
   $$,
   api,
   autoGrow,
-  copy,
   esc,
   fail,
   grow,
@@ -17,13 +16,12 @@ import {
 } from './render.js';
 import {
   filt,
-  lightbox,
   playVideo,
   reload,
   stats
 } from './panels.js';
 import { S } from './state.js';
-import { wireVersions } from './versions.js';
+import { openSceneDialog } from './dialogs.js';
 /* Inline editing of dialogue, notes, edit advice and prompts, and wiring every button. */
 /* ---------- inline editing: only the text after "key:" can be changed; the file format itself is never touched */
 export function openEditor(host, {scene, ln, key, old, op}) {
@@ -34,9 +32,9 @@ export function openEditor(host, {scene, ln, key, old, op}) {
   const w = document.createElement('div');
   w.className = 'ie';
   const field = op === 'speaker' || op === 'label' || op === 'tone' ? `<input data-key="${ k }" data-orig="${ esc(old) }" ${ op === 'speaker' ? 'list="spkl"' : op === 'tone' ? 'list="tonel" maxlength="40" placeholder="لحن این خط (خالی = لحن پیش‌فرض گوینده)"' : 'list="lbll" maxlength="15" placeholder="خالی = بدون برچسب"' } autocomplete="off">` : `<textarea rows="2" data-key="${ k }" data-orig="${ esc(old) }"></textarea>`;
-  w.innerHTML = `${ field }<div class="bar"><button class="b pri sv" hidden title="ذخیره (Enter) · خط بعد: Shift+Enter">💾 ذخیره</button><button class="b cx" hidden title="انصراف (Esc)">انصراف</button></div>`;
+  w.innerHTML = `${ field }<div class="bar"><button class="b pri sv" hidden title="ذخیره (Enter) · خط بعد: Shift+Enter">ذخیره</button><button class="b cx" hidden title="انصراف (Esc)">انصراف</button></div>`;
   if (op === 'edit' && key !== 'env')
-    w.querySelector('.bar').insertAdjacentHTML('beforeend', '<span class="sp1"></span><button class="b ghost ad" data-ad="say" title="یک دیالوگ درست بعد از همین خط">＋ دیالوگ بعدی</button><button class="b ghost ad" data-ad="act" title="یک توضیح صحنه درست بعد از همین خط">＋ توضیح بعدی</button>');
+    w.querySelector('.bar').insertAdjacentHTML('beforeend', '<span class="sp1"></span><button class="b ghost ad" data-ad="say" title="یک دیالوگ درست بعد از همین خط">دیالوگ بعدی</button><button class="b ghost ad" data-ad="act" title="یک توضیح صحنه درست بعد از همین خط">توضیح بعدی</button>');
   const ta = w.querySelector('textarea,input'), sv = w.querySelector('.sv'), cx = w.querySelector('.cx');
   ta.value = op === 'tone' && !old ? host.dataset.def || '' : old;
   const init = ta.value;
@@ -148,7 +146,7 @@ export function openSayEditor(box, {scene, ln, focus}) {
   w.className = 'ie say';
   w.innerHTML = `<div class="row"><input class="nm" list="spkl" autocomplete="off" data-key="sayn:${ scene }:${ ln }" data-orig="${ esc(O.name) }" placeholder="گوینده"><input class="tn" list="tonel" maxlength="40" autocomplete="off" data-key="sayt:${ scene }:${ ln }" data-orig="${ esc(O.tone) }" placeholder="${ esc(def ? 'لحن (خالی = ' + def + ')' : 'لحن (اختیاری)') }"></div>
     <textarea rows="3" data-key="saytx:${ scene }:${ ln }" data-orig="${ esc(O.text) }"></textarea>
-    <div class="bar"><button class="b pri sv" hidden title="ذخیره (Enter) · خط بعد: Shift+Enter">💾 ذخیره</button><button class="b cx" hidden title="انصراف (Esc)">انصراف</button><span class="sp1"></span><button class="b ghost ad" data-ad="say" title="یک دیالوگ درست بعد از همین">＋ دیالوگ بعدی</button><button class="b ghost ad" data-ad="act" title="یک توضیح صحنه درست بعد از همین">＋ توضیح بعدی</button></div>`;
+    <div class="bar"><button class="b pri sv" hidden title="ذخیره (Enter) · خط بعد: Shift+Enter">ذخیره</button><button class="b cx" hidden title="انصراف (Esc)">انصراف</button><span class="sp1"></span><button class="b ghost ad" data-ad="say" title="یک دیالوگ درست بعد از همین">دیالوگ بعدی</button><button class="b ghost ad" data-ad="act" title="یک توضیح صحنه درست بعد از همین">توضیح بعدی</button></div>`;
   const nm = w.querySelector('input.nm'), tn = w.querySelector('input.tn'), tx = w.querySelector('textarea'), sv = w.querySelector('.sv'), cx = w.querySelector('.cx');
   nm.value = O.name;
   tn.value = O.tone;
@@ -271,7 +269,7 @@ export function openComposer(bar, {scene, after, kind}) {
     return;
   const w = document.createElement('div');
   w.className = 'cmp';
-  w.innerHTML = (kind === 'say' ? `<input class="nm" list="spkl" autocomplete="off" data-key="addname:${ scene }:${ after }:${ kind }" data-orig="" placeholder="گوینده (اسمش رو تایپ کن؛ Tab = تکمیل)"><input class="tn" list="tonel" maxlength="40" autocomplete="off" data-key="addtone:${ scene }:${ after }:${ kind }" data-orig="" placeholder="لحن (اختیاری؛ خالی = لحن پیش‌فرض گوینده)">` : `<input class="lb" list="lbll" maxlength="15" autocomplete="off" data-key="addlabel:${ scene }:${ after }:${ kind }" data-orig="" placeholder="برچسب (اختیاری، مثلاً گگ)">`) + `<textarea rows="2" data-key="${ k }" data-orig="" placeholder="${ kind === 'say' ? 'متن دیالوگ... (Enter = ثبت · Shift+Enter = خط بعد · Esc = انصراف)' : 'توضیح وضعیت جدید صحنه... (Enter = ثبت · Shift+Enter = خط بعد · Esc = انصراف)' }"></textarea><div class="btns" hidden><button class="b sv">💾 افزودن</button><button class="b cx">انصراف</button></div>`;
+  w.innerHTML = (kind === 'say' ? `<input class="nm" list="spkl" autocomplete="off" data-key="addname:${ scene }:${ after }:${ kind }" data-orig="" placeholder="گوینده (اسمش رو تایپ کن؛ Tab = تکمیل)"><input class="tn" list="tonel" maxlength="40" autocomplete="off" data-key="addtone:${ scene }:${ after }:${ kind }" data-orig="" placeholder="لحن (اختیاری؛ خالی = لحن پیش‌فرض گوینده)">` : `<input class="lb" list="lbll" maxlength="15" autocomplete="off" data-key="addlabel:${ scene }:${ after }:${ kind }" data-orig="" placeholder="برچسب (اختیاری، مثلاً گگ)">`) + `<textarea rows="2" data-key="${ k }" data-orig="" placeholder="${ kind === 'say' ? 'متن دیالوگ... (Enter = ثبت · Shift+Enter = خط بعد · Esc = انصراف)' : 'توضیح وضعیت جدید صحنه... (Enter = ثبت · Shift+Enter = خط بعد · Esc = انصراف)' }"></textarea><div class="btns" hidden><button class="b sv">افزودن</button><button class="b cx">انصراف</button></div>`;
   bar.after(w);
   autoGrow(w.querySelector('textarea'));
   const ta = w.querySelector('textarea'), nm = w.querySelector('input.nm'), lb = w.querySelector('input.lb'), tn = w.querySelector('input.tn'), sv = w.querySelector('.sv'), cx = w.querySelector('.cx');
@@ -376,30 +374,29 @@ export function openFromV(v) {
 export function wire() {
   $$('figure.shot').forEach(f => {
     const id = f.dataset.id, m = S.BL.flatMap(b => b.images).find(x => x.id === id);
-    const nt = f.querySelector('.nt'), pt = f.querySelector('.pr:not(.vpr) textarea'), vt = f.querySelector('.vpr textarea');
-    track(nt, f.querySelector('[data-sn]'));
-    track(pt, f.querySelector('[data-sp]'));
-    track(vt, f.querySelector('[data-svp]'));
-    /* the note is always-visible one-line input: Enter or leaving the field saves it */
+    const nt = f.querySelector('.nt'), ft = f.querySelector('.fx'), sn = f.querySelector('[data-sn]');
+    track(nt, sn);
+    /* the note is one input: Enter or leaving the field saves it */
     nt.addEventListener('input', () => grow(nt));
     grow(nt);
+    nt._save = () => sn.click();
     nt.addEventListener('blur', () => setTimeout(() => {
-      if (!document.hasFocus() || !nt.isConnected)
+      if (!document.hasFocus() || !nt.isConnected || nt.closest('.hide'))
         return;
       if (nt.value !== nt.dataset.orig)
-        f.querySelector('[data-sn]').click();
+        sn.click();
     }, 0));
     nt.addEventListener('keydown', e => {
       if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
         e.preventDefault();
-        f.querySelector('[data-sn]').click();
+        sn.click();
       }
       if (e.key === 'Escape') {
         nt.value = nt.dataset.orig;
         nt.dispatchEvent(new Event('input'));
       }
     });
-    f.querySelector('[data-sn]').onclick = async () => {
+    sn.onclick = async () => {
       try {
         await api('/api/image', {
           id,
@@ -414,41 +411,11 @@ export function wire() {
         fail(e);
       }
     };
-    wireFx(f.querySelector('.fxbox'), f.querySelector('[data-fx]'), v => api('/api/image', {
+    wireFx(ft, v => api('/api/image', {
       id,
       fx: v
     }));
-    f.querySelector('[data-p]').onclick = () => f.querySelector('.pr:not(.vpr)').classList.toggle('hide');
-    f.querySelector('[data-vp]').onclick = () => f.querySelector('.vpr').classList.toggle('hide');
-    f.querySelector('[data-cvp]').onclick = e => copy(vt.value, e.target);
-    f.querySelector('[data-svp]').onclick = async () => {
-      try {
-        await api('/api/vprompt', {
-          id,
-          old: vt.dataset.orig,
-          new: vt.value
-        });
-        vt.dataset.orig = vt.value;
-        await reload();
-      } catch (e) {
-        fail(e);
-      }
-    };
     f.querySelectorAll('[data-vid]').forEach(b => b.onclick = () => playVideo(b.dataset.vid, b.dataset.name));
-    f.querySelector('[data-cp]').onclick = e => copy(pt.value, e.target);
-    f.querySelector('[data-sp]').onclick = async () => {
-      try {
-        await api('/api/prompt', {
-          id,
-          old: pt.dataset.orig,
-          new: pt.value
-        });
-        pt.dataset.orig = pt.value;
-        await reload();
-      } catch (e) {
-        fail(e);
-      }
-    };
     const c = f.querySelector('[data-clrimg]');
     if (c)
       c.onclick = async () => {
@@ -462,7 +429,6 @@ export function wire() {
           fail(e);
         }
       };
-    f.querySelectorAll('[data-ref]').forEach(b => b.onclick = () => lightbox(b.dataset.ref, b.dataset.name));
   });
   $$('section[data-scene]').forEach(s => {
     const sid = s.dataset.scene;
@@ -537,5 +503,5 @@ export function wire() {
       kind: b.dataset.add
     }));
   });
-  wireVersions();
+  $$('[data-sedit]').forEach(b => b.onclick = () => openSceneDialog(b.dataset.sedit));
 }

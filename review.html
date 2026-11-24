@@ -1,14 +1,45 @@
 <!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>بازبینی و ویرایش</title><link rel="stylesheet" href="tools/ui/review.css"></head><body>
-<div id="bar"><h1 id="title">بازبینی</h1>
- <button id="tabR" class="on">بازبینی</button><button id="tabF">رفرنس‌ها</button><button id="tabS">صدا و گوینده‌ها</button>
- <button id="play">▶ پخش</button><button id="prev" aria-label="بلوک قبلی" title="بلوک قبلی">⏮</button><button id="next" aria-label="بلوک بعدی" title="بلوک بعدی">⏭</button>
- <select id="speed"><option value="0.9">۰٫۹×</option><option value="1" selected>۱×</option><option value="1.15">۱٫۱۵×</option><option value="1.3">۱٫۳×</option></select>
- 
- <button id="subs" title="ساخت فایل زیرنویس فارسی و انگلیسی (subtitles/fa.srt و en.srt) از روی سناریو؛ زمان‌ها از طول فایل‌های صدا">📝 زیرنویس</button>
- <label title="روشن = متن انگلیسی دیده شود و صدا انگلیسی پخش شود؛ خاموش = فقط فارسی"><input type="checkbox" id="showEN"> English</label>
- <select id="jump" title="پرش به صحنه"></select>
- <select id="filter" title="فیلتر"><option value="all">همه</option><option value="missing">ساخته‌نشده</option><option value="none">بدون علامت</option><option value="ok">✅ تأیید</option><option value="redo">🔁 بازسازی</option><option value="note">دارای یادداشت</option><option value="stale">⚠ کهنه</option></select>
- <span id="info"></span><input id="prog" type="range" min="0" max="0" value="0"></div>
-<main id="list"></main><main id="refs" class="hide"></main><main id="spk" class="hide"></main><datalist id="spkl"></datalist><datalist id="voicel"></datalist><datalist id="lbll"></datalist><datalist id="tonel"></datalist><button id="fab" type="button" aria-label="پخش خودکار" title="پخش خودکار: از دیالوگی که روی 🔊 FA یا 🔊 EN اش کلیک کردی به بعد، به همون زبان؛ وگرنه از اول (فارسی، یا انگلیسی اگه تیک English زده شده)"><svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.7 5.2v13.6L18.7 12z"/></svg><svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="5.5" width="3.6" height="13" rx="1"/><rect x="13.4" y="5.5" width="3.6" height="13" rx="1"/></svg></button><div id="lb" class="hide"><video controls playsinline class="hide"></video><img alt=""><div></div></div>
+<header id="bar">
+ <div class="bs"><button id="menuBtn" class="ib" type="button" aria-label="منو" aria-haspopup="dialog" aria-expanded="false" data-ic="menu"></button>
+  <div class="ttl"><h1 id="title">بازبینی</h1><span id="ep"></span></div></div>
+ <nav id="nav" dir="ltr" aria-label="تصویر قبلی و بعدی"><button id="navPrev" class="ib" type="button" aria-label="تصویر قبلی" title="تصویر قبلی (←)" data-ic="chevL"></button><span id="pos">۰ / ۰</span><button id="navNext" class="ib" type="button" aria-label="تصویر بعدی" title="تصویر بعدی (→)" data-ic="chevR"></button>
+  <input id="prog" type="range" min="0" max="0" value="0" aria-label="پرش به تصویر"><span id="apr" dir="rtl"></span></nav>
+ <div class="be">
+  <span class="mw"><button id="more" class="ib" type="button" aria-label="منوی تصویر" aria-haspopup="menu" aria-expanded="false" title="منوی تصویر" data-ic="dots"></button>
+   <div id="morePop" class="pop menu" role="menu" hidden></div></span>
+  <button id="lang" class="pill" type="button" dir="ltr" aria-label="زبان متن و صدا" title="روشن = متن انگلیسی دیده شود و صدا انگلیسی پخش شود؛ خاموش = فقط فارسی"><span data-l="fa">فا</span> / <span data-l="en">EN</span></button>
+  <input type="checkbox" id="showEN" hidden>
+  <button id="bVprompt" class="ib" type="button" aria-label="پرامپت ویدیو" title="پرامپت ویدیو" data-ic="clapper"></button>
+  <button id="bPrompt" class="ib" type="button" aria-label="پرامپت تصویر" title="پرامپت تصویر" data-ic="image"></button>
+  <button id="bNote" class="ib" type="button" aria-label="یادداشت و ادیت" title="یادداشت و توصیهٔ ادیت" data-ic="pencil"></button>
+  <button id="bFlag" class="ib" type="button" aria-label="نشانه‌گذاری مشکل" title="نشانه‌گذاری (ثبت مشکل برای هوش مصنوعی)" data-ic="flag"></button>
+ </div>
+</header>
+<main id="list"></main>
+<footer id="foot">
+ <div class="ftp" dir="ltr"><button id="prev" class="ib" type="button" aria-label="تصویر قبلی" data-ic="skipPrev"></button><button id="play" class="playb" type="button" aria-label="پخش خودکار" title="پخش خودکار (Space)"><span class="pi" data-ic="play"></span><span class="pp" data-ic="pause"></span></button><button id="next" class="ib" type="button" aria-label="تصویر بعدی" data-ic="skipNext"></button>
+  <span id="ttime" dir="ltr">۰:۰۰ / ۰:۰۰</span><span id="tbar" aria-hidden="true"><i></i></span></div>
+ <div class="ftt"><button id="aside" class="quiet" type="button" data-ioff="1"></button><button id="approve" class="stamp" type="button" data-approve="1" title="این نسخه را تأیید کن (ایستادن روی یک نسخه هم یعنی تأیید)"><span data-ic="check"></span><span class="sl">تأیید</span></button></div>
+</footer>
+<div id="scrim" hidden></div>
+<aside id="drawer" role="dialog" aria-modal="true" aria-label="منو" aria-hidden="true">
+ <div class="dhead"><button id="dback" class="ib" type="button" aria-label="بازگشت" data-ic="chevR" hidden></button><h2 id="dtitle">منو</h2><button id="dclose" class="ib" type="button" aria-label="بستن منو" data-ic="close"></button></div>
+ <div class="dbody">
+  <nav id="dmenu"></nav>
+  <section class="dpanel" id="pScenes" data-title="فهرست صحنه‌ها" hidden></section>
+  <section class="dpanel" id="pFilter" data-title="فیلتر و جست‌وجو" hidden></section>
+  <section class="dpanel" id="pSpeed" data-title="سرعت پخش" hidden></section>
+  <section class="dpanel" id="pSubs" data-title="زیرنویس" hidden><p>فایل زیرنویس فارسی و انگلیسی (<bdi dir="ltr">subtitles/fa.srt</bdi> و <bdi dir="ltr">en.srt</bdi>) از روی سناریو ساخته می‌شه؛ زمان‌ها از طول فایل‌های صدا حساب می‌شن.</p><button id="subs" class="outline" type="button">ساخت فایل زیرنویس</button></section>
+  <section class="dpanel wide" id="spk" data-title="صداها و گوینده‌ها" hidden></section>
+  <section class="dpanel wide" id="refs" data-title="رفرنس‌ها" hidden></section>
+  <section class="dpanel" id="pVers" data-title="نسخه‌ها و آرشیو" hidden></section>
+  <section class="dpanel" id="pUndo" data-title="برگردان آخرین تغییر" hidden></section>
+  <section class="dpanel" id="pBatch" data-title="کپی پرامپت‌های دسته" hidden></section>
+  <section class="dpanel" id="pInbox" data-title="ورودی‌ها و inbox" hidden></section>
+ </div>
+</aside>
+<datalist id="spkl"></datalist><datalist id="voicel"></datalist><datalist id="lbll"></datalist><datalist id="tonel"></datalist>
+<div id="toast" role="status" aria-live="polite" hidden></div>
+<div id="lb" class="hide" popover="manual"><video controls playsinline class="hide"></video><img alt=""><div></div></div>
 <script type="module" src="tools/ui/main.js"></script></body></html>

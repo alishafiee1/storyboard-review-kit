@@ -1,0 +1,140 @@
+/* Below 900px: a basic stack (picture above, text below). The full phone design comes later. */
+@media (max-width:899px) {
+  html,
+  body {
+    overflow-x:hidden;
+  }
+
+  body {
+    height:auto;
+    min-height:100%;
+    overflow-y:auto;
+  }
+
+  .tape.a {
+    left:-12px;
+  }
+
+  .tape.b {
+    right:-12px;
+  }
+
+  #bar {
+    position:sticky;
+    top:0;
+    height:auto;
+    background:var(--paper);
+    grid-template-columns:1fr auto;
+    padding:4px 12px 14px;
+    row-gap:2px;
+  }
+
+  #nav {
+    grid-column:1 / -1;
+    justify-self:center;
+    margin-top:0;
+  }
+
+  .be {
+    gap:0;
+  }
+
+  #apr {
+    position:static;
+    transform:none;
+    margin-inline-start:8px;
+  }
+
+  .be .ib {
+    width:32px;
+    height:32px;
+  }
+
+  .pill {
+    margin:0 4px;
+    padding:0 9px;
+  }
+
+  #ep {
+    display:none;
+  }
+
+  #list {
+    flex:none;
+  }
+
+  .blk.on {
+    display:block;
+  }
+
+  .imgs {
+    padding:18px 16px 4px;
+    overflow:visible;
+  }
+
+  figure.shot {
+    width:100%;
+  }
+
+  .mount {
+    padding:10px;
+  }
+
+  .txt {
+    overflow:visible;
+    border-inline-start:0;
+    box-shadow:none;
+    padding:0 18px 20px;
+  }
+
+  .pghead {
+    position:static;
+    padding-top:14px;
+  }
+
+  #foot {
+    position:sticky;
+    bottom:0;
+    height:auto;
+    grid-template-columns:1fr;
+    background:var(--paper);
+  }
+
+  #foot > div {
+    padding:6px 16px;
+    margin:0;
+  }
+
+  .ftt {
+    justify-content:space-between;
+  }
+
+  .nbox.pop {
+    left:8px;
+    right:8px;
+    width:auto;
+  }
+
+  .pop.menu {
+    left:-8px;
+  }
+
+  dialog.pm {
+    width:96vw;
+    height:80vh;
+  }
+
+  .pmc {
+    padding:20px 18px 16px;
+  }
+
+  .lt-b {
+    opacity:.7;
+  }
+}
+
+@media (hover:none) {
+  .lt-b {
+    opacity:.7;
+  }
+}

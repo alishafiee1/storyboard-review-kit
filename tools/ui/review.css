@@ -1,8 +1,7 @@
 /* The page style, split by area (order matters: later files may override earlier ones). */
 @import url("css/base.css");
-@import url("css/scenes.css");
-@import url("css/dialogue.css");
-@import url("css/player.css");
-@import url("css/pictures.css");
+@import url("css/shell.css");
+@import url("css/spread.css");
+@import url("css/modal.css");
 @import url("css/panels.css");
-@import url("css/polish.css");
+@import url("css/mobile.css");

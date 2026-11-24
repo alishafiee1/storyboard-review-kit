@@ -3,36 +3,121 @@ import {
   $,
   $$,
   SILENT,
-  SMOOTH,
   api,
   audio,
+  fa,
   fail,
   pollJob
 } from './core.js';
 import {
+  defaultActive,
   render,
+  setActive,
   stopLine
 } from './render.js';
 import {
   filt,
   reload
 } from './panels.js';
-/* Auto-play, the floating play button, navigation, tabs, keyboard and start-up. */
-/* ---------- playback */
-function show(i) {
-  S.cur = i;
-  $('#prog').value = i;
-  $('#jump').value = [...$('#jump').options].filter(o => +o.value <= i).pop()?.value;
-  $$('.blk.on').forEach(x => x.classList.remove('on'));
+import { ic } from './icons.js';
+import { stepVersion } from './versions.js';
+import {
+  drawerOpen,
+  drawerRefresh
+} from './drawer.js';
+/* One picture at a time: navigation, the top bar's numbers, the transport under the picture, auto-play, keyboard and start-up. */
+/* ---------- which block is shown */
+export const vis = () => S.BL.map((_, i) => i).filter(i => {
+  const el = $('#b' + i);
+  return el && !el.classList.contains('hide');
+});
+/* the picture on show (a block shared by several pictures: the one being played, else the first) */
+export function curImg() {
+  const b = S.BL[S.cur];
+  if (!b || !b.images.length)
+    return null;
+  const fs = $$('#b' + S.cur + ' figure.shot'), f = fs.find(x => x.classList.contains('cur')) || fs[0];
+  const m = f && b.images.find(x => x.id === f.dataset.id);
+  return m ? {
+    m,
+    f
+  } : null;
+}
+const mmss = t => `${ fa(Math.floor(t / 60)) }:${ fa(String(Math.floor(t % 60)).padStart(2, '0')) }`;
+function setTime(t, total) {
+  $('#ttime').textContent = `${ mmss(t) } / ${ mmss(total) }`;
+  $('#tbar i').style.width = (total ? Math.min(100, t / total * 100) : 0) + '%';
+}
+export function playUI() {
+  const on = S.playing;
+  $('#play').classList.toggle('playing', on);
+  $('#play').setAttribute('aria-label', on ? 'توقف پخش' : 'پخش خودکار');
+  $('#play').title = (on ? 'توقف پخش' : 'پخش خودکار') + ' (Space)';
+}
+/* top bar: «۴۵ / ۵۰», the tick line, «approved», the icons that need a picture; footer: set aside and the approve stamp */
+export function chrome() {
+  const v = vis(), p = v.indexOf(S.cur), n = v.length, c = curImg(), m = c && c.m;
+  $('#pos').textContent = `${ fa(Math.max(0, p) + 1 - (n ? 0 : 1)) } / ${ fa(n) }`;
+  const pr = $('#prog');
+  pr.max = Math.max(0, n - 1);
+  pr.value = Math.max(0, p);
+  pr.style.setProperty('--p', (n > 1 ? Math.max(0, p) / (n - 1) * 100 : 100) + '%');
+  const one = 190 / Math.max(1, n - 1), step = one < 5 ? one * 5 : one;
+  pr.style.setProperty('--step', step.toFixed(2) + 'px');
+  $('#navPrev').disabled = $('#prev').disabled = p <= 0;
+  $('#navNext').disabled = $('#next').disabled = p < 0 || p >= n - 1;
+  $('#apr').innerHTML = m && m.status === 'ok' ? ic('check') + 'تأیید شده' : '';
+  $('#apr').classList.toggle('show', !!(m && m.status === 'ok'));
+  [
+    '#bNote',
+    '#bPrompt',
+    '#bVprompt',
+    '#bFlag',
+    '#more'
+  ].forEach(s => $(s).disabled = !m);
+  $('#bNote').classList.toggle('has', !!(m && (m.note || m.fx)));
+  $('#bVprompt').classList.toggle('has', !!(m && m.vprompt));
+  $('#bPrompt').classList.toggle('has', !!(m && m.stale));
+  const a = $('#aside');
+  a.disabled = !m;
+  a.innerHTML = ic('tray') + `<span>${ m && m.off ? 'برگردان' : 'کنار بگذار' }</span>`;
+  const ap = $('#approve'), ok = !!(m && m.status === 'ok');
+  ap.disabled = !m || !m.src;
+  ap.classList.toggle('on', ok);
+  ap.querySelector('.sl').textContent = ok ? 'تأیید شد' : 'تأیید';
+  const en = $('#showEN').checked;
+  $('#lang').setAttribute('aria-pressed', en ? 'true' : 'false');
+  $('#lang').classList.toggle('en', en);
+}
+export function show(i, keepJ) {
   const el = $('#b' + i);
   if (!el)
     return;
+  S.cur = i;
+  filt();
+  $$('.blk.on').forEach(x => x.classList.remove('on'));
+  $$('section.scn.cur').forEach(x => x.classList.remove('cur'));
   el.classList.add('on');
-  el.scrollIntoView({
-    block: 'start',
-    behavior: SMOOTH
-  });
+  el.closest('.scn').classList.add('cur');
   markImg(i, 0);
+  const keep = keepJ != null && el.querySelectorAll('.it')[keepJ];
+  if (keep)
+    setActive(keep);
+  else
+    defaultActive(el);
+  chrome();
+  preTime(i);
+  drawerRefresh();
+  history.replaceState(null, '', '#' + el.dataset.bid);
+}
+/* the block of a picture / the block the page was showing (after a reload the numbers may have moved) */
+export const blockOf = id => S.BL.findIndex(b => b.images.some(m => m.id === id));
+export const blockByBid = bid => $$('.blk').findIndex(el => el.dataset.bid === bid);
+export function showNear(i) {
+  const v = vis();
+  if (!v.length)
+    return;
+  show(v.includes(i) ? i : v.find(x => x >= i) ?? v[v.length - 1]);
 }
 function markImg(i, f) {
   $$('figure.shot.cur').forEach(x => x.classList.remove('cur'));
@@ -51,6 +136,18 @@ function dur(src) {
     a.onerror = () => r(0);
     a.src = src;
   });
+}
+const lines = (b, lg) => b.items.filter(x => x.audio && x.audio[lg]);
+/* the length of the lines of the block on show, in the language that would play */
+async function preTime(i) {
+  const lg = $('#showEN').checked ? 'en' : 'fa', b = S.BL[i];
+  setTime(0, 0);
+  if (!b)
+    return;
+  const ds = await Promise.all(lines(b, lg).map(x => dur(x.audio[lg])));
+  const total = ds.reduce((a, c) => a + c, 0) || SILENT;
+  if (S.cur === i && !S.playing)
+    setTime(0, total / S.speed);
 }
 function wait(ms, t) {
   return new Promise(r => {
@@ -77,7 +174,7 @@ function playClip(src, t, cb) {
       res();
     };
     audio.src = src;
-    audio.playbackRate = +$('#speed').value;
+    audio.playbackRate = S.speed;
     audio.ontimeupdate = () => {
       if (t === S.token)
         cb(audio.currentTime);
@@ -96,7 +193,7 @@ function playClip(src, t, cb) {
 async function run(i, lgIn, fromJ) {
   const t = ++S.token;
   S.playing = true;
-  $('#play').textContent = '⏸ توقف';
+  playUI();
   const lg = lgIn || ($('#showEN').checked ? 'en' : 'fa');
   for (let n = i; n < S.BL.length && t === S.token; n++) {
     const b = S.BL[n];
@@ -108,7 +205,8 @@ async function run(i, lgIn, fromJ) {
       j
     ]).filter(([x, j]) => x.audio && x.audio[lg] && (n !== i || !fromJ || j >= fromJ));
     if (!v.length) {
-      await wait(SILENT * 1000 / (+$('#speed').value || 1), t);
+      setTime(0, SILENT / S.speed);
+      await wait(SILENT * 1000 / (S.speed || 1), t);
       continue;
     }
     const ds = await Promise.all(v.map(([x]) => dur(x.audio[lg])));
@@ -116,14 +214,14 @@ async function run(i, lgIn, fromJ) {
     let done = 0;
     for (let k = 0; k < v.length && t === S.token; k++) {
       const [it, j] = v[k];
-      $$('.it.cur').forEach(x => x.classList.remove('cur'));
-      $('#i' + n + '_' + j).classList.add('cur');
+      setActive($('#i' + n + '_' + j));
       S.START = {
         n,
         j,
         lg
       };
       await playClip(it.audio[lg], t, ct => {
+        setTime((done + ct) / S.speed, total / S.speed);
         if (b.images.length > 1)
           markImg(n, Math.min(b.images.length - 1, Math.floor((done + ct) / total * b.images.length)));
       });
@@ -135,96 +233,67 @@ async function run(i, lgIn, fromJ) {
   if (t === S.token) {
     S.playing = false;
     S.START = null;
-    $('#play').textContent = '▶ پخش';
-    $('#info').textContent = 'پایان';
+    playUI();
   }
 }
-function go(i, start) {
+function stop() {
   stopLine();
-  S.START = null;
   S.token++;
   audio.pause();
   S.playing = false;
-  $('#play').textContent = '▶ پخش';
+  playUI();
+}
+export function go(i, start) {
+  stop();
+  S.START = null;
   show(i);
   if (start)
     run(i);
 }
-const TABS = {
-  tabR: '#list',
-  tabF: '#refs',
-  tabS: '#spk'
-};
-export function showTab(id) {
-  if (id !== 'tabR') {
-    S.token++;
-    audio.pause();
-    S.playing = false;
-    $('#play').textContent = '▶ پخش';
-  }
-  Object.entries(TABS).forEach(([k, sel]) => {
-    $(sel).classList.toggle('hide', k !== id);
-    $('#' + k).classList.toggle('on', k === id);
-  });
+/* previous / next picture that the filter lets through */
+function step(d) {
+  const v = vis(), p = v.indexOf(S.cur), k = v[Math.max(0, Math.min(v.length - 1, p + d))];
+  if (k != null && k !== S.cur)
+    go(k, S.playing);
+}
+export function stopPlayback() {
+  stop();
 }
 export function boot_player() {
   $('#play').onclick = () => {
     stopLine();
-    if (S.playing) {
-      S.token++;
-      audio.pause();
-      S.playing = false;
-      $('#play').textContent = '▶ پخش';
-    } else if (S.START && S.BL[S.START.n])
+    if (S.playing)
+      stop();
+    else if (S.START && S.BL[S.START.n])
       run(S.START.n, S.START.lg, S.START.j);
     else
       run(S.cur);
   };
-  $('#fab').onclick = () => $('#play').click();
   $('#subs').onclick = async () => {
     const b = $('#subs');
     b.disabled = true;
     try {
       const r = await api('/api/subtitles', {});
-      alert('✓ ' + r.message);
+      alert(r.message);
     } catch (e) {
       fail(e);
     } finally {
       b.disabled = false;
     }
   };
-  new MutationObserver(() => {
-    const on = $('#play').textContent.includes('⏸');
-    $('#fab').classList.toggle('playing', on);
-    $('#fab').setAttribute('aria-label', on ? 'توقف پخش' : 'پخش خودکار');
-  }).observe($('#play'), {
-    childList: true,
-    characterData: true,
-    subtree: true
-  });
-  $('#prev').onclick = () => go(Math.max(0, S.cur - 1), S.playing);
-  $('#next').onclick = () => go(Math.min(S.BL.length - 1, S.cur + 1), S.playing);
-  $('#jump').onchange = e => go(+e.target.value, S.playing);
-  $('#prog').oninput = e => go(+e.target.value, S.playing);
-  $('#filter').onchange = filt;
-  $('#speed').onchange = () => {
-    audio.playbackRate = +$('#speed').value;
+  $('#prev').onclick = $('#navPrev').onclick = () => step(-1);
+  $('#next').onclick = $('#navNext').onclick = () => step(1);
+  $('#prog').oninput = e => {
+    const k = vis()[+e.target.value];
+    if (k != null)
+      go(k, S.playing);
   };
-  $('#showEN').onchange = () => {
+  $('#lang').onclick = () => {
+    $('#showEN').checked = !$('#showEN').checked;
     S.START = null;
     reload();
   };
-  Object.keys(TABS).forEach(id => $('#' + id).onclick = () => showTab(id));
-  /* the slider and the dropdowns must not keep the keyboard: otherwise ArrowUp / ArrowDown move them (and jump to a block) instead of scrolling the page from where you are */
-  [
-    '#prog',
-    '#jump',
-    '#filter',
-    '#speed'
-  ].forEach(s => {
-    const el = $(s);
-    el.addEventListener('change', () => el.blur());
-  });
+  /* the slider must not keep the keyboard: otherwise ← → ↑ ↓ move it instead of going to the next picture / version */
   $('#prog').addEventListener('pointerup', () => setTimeout(() => $('#prog').blur(), 0));
   $('#prog').addEventListener('keydown', e => {
     if (/^(Arrow|Page)|^(Home|End)$/.test(e.key)) {
@@ -233,15 +302,33 @@ export function boot_player() {
     }
   });
   document.addEventListener('keydown', e => {
-    if (e.code === 'Space' && ![
+    if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey)
+      return;
+    const tag = e.target.tagName;
+    if ([
         'SELECT',
         'TEXTAREA',
-        'INPUT',
-        'BUTTON'
-      ].includes(e.target.tagName)) {
+        'INPUT'
+      ].includes(tag) && e.target.id !== 'prog' || e.target.isContentEditable)
+      return;
+    if (document.querySelector('dialog[open]') || drawerOpen() || !$('#morePop').hidden)
+      return;
+    if (e.code === 'Space' && tag !== 'BUTTON') {
       e.preventDefault();
       $('#play').click();
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      e.preventDefault();
+      step(e.key === 'ArrowLeft' ? -1 : 1);
+    } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      stepVersion(e.key === 'ArrowUp' ? -1 : 1);
     }
+  });
+  /* a link like review.html#IMG045 (or a change of the address) shows that picture */
+  window.addEventListener('hashchange', () => {
+    const at = blockByBid(decodeURIComponent(location.hash.slice(1)));
+    if (at >= 0 && at !== S.cur)
+      go(at, S.playing);
   });
   (async () => {
     try {
@@ -258,7 +345,8 @@ export function boot_player() {
       return;
     }
     render();
-    show(0);
+    const at = blockByBid(decodeURIComponent(location.hash.slice(1)));
+    show(at >= 0 ? at : 0);
     if (S.P.tts && S.P.tts.job.state === 'running')
       pollJob();
   })();

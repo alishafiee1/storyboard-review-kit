@@ -30,6 +30,17 @@ export async function api(path, body) {
   return j;
 }
 export const fail = e => alert(e.message || e);
+/* Persian digits for numbers shown in the chrome (۴۵ / ۵۰) */
+export const fa = n => String(n).replace(/\d/g, d => '۰۱۲۳۴۵۶۷۸۹'[d]);
+/* a one-line note at the bottom of the page that goes away by itself */
+let TOAST_T = 0;
+export function toast(msg) {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.hidden = false;
+  clearTimeout(TOAST_T);
+  TOAST_T = setTimeout(() => t.hidden = true, 2600);
+}
 /* How a line is addressed to the server: by its picture (index counted from the picture's own [IMG] line, so it survives moving the
    picture), or by the scene for lines above the first picture. `key` is the name of the number ('index', or 'after' when adding). */
 export function lineRef(scene, ln, key = 'index') {
@@ -51,10 +62,10 @@ export const TT = () => S.P.tts || {
     default: '',
     catalog: []
   }, modelById = id => TT().catalog.find(m => m.id === id);
-export const modelOpts = (sel, withDefault, hint) => (withDefault ? `<option value="">پیش‌فرض (${ esc(TT().default) })</option>` : '') + TT().catalog.map(m => `<option value="${ esc(m.id) }"${ m.id === sel ? ' selected' : '' }>${ esc(m.id) } · $${ esc(m.price) }/k${ m.voices.length ? '' : ' · بدون فهرست صدا' }${ hint ? hint(m) : '' }</option>`).join('') + (sel && !modelById(sel) ? `<option value="${ esc(sel) }" selected>⚠ ${ esc(sel) } (توی فهرست نیست)</option>` : '');
+export const modelOpts = (sel, withDefault, hint) => (withDefault ? `<option value="">پیش‌فرض (${ esc(TT().default) })</option>` : '') + TT().catalog.map(m => `<option value="${ esc(m.id) }"${ m.id === sel ? ' selected' : '' }>${ esc(m.id) } · $${ esc(m.price) }/k${ m.voices.length ? '' : ' · بدون فهرست صدا' }${ hint ? hint(m) : '' }</option>`).join('') + (sel && !modelById(sel) ? `<option value="${ esc(sel) }" selected>${ esc(sel) } (توی فهرست نیست)</option>` : '');
 export const voiceOpts = (model, sel) => {
   const m = modelById(model), vs = m ? m.voices : [];
-  return vs.map(v => `<option value="${ esc(v.name) }"${ v.name === sel ? ' selected' : '' }>${ esc(v.name) } · ${ esc(v.accent) }</option>`).join('') + (sel && !vs.some(v => v.name === sel) ? `<option value="${ esc(sel) }" selected>${ vs.length ? '⚠ ' : '' }${ esc(sel) }${ vs.length ? ' (برای این مدل نیست)' : '' }</option>` : '');
+  return vs.map(v => `<option value="${ esc(v.name) }"${ v.name === sel ? ' selected' : '' }>${ esc(v.name) } · ${ esc(v.accent) }</option>`).join('') + (sel && !vs.some(v => v.name === sel) ? `<option value="${ esc(sel) }" selected>${ vs.length ? '' : '' }${ esc(sel) }${ vs.length ? ' (برای این مدل نیست)' : '' }</option>` : '');
 };
 const smpAudio = new Audio();
 export async function sample(model, voice, btn) {
@@ -83,7 +94,7 @@ export function pollJob() {
   JOBT = setInterval(async () => {
     try {
       const j = await (await fetch('/api/job')).json();
-      document.querySelectorAll('[data-job]').forEach(x => x.textContent = x.dataset.job === j.scene && j.state === 'running' ? `⏳ ${ j.done }/${ j.total } خط ساخته شد…` : '');
+      document.querySelectorAll('[data-job]').forEach(x => x.textContent = x.dataset.job === j.scene && j.state === 'running' ? `${ j.done }/${ j.total } خط ساخته شد…` : '');
       if (j.state !== 'running') {
         clearInterval(JOBT);
         JOBT = null;
@@ -93,18 +104,14 @@ export function pollJob() {
         if (j.errors.length)
           alert('بعضی خط‌ها ساخته نشدن:\n' + j.errors.slice(0, 6).join('\n'));
         if (j.warnings && j.warnings.length)
-          alert('⚠ هشدار:\n' + j.warnings.slice(0, 6).join('\n'));
+          alert('هشدار:\n' + j.warnings.slice(0, 6).join('\n'));
       }
     } catch (e) {
     }
   }, 2000);
 }
-export function copy(t, btn) {
-  const done = () => {
-    const o = btn.textContent;
-    btn.textContent = 'کپی شد ✓';
-    setTimeout(() => btn.textContent = o, 1500);
-  };
+/* copy text to the clipboard (a plain textarea when the browser does not allow the clipboard API); resolves when done */
+export function copyText(t) {
   const fb = () => {
     const a = document.createElement('textarea');
     a.value = t;
@@ -112,9 +119,15 @@ export function copy(t, btn) {
     a.select();
     document.execCommand('copy');
     a.remove();
-    done();
   };
-  navigator.clipboard ? navigator.clipboard.writeText(t).then(done, fb) : fb();
+  return navigator.clipboard ? navigator.clipboard.writeText(t).catch(fb) : Promise.resolve(fb());
+}
+export function copy(t, btn) {
+  copyText(t).then(() => {
+    const o = btn.innerHTML;
+    btn.textContent = 'کپی شد';
+    setTimeout(() => btn.innerHTML = o, 1500);
+  });
 }
 export const grow = ta => {
   ta.style.height = 'auto';
@@ -124,40 +137,6 @@ export const autoGrow = ta => {
   ta.addEventListener('input', () => grow(ta));
   requestAnimationFrame(() => grow(ta));
 };
-/* the picture grows to match a tall dialogue column (16:9 kept) */
-export const RO = new ResizeObserver(es => es.forEach(e => {
-  const d = e.target.closest('.blk');
-  clearTimeout(d._ft);
-  d._ft = setTimeout(() => fitBlock(d), 120);
-}));
-const FIT_IMAGES = false;
-/* true = picture grows to the height of a long dialogue column (looked like some pictures were more important, so it is off) */
-export function fitBlock(d) {
-  if (!FIT_IMAGES) {
-    d.style.gridTemplateColumns = '';
-    return;
-  }
-  const imgs = d.querySelector('.imgs'), txt = d.querySelector('.txt'), figs = imgs ? [...imgs.querySelectorAll('figure.shot')] : [];
-  if (!figs.length || innerWidth <= 760) {
-    d.style.gridTemplateColumns = '';
-    return;
-  }
-  const cs = getComputedStyle(d), W = d.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - 22;
-  for (let k = 0; k < 3; k++) {
-    let ctl = 0;
-    figs.forEach(f => {
-      const im = f.querySelector('img,.ph');
-      ctl += f.offsetHeight - im.offsetHeight;
-    });
-    const first = figs[0].querySelector('img'), a = first && first.naturalWidth ? first.naturalHeight / first.naturalWidth : 0.5625;
-    const target = (txt.offsetHeight - ctl - 14 * (figs.length - 1)) / figs.length / a, dflt = W * 5 / 9;
-    const w = Math.round(Math.min(W * 0.72, Math.max(dflt, target)));
-    const cur = imgs.offsetWidth;
-    if (Math.abs(w - cur) <= 6)
-      break;
-    d.style.gridTemplateColumns = w > dflt + 6 ? `${ w }px minmax(0,1fr)` : '';
-  }
-}
 const EDITORS = new Set();
 export function onLeave(w, fn) {
   let busy = false;
@@ -219,16 +198,16 @@ export function boot_core() {
       ran = true;
       await x.run();
     }
-    document.querySelectorAll('.fxbox:not(.hide) textarea').forEach(x => {
-      if (!x.closest('.fxbox').contains(t) && x.value !== x.dataset.orig && x._save)
-        x._save();
-    });
-    document.querySelectorAll('.nbox:not(.hide) textarea.nt').forEach(nt => {
-      const nb = nt.closest('.nbox');
-      if (nb.contains(t))
+    /* the note / edit-advice popover: a click outside saves what changed and closes it */
+    document.querySelectorAll('.nbox:not(.hide)').forEach(nb => {
+      if (nb.contains(t) || t.closest && t.closest('#bNote'))
         return;
-      if (nt.value !== nt.dataset.orig)
-        nt.closest('figure.shot').querySelector('[data-sn]').click();
+      nb.querySelectorAll('textarea').forEach(x => {
+        if (x.value !== x.dataset.orig && x._save)
+          x._save();
+      });
+      nb.classList.add('hide');
+      $('#bNote').classList.remove('open');
     });
     if (ran && S.RELOADS !== r0 && pend) {
       const sec = document.querySelector(`section[data-scene="${ pend.scene }"]`);

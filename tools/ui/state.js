@@ -6,5 +6,8 @@ export const S = {
   playing: false,
   START: null,
   RELOADS: 0,
-  cur: 0
+  cur: 0,
+  speed: 1,
+  filter: 'all',
+  q: ''
 };

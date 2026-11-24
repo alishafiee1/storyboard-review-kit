@@ -2,12 +2,12 @@ import { S } from './state.js';
 import {
   $,
   $$,
-  SMOOTH,
   TT,
   api,
   audio,
   copy,
   esc,
+  fa,
   fail,
   modelById,
   modelOpts,
@@ -19,12 +19,19 @@ import {
   toneKnown,
   unknownTones
 } from './render.js';
-import { showTab } from './player.js';
+import {
+  blockByBid,
+  chrome,
+  show,
+  showNear
+} from './player.js';
+import { closeDrawer } from './drawer.js';
 import {
   openComposer,
   openEditor,
   openSayEditor
 } from './editors.js';
+import { redrawPrompt } from './prompts.js';
 /* Speakers tab, tone/label lists, references tab, lightbox, filter, stats and reload(). */
 export function speakersTab() {
   const used = {};
@@ -36,7 +43,7 @@ export function speakersTab() {
   $('#spkl').innerHTML = (S.P.speakers || []).map(s => `<option value="${ esc(s.name) }">`).join('');
   $('#voicel').innerHTML = (S.P.voices || []).map(v => `<option value="${ v }">`).join('');
   const t = TT(), upd = t.updated ? new Date(t.updated * 1000).toLocaleDateString('fa-IR') : 'هنوز ساخته نشده', dm = t.default;
-  $('#spk').innerHTML = `<div class="ttsbox">${ t.has_key ? '🔑 کلید API پیدا شد' : '⚠ کلید API پیدا نشد؛ توی پوشه‌ی پروژه فایل <code>.env</code> بساز و یه خط <code>OPENROUTER_API_KEY=...</code> توش بنویس' } · فهرست صداها: ${ upd } <button class="b" data-vrf="1" ${ t.has_key ? '' : 'disabled' }>🔄 رفرش لیست صداها</button> <span id="vmsg"></span><span>· مدل پیش‌فرض: <select data-dm="1">${ modelOpts(dm, false) }</select></span></div>` + `<p class="env">رنگ، صدا و لحن پیش‌فرض هر گوینده توی بالای <code>story.txt</code> نگه داشته می‌شه؛ لحن هر دیالوگ جدا هم قابل تغییره. گوینده‌ی جدید رو توی صفحه با نوشتن اسمش (توی «+ دیالوگ») می‌سازی. صدای هر گوینده از فهرست مدل پیش‌فرض می‌آد؛ عوض کردنش همه‌ی صحنه‌های اون گوینده رو «کهنه» می‌کنه.</p>` + (S.P.speakers || []).map((s, i) => `<div class="spt"><input type="color" value="${ s.color }" data-sc="${ i }"><b>${ esc(s.name) }</b>${ modelById(dm) && modelById(dm).voices.length ? `<select data-sv="${ i }">${ voiceOpts(dm, s.voice) }</select><button class="b" data-smp="${ i }">▶ نمونه</button>` : `<input type="text" list="voicel" value="${ esc(s.voice) }" placeholder="صدا (مثلاً george)" data-sv="${ i }">` }<input type="text" list="tonel" maxlength="40" value="${ esc(s.tone || '') }" placeholder="لحن پیش‌فرض" data-st="${ i }" class="${ toneKnown(s.tone) ? '' : 'unk' }" title="${ toneKnown(s.tone) ? '' : 'این لحن توی voices/voice-config.json نیست' }" style="direction:rtl"><span>${ used[s.name] || 0 } خط</span></div>`).join('') + unknown.map(n => `<div class="issue">⚠ گوینده‌ی «${ esc(n) }» توی فهرست نیست (${ used[n] } خط). <button class="b" data-addspk="${ esc(n) }">افزودن با رنگ و صدای خودکار</button></div>`).join('');
+  $('#spk').innerHTML = `<div class="ttsbox">${ t.has_key ? 'کلید API پیدا شد' : 'کلید API پیدا نشد؛ توی پوشه‌ی پروژه فایل <code>.env</code> بساز و یه خط <code>OPENROUTER_API_KEY=...</code> توش بنویس' } · فهرست صداها: ${ upd } <button class="b" data-vrf="1" ${ t.has_key ? '' : 'disabled' }>رفرش لیست صداها</button> <span id="vmsg"></span><span>· مدل پیش‌فرض: <select data-dm="1">${ modelOpts(dm, false) }</select></span></div>` + `<p class="env">رنگ، صدا و لحن پیش‌فرض هر گوینده توی بالای <code>story.txt</code> نگه داشته می‌شه؛ لحن هر دیالوگ جدا هم قابل تغییره. گوینده‌ی جدید رو توی صفحه با نوشتن اسمش (توی «+ دیالوگ») می‌سازی. صدای هر گوینده از فهرست مدل پیش‌فرض می‌آد؛ عوض کردنش همه‌ی صحنه‌های اون گوینده رو «کهنه» می‌کنه.</p>` + (S.P.speakers || []).map((s, i) => `<div class="spt"><input type="color" value="${ s.color }" data-sc="${ i }"><b>${ esc(s.name) }</b>${ modelById(dm) && modelById(dm).voices.length ? `<select data-sv="${ i }">${ voiceOpts(dm, s.voice) }</select><button class="b" data-smp="${ i }">نمونه</button>` : `<input type="text" list="voicel" value="${ esc(s.voice) }" placeholder="صدا (مثلاً george)" data-sv="${ i }">` }<input type="text" list="tonel" maxlength="40" value="${ esc(s.tone || '') }" placeholder="لحن پیش‌فرض" data-st="${ i }" class="${ toneKnown(s.tone) ? '' : 'unk' }" title="${ toneKnown(s.tone) ? '' : 'این لحن توی voices/voice-config.json نیست' }" style="direction:rtl"><span>${ used[s.name] || 0 } خط</span></div>`).join('') + unknown.map(n => `<div class="issue">گوینده‌ی «${ esc(n) }» توی فهرست نیست (${ used[n] } خط). <button class="b" data-addspk="${ esc(n) }">افزودن با رنگ و صدای خودکار</button></div>`).join('');
   $$('#spk [data-sc]').forEach(c => c.onchange = async () => {
     const s = S.P.speakers[+c.dataset.sc];
     try {
@@ -76,10 +83,10 @@ export function speakersTab() {
   });
   $$('#spk [data-vrf]').forEach(b => b.onclick = async () => {
     b.disabled = true;
-    $('#vmsg').textContent = '⏳';
+    $('#vmsg').textContent = '…';
     try {
       const r = await api('/api/voices/refresh', {});
-      $('#vmsg').textContent = r.ok ? '✓ ' + r.message : '';
+      $('#vmsg').textContent = r.ok ? r.message : '';
       if (!r.ok)
         alert(r.message);
       else
@@ -113,9 +120,9 @@ export function speakersTab() {
   const ut = unknownTones();
   $$('#list .msg.tonewarn').forEach(x => x.remove());
   if (ut.size)
-    $('#list').insertAdjacentHTML('afterbegin', `<div class="msg tonewarn">⚠ لحن ناشناخته (توی voices/voice-config.json نیست و برچسبی نمی‌فرسته): ${ [...ut].map(([t, n]) => esc(t) + ' (' + n + ')').join('، ') }</div>`);
+    $('#list').insertAdjacentHTML('afterbegin', `<div class="msg tonewarn">لحن ناشناخته (توی voices/voice-config.json نیست و برچسبی نمی‌فرسته): ${ [...ut].map(([t, n]) => esc(t) + ' (' + n + ')').join('، ') }</div>`);
   if (unknown.length && !$('#list .msg.spkwarn'))
-    $('#list').insertAdjacentHTML('afterbegin', `<div class="msg spkwarn">⚠ گوینده‌ای که توی فهرست نیست: ${ unknown.map(esc).join('، ') } — تب «گوینده‌ها» رو ببین.</div>`);
+    $('#list').insertAdjacentHTML('afterbegin', `<div class="msg spkwarn">گوینده‌ای که توی فهرست نیست: ${ unknown.map(esc).join('، ') } — منو ← «صداها و گوینده‌ها» رو ببین.</div>`);
 }
 export function toneList() {
   $('#tonel').innerHTML = (S.P.tts.tones || []).map(t => `<option value="${ esc(t.fa) }" label="${ esc(t.tag || 'بدون برچسب') }">`).join('');
@@ -128,13 +135,20 @@ export function labelList() {
   })));
   $('#lbll').innerHTML = [...L].map(l => `<option value="${ esc(l) }">`).join('');
 }
+/* the big picture / video sits in the browser's top layer, so it also shows above an open dialog (the prompt card) */
+function openLb() {
+  const lb = $('#lb');
+  lb.classList.remove('hide');
+  if (lb.showPopover && !lb.matches(':popover-open'))
+    lb.showPopover();
+}
 export function lightbox(src, name) {
   $('#lb video').pause();
   $('#lb video').classList.add('hide');
   $('#lb img').classList.remove('hide');
   $('#lb img').src = src;
   $('#lb div').textContent = name;
-  $('#lb').classList.remove('hide');
+  openLb();
 }
 export function playVideo(src, name) {
   audio.pause();
@@ -143,34 +157,31 @@ export function playVideo(src, name) {
   v.classList.remove('hide');
   v.src = src;
   $('#lb div').textContent = name;
-  $('#lb').classList.remove('hide');
+  openLb();
   v.play().catch(() => {
   });
 }
 function closeLb() {
   $('#lb video').pause();
   $('#lb').classList.add('hide');
+  if ($('#lb').matches(':popover-open'))
+    $('#lb').hidePopover();
 }
 function jumpToImage(id) {
-  showTab('tabR');
-  const f = document.querySelector(`figure.shot[data-id="${ id }"]`);
-  if (!f)
-    return;
-  if (f.closest('.hide'))
-    $('#filter').value = 'all', filt();
-  f.scrollIntoView({
-    block: 'center',
-    behavior: SMOOTH
-  });
-  f.classList.add('flash');
-  setTimeout(() => f.classList.remove('flash'), 2000);
+  closeDrawer();
+  if (S.filter !== 'all' || S.q) {
+    S.filter = 'all';
+    S.q = '';
+    filt(true);
+  }
+  const i = S.BL.findIndex(b => b.images.some(m => m.id === id));
+  if (i >= 0)
+    show(i);
 }
 export function refsTab() {
   const R = $('#refs');
-  const P = S.P, sz = n => n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
-  const intake = (P.triage || []).length || (P.inbox || []).length || (P.imports || []).length ? `<div class="intake">${ (P.triage || []).length ? `<h4>⚠ نیاز به مرتب‌سازی (اسم رفرنس نیستن)</h4><ul data-triage="1">${ P.triage.map(t => `<li>${ esc(t.src) }</li>`).join('') }</ul>` : '' }${ (P.inbox || []).length ? `<h4>📥 inbox/ (${ P.inbox.length })</h4><ul data-inbox="1">${ P.inbox.map(f => `<li>${ esc(f.name) } <small>${ esc(f.kind) } · ${ sz(f.size) }</small></li>`).join('') }</ul>` : '' }${ (P.imports || []).length ? `<h4>⬇ آخرین ورودی‌ها</h4><ul data-imports="1">${ P.imports.map(i => `<li>${ esc(i.time) } → ${ esc(i.to) }</li>`).join('') }</ul>` : '' }</div>` : '';
-  R.innerHTML = intake + `<div class="grid">${ S.P.refs.map((r, i) => `<div class="card"><img src="${ r.src }" loading="lazy" data-zoom="${ r.src }" data-name="${ esc(r.name) }"><b>${ esc(r.name) }</b> <small>${ esc(r.kind) }</small>${ r.video ? ` <button class="b vid" data-vid="${ esc(r.video) }" data-name="${ esc(r.name) }">▶ ویدیو</button>` : '' }<div>${ r.used.map(u => `<button class="chip ref" data-img="${ u }" title="رفتن به این تصویر">${ u }</button>`).join('') || '—' }</div>
-  ${ r.prompt ? `<button class="b" data-r="${ i }">پرامپت</button><div class="pr hide"><button class="b" data-rc="${ i }">📋 کپی</button><textarea readonly style="min-height:140px">${ esc(r.prompt) }</textarea></div>` : '' }</div>`).join('') }</div>`;
+  R.innerHTML = `<div class="grid">${ S.P.refs.map((r, i) => `<div class="card"><img src="${ r.src }" loading="lazy" data-zoom="${ r.src }" data-name="${ esc(r.name) }"><b>${ esc(r.name) }</b> <small>${ esc(r.kind) }</small>${ r.video ? ` <button class="b vid" data-vid="${ esc(r.video) }" data-name="${ esc(r.name) }">ویدیو</button>` : '' }<div>${ r.used.map(u => `<button class="chip ref" data-img="${ u }" title="رفتن به این تصویر">${ u }</button>`).join('') || '—' }</div>
+  ${ r.prompt ? `<button class="b" data-r="${ i }">پرامپت</button><div class="pr hide"><button class="b" data-rc="${ i }">کپی</button><textarea readonly style="min-height:140px">${ esc(r.prompt) }</textarea></div>` : '' }</div>`).join('') }</div>`;
   R.querySelectorAll('[data-r]').forEach(b => b.onclick = () => b.nextElementSibling.classList.toggle('hide'));
   R.querySelectorAll('[data-rc]').forEach(b => b.onclick = () => copy(b.nextElementSibling.querySelector('textarea').value, b));
   R.querySelectorAll('[data-zoom]').forEach(i => i.onclick = () => lightbox(i.dataset.zoom, i.dataset.name));
@@ -181,37 +192,54 @@ export function stats() {
   const imgs = S.BL.flatMap(b => b.images);
   const c = k => imgs.filter(m => m.status === k).length;
   const issues = S.P.scenes.reduce((n, s) => n + s.issues.length + s.warnings.length + s.env.reduce((a, e) => a + e.issues.length, 0) + s.blocks.reduce((a, b) => a + b.images.reduce((x, m) => x + m.issues.length, 0) + b.items.reduce((x, t) => x + t.issues.length, 0), 0), 0);
-  $('#info').textContent = `${ imgs.filter(m => m.src).length }/${ imgs.length } تصویر · ✅${ c('ok') } 🔁${ c('redo') } · ⚠${ imgs.filter(m => m.stale).length }${ issues ? ` · ⚑${ issues }` : '' }`;
+  $('#info').textContent = `${ fa(imgs.filter(m => m.src).length) } از ${ fa(imgs.length) } تصویر ساخته شده · ${ fa(c('ok')) } تأیید · ${ fa(c('redo')) } بازسازی · ${ fa(imgs.filter(m => m.stale).length) } کهنه${ issues ? ` · ${ fa(issues) } مشکل فرمت` : '' }`;
 }
-export function filt() {
-  const v = $('#filter').value;
+/* the filter and the search box decide which blocks can be reached; the block on show is kept until you move on, so choosing a version
+   under a filter does not make the picture vanish under your hands (`force` = the filter itself just changed) */
+let FILTERING = false;
+const matches = (b, m, q) => !q || [
+  m ? m.id : '',
+  m ? m.note : '',
+  ...b.items.flatMap(t => [
+    t.sp,
+    t.fa,
+    t.en
+  ])
+].some(x => String(x || '').toLowerCase().includes(q));
+export function filt(force) {
+  if (FILTERING)
+    return;
+  FILTERING = true;
+  const v = S.filter, q = S.q.toLowerCase();
   const all = S.BL.flatMap(b => b.images);
   $$('figure.shot').forEach(f => {
     const m = all.find(x => x.id === f.dataset.id);
     const show = v === 'all' || (v === 'missing' ? !m.src : v === 'none' ? !m.status : v === 'note' ? !!m.note : v === 'stale' ? m.stale : m.status === v);
     f.classList.toggle('hide', !show);
   });
-  S.BL.forEach((b, i) => $('#b' + i).classList.toggle('hide', v !== 'all' && !(b.images.length && $$('#b' + i + ' figure.shot:not(.hide)').length)));
-}
-function restoreAnchor(bid, top, y) {
-  const go = () => {
-    const el = bid && document.querySelector(`.blk[data-bid="${ bid }"]`);
-    if (el)
-      scrollBy(0, el.getBoundingClientRect().top - top);
-    else
-      scrollTo(0, y);
-  };
-  go();
-  setTimeout(go, 200);
+  S.BL.forEach((b, i) => {
+    const hide = (v !== 'all' && !(b.images.length && $$('#b' + i + ' figure.shot:not(.hide)').length)) || !b.images.some(m => matches(b, m, q)) && !(!b.images.length && matches(b, null, q));
+    $('#b' + i).classList.toggle('hide', hide && (force || i !== S.cur));
+  });
+  FILTERING = false;
+  if (force && $('#b' + S.cur) && $('#b' + S.cur).classList.contains('hide'))
+    showNear(S.cur);
+  else if (S.BL.length)
+    chrome();
 }
 export async function reload() {
-  const ae = document.activeElement && document.activeElement.closest ? document.activeElement.closest('.blk') : null, vb = [...document.querySelectorAll('.blk:not(.hide)')].find(b => b.getBoundingClientRect().bottom > 90), an = ae || vb, abid = an && an.dataset.bid, atop = an ? an.getBoundingClientRect().top : 0, y = scrollY, fields = () => $$('textarea[data-key],input[data-key]'), drafts = fields().filter(t => t.value !== t.dataset.orig).map(t => [
+  const here = $('#b' + S.cur), abid = here && here.dataset.bid, was = S.cur, actJ = here ? [...here.querySelectorAll('.it')].findIndex(x => x.classList.contains('cur')) : -1, fields = () => $$('textarea[data-key],input[data-key]'), drafts = fields().filter(t => t.value !== t.dataset.orig).map(t => [
       t.dataset.key,
       t.value
     ]);
   const open = $$('[data-key^="panel:"]:not(.hide)').map(e => e.dataset.key);
   S.P = await (await fetch('/api/project')).json();
   render();
+  const at = blockByBid(abid);
+  if (at >= 0 && !$('#b' + at).classList.contains('hide'))
+    show(at, actJ >= 0 ? actJ : undefined);
+  else
+    showNear(at >= 0 ? at : Math.min(was, S.BL.length - 1));
   S.RELOADS++;
   open.forEach(k => {
     const e = document.querySelector(`[data-key="${ k }"]`);
@@ -264,13 +292,15 @@ export async function reload() {
       t.dispatchEvent(new Event('input'));
     }
   });
-  restoreAnchor(abid, atop, y);
+  redrawPrompt();
 }
 export function boot_panels() {
   $('#lb').onclick = closeLb;
   $('#lb video').onclick = e => e.stopPropagation();
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape')
+    if (e.key === 'Escape' && !$('#lb').classList.contains('hide')) {
       closeLb();
+      e.preventDefault();
+    }
   });
 }

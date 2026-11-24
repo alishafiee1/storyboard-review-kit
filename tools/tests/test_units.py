@@ -316,5 +316,70 @@ class PageModules(unittest.TestCase):
             self.assertLess(len(self.read(f).split("\n")), 700, f + " is getting too big: split it")
 
 
+class SketchbookShell(unittest.TestCase):
+    """Rules of the v2.0 look that need no browser: offline font, icons that exist, no emoji in the chrome, the theme tokens."""
+    KIT = os.path.dirname(os.path.dirname(HERE))
+    UI = os.path.join(KIT, "tools", "ui")
+
+    def text(self, *parts):
+        with open(os.path.join(self.KIT, *parts), encoding="utf-8") as fh:
+            return fh.read()
+
+    def test_the_font_is_bundled_with_its_license_and_shipped(self):
+        files = [l.strip() for l in self.text("ENGINE.txt").splitlines() if l.strip() and not l.startswith("#")]
+        css = self.text("tools", "ui", "css", "base.css")
+        import re
+        urls = re.findall(r'url\("\.\./(fonts/[^"]+)"\)', css)
+        self.assertGreaterEqual(len(urls), 3)
+        for u in urls:
+            self.assertIn("tools/ui/" + u, files, u + " is not in ENGINE.txt")
+            with open(os.path.join(self.UI, *u.split("/")), "rb") as fh:
+                self.assertEqual(fh.read(4), b"wOF2", u + " is not a woff2 file")
+        self.assertIn("tools/ui/fonts/OFL.txt", files)
+        self.assertIn("SIL OPEN FONT LICENSE", self.text("tools", "ui", "fonts", "OFL.txt").upper())
+        self.assertNotIn("googleapis", css + self.text("review.html"), "the page must work offline: no web fonts from the internet")
+
+    def test_every_icon_that_is_asked_for_exists(self):
+        import re
+        icons = set(re.findall(r"^  (\w+): '", self.text("tools", "ui", "icons.js"), re.M))
+        self.assertGreaterEqual(len(icons), 20)
+        asked = set(re.findall(r'data-ic="(\w+)"', self.text("review.html")))
+        for f in os.listdir(self.UI):
+            if f.endswith(".js"):
+                asked |= set(re.findall(r"\bic\('(\w+)'", self.text("tools", "ui", f)))
+        self.assertFalse(asked - icons, "icons used but not drawn: %s" % sorted(asked - icons))
+
+    def test_icons_are_fine_lines(self):
+        src = self.text("tools", "ui", "icons.js")
+        self.assertIn('stroke-width="1.5"', src)
+        self.assertIn('stroke="currentColor"', src)
+        self.assertIn('fill="none"', src)
+
+    def test_no_emoji_in_the_page_chrome(self):
+        import re
+        emoji = re.compile("[\U0001F300-\U0001FAFF\u2600-\u27BF\u2B00-\u2BFF\u23E9-\u23FA]")
+        for rel in [("review.html",)] + [("tools", "ui", f) for f in sorted(os.listdir(self.UI)) if f.endswith(".js")]:
+            text = self.text(*rel)
+            for n, line in enumerate(text.split("\n"), 1):
+                if line.lstrip().startswith(("/*", "//", "*")):
+                    continue
+                self.assertIsNone(emoji.search(re.sub(r"title=\"[^\"]*\"", "", line)), "%s:%d has an emoji or pictograph: %s" % ("/".join(rel), n, line.strip()[:80]))
+
+    def test_theme_tokens_follow_the_spec(self):
+        import re
+        css = self.text("tools", "ui", "css", "base.css")
+        for token, value in (("--paper", "#F3EEE4"), ("--ink", "#2A2723"), ("--line", "#C9BFAE"), ("--accent", "#B55A42"), ("--approve", "#5E7356"),
+                             ("--wash-olive", "#D5DBC8"), ("--overlay", "rgba(42,39,35,.28)")):
+            self.assertRegex(css, r"%s:\s*%s" % (token, re.escape(value)))
+        self.assertIn("'Vazirmatn'", css)
+
+    def test_the_shell_has_no_text_tabs_and_has_the_drawer(self):
+        html = self.text("review.html")
+        for gone in ("tabR", "tabF", "tabS", 'id="filter"', 'id="speed"', 'id="jump"', 'id="fab"'):
+            self.assertNotIn(gone, html)
+        for need in ('id="menuBtn"', 'id="drawer"', 'id="nav"', 'id="lang"', 'id="more"', 'id="bPrompt"', 'id="bVprompt"', 'id="bNote"', 'id="bFlag"', 'dir="rtl"'):
+            self.assertIn(need, html)
+
+
 if __name__ == "__main__":
     unittest.main()

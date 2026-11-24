@@ -1,0 +1,34 @@
+/* Fine-line icons (24x24 grid, drawn at 20px, 1.5 stroke, currentColor): inline SVG so they work offline and take the colour of the text. */
+const P = {
+  menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
+  chevL: '<path d="M14.5 6l-6 6 6 6"/>',
+  chevR: '<path d="M9.5 6l6 6-6 6"/>',
+  pencil: '<path d="M4 20l1-4L16.2 4.8a1.8 1.8 0 012.5 0l.5.5a1.8 1.8 0 010 2.5L8 19z"/><path d="M14 7l3 3"/>',
+  image: '<rect x="4" y="5" width="16" height="14"/><path d="M4 16l4.5-4.5 3.5 3.5 3-3L20 16"/><circle cx="15.5" cy="9.5" r="1.2"/>',
+  clapper: '<path d="M4 10h16v9H4z"/><path d="M4 10l2.4-5 3.4.9L7.5 10M10.2 10l2.4-5 3.4.9L13.7 10M16.4 10l2.4-5 1.2.3-2 4.7"/>',
+  flag: '<path d="M6 21V4"/><path d="M6 5h11l-2.5 4L17 13H6"/>',
+  dots: '<circle cx="5.5" cy="12" r="1.1"/><circle cx="12" cy="12" r="1.1"/><circle cx="18.5" cy="12" r="1.1"/>',
+  speaker: '<path d="M4 9.5h3.5L12 6v12l-4.5-3.5H4z"/><path d="M15.5 9.2a4 4 0 010 5.6M18 6.8a7.6 7.6 0 010 10.4"/>',
+  mic: '<rect x="9" y="4" width="6" height="10" rx="3"/><path d="M6.5 11.5a5.5 5.5 0 0011 0M12 17v3"/>',
+  check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  tray: '<path d="M4 13l2-7h12l2 7v5H4z"/><path d="M4 13h5l1 2h4l1-2h5"/>',
+  close: '<path d="M6 6l12 12M18 6L6 18"/>',
+  copy: '<rect x="8" y="8" width="11" height="12"/><path d="M5 16V4h10"/>',
+  play: '<path d="M9 6.5v11l9-5.5z"/>',
+  pause: '<path d="M9 6v12M15 6v12"/>',
+  skipPrev: '<path d="M7 6v12M18 6l-8 6 8 6z"/>',
+  skipNext: '<path d="M17 6v12M6 6l8 6-8 6z"/>',
+  sliders: '<path d="M4 7h9M17 7h3M13 4.5v5M4 17h3M11 17h9M7 14.5v5"/>',
+  list: '<path d="M9 7h11M9 12h11M9 17h11M4.5 7h.01M4.5 12h.01M4.5 17h.01"/>',
+  speed: '<circle cx="12" cy="12" r="8.5"/><path d="M10.5 9v6l4.5-3z"/>',
+  subs: '<path d="M4 5h16v11H9l-4 4v-4H4z"/><path d="M8 9.5h8M8 12.5h5"/>',
+  file: '<path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M9.5 12h5.5M9.5 16h5.5"/>',
+  calendar: '<path d="M4 6h16v14H4z"/><path d="M4 10h16M8 4v4M16 4v4"/>',
+  undo: '<path d="M8.5 6.5L4 11l4.5 4.5"/><path d="M4.5 11H15a4.5 4.5 0 010 9h-4"/>',
+  batch: '<rect x="8" y="4" width="12" height="12"/><path d="M4 8v12h12"/>',
+  inbox: '<path d="M4 13l2.5-8h11L20 13v6H4z"/><path d="M4 13h5l1 2.5h4l1-2.5h5"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  stamp: '<path d="M5 12.5l4.5 4.5L19 7.5"/>'
+};
+export const ic = (n, cls = '') => `<svg class="ic${cls ? ' ' + cls : ''}" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[n]}</svg>`;
+export const hasIcon = n => n in P;

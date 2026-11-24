@@ -4,7 +4,7 @@ A small local web app: **plain-text files** are the database, a **tiny Python se
 No build step, no framework, no database. Everything is meant to be read and changed with a text editor.
 
 ```
-review.html            page shell (3 KB): loads the style and the scripts
+review.html            page shell (about 5 KB): loads the style and the scripts
 tools/ui/              the page: review.css (+ css/*.css) and the scripts below
 tools/*.py             the server and the tools around it
 scenario/story.txt     the single source of truth for scenes, dialogue, notes, flags      (project data)
@@ -65,35 +65,47 @@ The full writing rules for AI assistants are in `starter/skills/how-to-write-pro
 `delete`, `issue`, `scenefx`, `vprompt`, `refs`, `prompt` (each under `/api/`). Slow ones (`jobs.SLOW`, no file lock): `subtitles`, `voices/refresh`,
 `sample`, `regen`, `linevoice`. Reads: `GET /api/project`, `/api/job`, `/api/ping`. Line endpoints (`line`, `add`, `delete`, `issue`) address a line as `{image, index}` (counted from the `[IMG]` line) or the old `{scene, index}`; `voicepick`/`flag` use the line id; `regen` takes nothing (all stale lines), `image` or `scene`. Errors: 400 bad input, 409 the file changed outside the page (also: a picture or scene the request names is no longer in `story.txt`). Structural endpoints (add / delete line, addscene, addimage, move, scenemark, scenemove, sceneoff) keep a snapshot first. Picture ids have three or four digits (`IMG045`, `IMG1000`).
 
-## The page (`tools/ui/`)
+## The page (`tools/ui/`): the sketchbook shell (v2.0)
 
 ES modules. `review.html` loads only `main.js`; every file lists what it needs with `import`. Code that used to run while the scripts loaded
-(button wiring, listeners, start-up) is in each file's `boot_<name>()`, and `main.js` calls them in the old order once all modules exist.
+(button wiring, listeners, start-up) is in each file's `boot_<name>()`, and `main.js` calls them once all modules exist.
+
+**What you see.** A slim top bar (hamburger, title + muted episode label, the navigator `‹ ۴۵ / ۵۰ ›` with a tick line, the outside icons note / image prompt / video prompt / flag, the `فا / EN` pill, `⋯`), then ONE picture at a time as a two-page spread (the still mounted on the right page with two washi-tape marks and its version arrows, the script on the left page), a footer under the pages (transport under the picture, «set aside» and the approve stamp under the text), and a paper drawer from the right (menu). The old text-tab toolbar is gone; the old tabs are panels of the drawer. Below 900px the same elements stack (picture above, text below).
+
+**How it works.** `render()` still draws every block (picture + its lines) into `#list` as `.scn > .bl > .blk`, so all the editors, `S.BL` indexes and the 409 / reload logic work as before; only `.blk.on` is shown (`player.js: show(i)`). The current block is kept in the address (`review.html#IMG045`, a block with no picture is `scene-02#0`), so a reload or a bookmark returns to it; `reload()` re-finds the block by that id. The filter and the search (`S.filter`, `S.q`) only hide blocks; the block on show is kept until you move on. Version arrows, the approve stamp and the footer act on `curImg()` (the picture on show); the image `⋯` popover (`#morePop`) is built from `moveTarget()` and the current scene each time it opens, and every item calls the same API as before (`move`, `addimage`, `scenemark`, `scenemove`, `sceneoff`, `image`, `archive`).
 
 | File | Job |
 |---|---|
 | `main.js` | entry: runs every `boot_*()` and gives the browser tests a handle (`window.__kit.S`) |
-| `state.js` | `S`: the few values several files assign (project JSON `P`, blocks `BL`, `token`, `playing`, `START`, `RELOADS`, `cur`) |
-| `core.js` | helpers (`$`, `api`, `fail`, `esc`), jobs polling, outside-click handling for open editors |
-| `render.js` | draws scenes, lines, pictures and their buttons from `S.P` |
-| `editors.js` | inline editors, composers, and `wire()` (attaches every button) |
-| `versions.js` | picture versions, voice variants, scene menu / move / set aside / add |
-| `dialogs.js` | the voice manager, picture archive and reference attach dialogs |
-| `panels.js` | tabs: speakers, references, tones, lightbox, filter, stats, `reload()` |
-| `player.js` | the auto-play, the floating button |
-| `paper.js` | the paper-edge look |
-| `css/*.css` | `base` → `scenes` → `dialogue` → `player` → `pictures` → `panels` → `polish`, imported by `review.css` |
+| `state.js` | `S`: the few values several files assign (project JSON `P`, blocks `BL`, `token`, `playing`, `START`, `RELOADS`, `cur`, `speed`, `filter`, `q`) |
+| `icons.js` | the fine-line SVG icons (24 grid, stroke 1.5, `currentColor`), `ic(name)` |
+| `core.js` | helpers (`$`, `api`, `fail`, `esc`, `fa` = Persian digits, `toast`, `copyText`), jobs polling, outside-click handling for open editors and the note popover |
+| `render.js` | draws scenes, lines, pictures from `S.P`; the active line (`setActive`); `moveTarget` |
+| `editors.js` | inline editors, composers, and `wire()` (the note / edit-advice boxes, scene labels, line buttons) |
+| `versions.js` | version arrows, the approve stamp, the image `⋯` popover, scene actions, voice variants |
+| `drawer.js` | the paper drawer: scene list, filter + search, speed, subtitles, voices, references, versions + archive, undo (`/api/undo` with the snapshot list), batch prompts (`/api/batch`, copies), inbox |
+| `prompts.js` | the prompt card (image and video: references row, save / copy / close with the dirty check), the note popover, the flag |
+| `dialogs.js` | the voice manager, the reference attach dialog and the scene editor (title / env / fx via `scenemark edit`) |
+| `panels.js` | speakers and references panels, tones, lightbox (top layer, so it also shows over a dialog), filter + search, stats, `reload()` |
+| `player.js` | one-picture-at-a-time navigation, the top bar numbers, transport + time, auto-play, keyboard, the address |
+| `fonts/` | Vazirmatn Regular / Medium / Bold (woff2, SIL OFL: `fonts/OFL.txt`), bundled so the page works offline |
+| `css/*.css` | `base` (tokens, font, buttons) → `shell` (bar, footer, drawer) → `spread` (pages, picture, lines) → `modal` (dialogs, prompt card) → `panels` → `mobile`, imported by `review.css` |
+
+Keys: `←` / `→` previous / next picture, `↑` / `↓` previous / next version (choosing it), `Space` play, `Esc` closes the popover / dialog / drawer. They do nothing while you type or while a dialog or the drawer is open.
 
 Files import each other in both directions (e.g. `core` ↔ `panels`); that is fine because nothing is *run* at import time except self-contained
 constants. Keep it that way: put new start-up code in a `boot_*()`, never at the top level of a module.
 To change a shared value from several files, put it in `S` (`S.P = ...`), not in a `let` of one file.
 
+**Looking at it.** `python tools/tests/shots.py` builds a temporary 50-picture project (the test fixture plus a story in the style of the mock-ups; the still is `tools/tests/fixture/still-cave.png`, a crop of `docs/redesign/mockups/desktop.png`), drives the real page and writes the PNGs of `docs/redesign/screens/` (`COMPARE.md` there says how they differ from the mock-ups).
+
 ## Tests
 
 | Command | What |
 |---|---|
-| `python -m unittest discover -s tools/tests -p "test_*.py"` | 144 unit tests (text rules, migration, Premiere export, ownership / voice keys / undo, imports/exports of the page modules, old-import compatibility), in milliseconds |
-| `python tools/tests/run.py` | 47 browser tests (needs `pip install playwright`) on a temporary copy of `tools/tests/fixture/`; nothing is charged |
+| `python -m unittest discover -s tools/tests -p "test_*.py"` | 172 unit tests (text rules, migration, Premiere export, ownership / voice keys / undo, imports/exports of the page modules, the sketchbook shell rules, old-import compatibility), in milliseconds |
+| `python tools/tests/run.py` | 55 browser tests (needs `pip install playwright`) on a temporary copy of `tools/tests/fixture/`; nothing is charged |
+| `python tools/tests/shots.py` | the screenshots of `docs/redesign/screens/` from the real page (not a test) |
 | `python tools/tests/run.py --update-baseline` | refresh the recorded page after a deliberate change; read the diff in `tools/tests/baseline/` |
 
 Both run on every push (`.github/workflows/tests.yml`).
@@ -102,7 +114,7 @@ Both run on every push (`.github/workflows/tests.yml`).
 
 1. Data: which key in `story.txt` (or which file)? Add it to the parser in `story.py` and to the guide for AI assistants.
 2. Change: an edit function in `edits.py` (raw lines only), then a route in `api.py`.
-3. Page: draw it in `render.js`, wire it in `editors.js` / `versions.js` / `dialogs.js`; style in the matching `css/` file.
+3. Page: draw it in `render.js`, wire it in `editors.js` / `versions.js` / `dialogs.js` / `prompts.js`, or give it a drawer panel in `drawer.js`; style in the matching `css/` file.
 4. Tests: a unit test for the edit rule, a browser test for the click path; update the baseline only if the page changed on purpose.
 5. Ship: new file → add to `ENGINE.txt` (a test checks this); bump `VERSION`; write `CHANGELOG.md`; commit.
 
@@ -110,7 +122,7 @@ Both run on every push (`.github/workflows/tests.yml`).
 
 - No formatter or linter is installed in the repo. The page scripts were pretty-printed once by a one-off tool; keep new code in the same style (2 spaces, one statement per line).
 - Long HTML template strings in `render.js` / `dialogs.js` stay on single lines (about 50 lines are over 200 characters); splitting them would only add noise.
-- `editors.js` is the largest page file (about 550 lines); a unit test fails at 700 lines, which is the signal to split it.
+- `editors.js` is the largest page file (about 520 lines); a unit test fails at 700 lines, which is the signal to split it.
 
 ## Voice names and migration (v1.20)
 - tts writes `audio/<lang>/<id>_<rid>.mp3` (8 random hex), one file per take; `audio/<lang>/voices.tsv` (`file, model, voice, tone, time`) records who made it. Without `force` a line that already has a voice of the model is skipped (old `<id>.<tag>.mp3` or a `voices.tsv` row).
