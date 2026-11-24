@@ -150,5 +150,32 @@ class Handoff(unittest.TestCase):
         self.assertEqual(premiere_check.resolve("../images/a%20b.png", base), os.path.normpath(os.path.join(base, "..", "images", "a b.png")))
 
 
+class PageScripts(unittest.TestCase):
+    """The page scripts share one global scope (no modules), so two files must never declare the same top-level name,
+    and review.html must load them in an order where a file only needs names from files that load before it or are used later at run time."""
+    UI = os.path.join(os.path.dirname(HERE), "ui")
+
+    def declared(self):
+        import re
+        out = {}
+        for f in sorted(os.listdir(self.UI)):
+            if f.endswith(".js"):
+                for line in open(os.path.join(self.UI, f), encoding="utf-8"):
+                    m = re.match(r"(?:async )?function\s+([A-Za-z_$][\w$]*)|(?:const|let|var)\s+([A-Za-z_$][\w$]*)", line)
+                    if m:
+                        out.setdefault(m.group(1) or m.group(2), []).append(f)
+        return out
+
+    def test_no_name_is_declared_twice(self):
+        dup = {k: v for k, v in self.declared().items() if len(v) > 1}
+        self.assertEqual(dup, {}, "declared in more than one file (they would overwrite each other)")
+
+    def test_every_script_file_is_loaded_by_the_page(self):
+        import re
+        html = open(os.path.join(os.path.dirname(os.path.dirname(HERE)), "review.html"), encoding="utf-8").read()
+        loaded = re.findall(r'src="tools/ui/([^"]+\.js)"', html)
+        self.assertEqual(sorted(loaded), sorted(f for f in os.listdir(self.UI) if f.endswith(".js")))
+
+
 if __name__ == "__main__":
     unittest.main()

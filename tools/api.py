@@ -29,6 +29,7 @@ def handle(path, d):
 
 @route("/api/image")
 def image(d):
+    """one picture: status, note, edit advice (fx), stale flag, chosen version (pick), set aside (off)"""
     id_ = str(d["id"])
     if not re.fullmatch(r"IMG\d{3}", id_) or str(d.get("status", "")) not in MARKS:
         raise ValueError("bad id or status")
@@ -89,6 +90,7 @@ def _archive_or_restore(d, back):
 
 @route("/api/sceneoff")
 def sceneoff(d):
+    """set a scene aside or bring it back (off: yes)"""
     sid = str(d["scene"])
     if not re.fullmatch(r"scene-\d{2,3}", sid):
         raise ValueError("bad scene")
@@ -99,6 +101,7 @@ def sceneoff(d):
 
 @route("/api/scenemove")
 def scenemove(d):
+    """move a scene one place up or down (only the block moves)"""
     sid = str(d["scene"])
     if not re.fullmatch(r"scene-\d{2,3}", sid):
         raise ValueError("bad scene")
@@ -109,6 +112,7 @@ def scenemove(d):
 
 @route("/api/addscene")
 def addscene(d):
+    """new scene with 0 to 12 empty picture slots, after a given scene"""
     after = str(d.get("after", ""))
     if after and not re.fullmatch(r"scene-\d{2,3}", after):
         raise ValueError("bad scene")
@@ -120,6 +124,7 @@ def addscene(d):
 
 @route("/api/addimage")
 def addimage(d):
+    """one more empty picture slot at the end of a scene"""
     sid = str(d["scene"])
     if not re.fullmatch(r"scene-\d{2,3}", sid):
         raise ValueError("bad scene")
@@ -131,6 +136,7 @@ def addimage(d):
 
 @route("/api/flag")
 def flag(d):
+    """mark a scene's voice (fa / en) as out of date or up to date"""
     if d["lang"] not in LANGS or not re.fullmatch(r"scene-\d{2,3}", str(d["scene"])):
         raise ValueError("bad scene or lang")
     lines = read_lines(STORY)
@@ -140,6 +146,7 @@ def flag(d):
 
 @route("/api/line")
 def line(d):
+    """change the text, speaker or tone of one line"""
     if not re.fullmatch(r"scene-\d{2,3}", str(d["scene"])):
         raise ValueError("bad scene")
     lines = read_lines(STORY)
@@ -149,6 +156,7 @@ def line(d):
 
 @route("/api/add")
 def add(d):
+    """add a dialogue or action line after a given line"""
     if not re.fullmatch(r"scene-\d{2,3}", str(d["scene"])):
         raise ValueError("bad scene")
     lines = read_lines(STORY)
@@ -158,6 +166,7 @@ def add(d):
 
 @route("/api/speaker")
 def speaker(d):
+    """create or change a speaker (colour, voice, default tone)"""
     name = clean_name(d["name"])
     color, voice = d.get("color"), d.get("voice")
     if color is not None and not re.fullmatch(r"#[0-9a-fA-F]{6}", str(color)):
@@ -176,6 +185,7 @@ def speaker(d):
 
 @route("/api/ttsmodel")
 def ttsmodel(d):
+    """set the default model (file) or a scene's model"""
     model, scene = str(d.get("model", "")).strip(), d.get("scene")
     if model and not MODEL_RE.fullmatch(model):
         raise ValueError("bad model")
@@ -203,6 +213,7 @@ def voicetest(d):
 
 @route("/api/delete")
 def delete(d):
+    """delete one dialogue / action / translation line"""
     if not re.fullmatch(r"scene-\d{2,3}", str(d["scene"])):
         raise ValueError("bad scene")
     lines = read_lines(STORY)
@@ -212,6 +223,7 @@ def delete(d):
 
 @route("/api/issue")
 def issue(d):
+    """add or clear a format-issue note on a line"""
     if not re.fullmatch(r"scene-\d{2,3}", str(d["scene"])):
         raise ValueError("bad scene")
     lines = read_lines(STORY)
@@ -224,6 +236,7 @@ def issue(d):
 
 @route("/api/scenefx")
 def scenefx(d):
+    """edit advice (fx) of a whole scene"""
     if not re.fullmatch(r"scene-\d{2,3}", str(d["scene"])):
         raise ValueError("bad scene")
     lines = read_lines(STORY)
@@ -233,6 +246,7 @@ def scenefx(d):
 
 @route("/api/vprompt")
 def vprompt(d):
+    """save the image-to-video prompt of a picture"""
     id_ = str(d["id"])
     if not re.fullmatch(r"IMG\d{3}", id_):
         raise ValueError("bad id")
@@ -266,6 +280,7 @@ def refs(d):
 
 @route("/api/prompt")
 def prompt(d):
+    """save the image prompt of a picture or reference"""
     id_ = str(d["id"])
     if not re.fullmatch(r"[A-Za-z0-9_]+", id_):
         raise ValueError("bad id")

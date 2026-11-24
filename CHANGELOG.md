@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.14.0
+- Internal tidy-up, no change in what the page does. `tools/serve.py` (1400 lines) is now small modules: `kitcore`, `story`, `media`, `edits`, `jobs`, `project`, `api` (one small function per endpoint) and a thin `serve.py`. The page scripts were pretty-printed (readable lines) and the style was split into `tools/ui/css/*.css`.
+- New `ARCHITECTURE.md` (code map, `story.txt` format, API, how to add a feature), 18 fast unit tests, and a GitHub Actions workflow that runs the unit and browser tests on every push.
+
 ## 1.13.0
 - `tools/pack.py`: one zip for an editor or a friend (kit, scenario, pictures, voices, Premiere package) without output videos, previews, renders, archives, test audio and `.env`; `--clips` adds `videos/clips/`. A Premiere XML is checked first.
 - `tools/premiere_check.py`: every file a Premiere XML points to must exist; absolute paths are reported (relative paths are the rule).
