@@ -1,0 +1,93 @@
+/* Later additions: tones, accessibility, versions, scene menu, dialogs */
+/* ---- tones outside voice-config.json ---- */
+.sp .who .tn.unk{color:#b71c1c;font-weight:700;opacity:1;font-style:normal}
+input.unk{border-color:#e57373!important;background:#ffebee!important}
+
+/* ---- accessibility and polish ---- */
+:where(button,select,input,textarea,.v,a):focus-visible {
+  outline:3px solid #1565c0;
+  outline-offset:2px;
+}
+
+.ab,
+.flag,
+.enp,
+.addbar button,
+button.chip.ref {
+  position:relative;
+}
+
+.ab::after,
+.flag::after,
+.enp::after,
+.addbar button::after,
+button.chip.ref::after {
+  content:'';
+  position:absolute;
+  inset:-8px -4px;
+}
+
+button,
+select,
+.v,
+.chip {
+  transition:background-color .15s,border-color .15s,opacity .15s,color .15s;
+}
+
+@media (prefers-reduced-motion:reduce) {
+  * {
+    transition:none!important;
+    animation:none!important;
+  }
+}
+
+/* ---- picture versions, voice variants, scene management ---- */
+h2.sc .sct{display:inline-flex;gap:4px;margin-inline-start:auto}
+h2.sc .sct button{font:inherit;font-size:13px;line-height:1.5;padding:0 8px;border:1px solid var(--line-2);background:#fffaf0;border-radius:8px;cursor:pointer;color:var(--brown)}
+h2.sc .sct button:hover{background:#fff3d1}
+h2.sc.off{opacity:.7;background:#ece6d6}
+.scene-off{margin:6px 0}
+.addscene{display:flex;justify-content:center;margin:10px 0 0}
+.vnav{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:6px;direction:ltr}
+.vnav .vc{font-size:13px;color:var(--brown);font-weight:700;min-width:64px;text-align:center}
+.vv{font:inherit;font-size:12px;border:1px solid var(--line-2);background:#fff;border-radius:10px;padding:0 6px;cursor:pointer;line-height:1.6;color:var(--brown);direction:ltr}
+.vv:hover{background:#fff3d1}
+figure.shot.off{opacity:.5}
+figure.shot.off img{filter:grayscale(1)}
+
+/* ---- scene menu (⋯), image name row, always-visible note ---- */
+h2.sc{position:relative}
+h2.sc .sct{position:relative}
+h2.sc .sct .mn{font-size:20px;line-height:1;padding:2px 12px;min-width:44px;min-height:32px}
+.menu{position:absolute;inset-inline-end:0;top:calc(100% + 4px);z-index:30;display:flex;flex-direction:column;min-width:210px;padding:6px;background:#fffdf7;border:1px solid var(--line-2);border-radius:10px;box-shadow:0 8px 24px #0000002e}
+.menu[hidden]{display:none}
+h2.sc .sct .menu button{display:block;width:100%;text-align:start;padding:7px 10px;border:0;border-radius:6px;background:transparent;font-size:14px;line-height:1.4;white-space:nowrap}
+h2.sc .sct .menu button:hover,h2.sc .sct .menu button:focus-visible{background:#fff3d1}
+.idl .b{margin-inline-start:auto;font-size:12px;padding:0 8px;direction:rtl}
+.nbox textarea.nt{width:100%;font:inherit;font-size:14px;border:1px solid var(--line-2);border-radius:6px;padding:4px 8px;background:#fffdf7;resize:none}
+
+/* ---- dialogs (voice manager, picture archive) ---- */
+dialog.dlg{width:min(560px,92vw);max-height:86vh;overflow:auto;padding:16px 18px;border:1px solid var(--line-2);border-radius:14px;background:#fffdf7;color:var(--ink,#2b2418);box-shadow:0 12px 40px #0000004d}
+dialog.dlg::backdrop{background:#0000006b}
+dialog.dlg h3{margin:0 0 8px;font-size:17px}
+dialog.dlg .dq{margin:0 0 10px;padding:8px 10px;background:#f3ecd9;border-radius:8px;font-size:14px}
+dialog.dlg .dlang{margin:8px 0}
+dialog.dlg .vrow{display:flex;align-items:center;gap:8px;padding:4px 0;flex-wrap:wrap}
+dialog.dlg .vrow label{flex:1;min-width:140px;cursor:pointer}
+dialog.dlg .dthumb{width:96px;aspect-ratio:16/9;object-fit:cover;border-radius:6px}
+dialog.dlg .dgen{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:8px 0}
+dialog.dlg .dgen select{max-width:100%;font:inherit;font-size:13px}
+dialog.dlg .dbar{display:flex;justify-content:flex-start;margin-top:12px}
+dialog.dlg small{display:block;color:#7a6f55;line-height:1.7}
+dialog.dlg .none{color:#8a7f66;font-size:13px}
+dialog.dlg details{margin:4px 0}
+button.vgen{font-size:14px}
+dialog.dlg .dgen label:first-child{flex:1 1 100%}
+dialog.dlg .dgen label:first-child select{width:100%;margin-top:4px}
+
+dialog.dlg .arefs{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px;margin:8px 0}
+dialog.dlg .aref{display:flex;align-items:center;gap:8px;padding:6px;border:1px solid var(--line-2);border-radius:8px;cursor:pointer}
+dialog.dlg .aref:has(input:checked){background:#fff3d1;border-color:var(--accent)}
+dialog.dlg .aref small{display:block}
+dialog.dlg span.dthumb.none{display:flex;align-items:center;justify-content:center;background:#e8e0cc;font-size:11px}
+.refs .chip.add{cursor:pointer}

@@ -1,6 +1,13 @@
 # Files that python tools/update.py replaces in every project (nothing else is ever touched).
 review.html
 tools/ui/review.css
+tools/ui/css/base.css
+tools/ui/css/scenes.css
+tools/ui/css/dialogue.css
+tools/ui/css/player.css
+tools/ui/css/pictures.css
+tools/ui/css/panels.css
+tools/ui/css/polish.css
 tools/ui/paper.js
 tools/ui/core.js
 tools/ui/render.js

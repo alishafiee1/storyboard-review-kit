@@ -748,6 +748,9 @@ def engine_manifest_is_complete(proj, page):
     html = open(os.path.join(KIT, "review.html"), encoding="utf-8").read()
     for ref in re.findall(r'(?:src|href)="(tools/[^"]+)"', html):  # everything the page loads must be shipped to projects
         assert ref in files, "review.html loads %s but ENGINE.txt does not list it" % ref
+    css = open(os.path.join(KIT, "tools", "ui", "review.css"), encoding="utf-8").read()
+    for ref in re.findall(r'@import url\("([^"]+)"\)', css):  # the style parts too
+        assert "tools/ui/" + ref in files, "review.css imports %s but ENGINE.txt does not list it" % ref
 
 
 def main():
