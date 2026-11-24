@@ -11,6 +11,13 @@ tools/ui/panels.js
 tools/ui/player.js
 click-for-review.bat
 tools/serve.py
+tools/kitcore.py
+tools/api.py
+tools/story.py
+tools/media.py
+tools/edits.py
+tools/jobs.py
+tools/project.py
 tools/tts.py
 tools/voices.py
 tools/voice_test.py

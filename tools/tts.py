@@ -7,7 +7,10 @@ Key: OPENROUTER_API_KEY (environment or .env). Do not use google/gemini-3.8-*-tt
 import concurrent.futures as cf, json, os, subprocess, sys, time, urllib.error, urllib.request, wave
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from serve import ROOT, archive_dir, archive_move, pick_made, spoken_lines, variant_tag  # noqa: E402
+from kitcore import ROOT  # noqa: E402
+from media import archive_dir, archive_move, variant_tag  # noqa: E402
+from edits import pick_made  # noqa: E402
+from story import spoken_lines  # noqa: E402
 import voices  # noqa: E402
 from voices import load_key  # noqa: E402
 

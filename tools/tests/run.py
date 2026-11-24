@@ -498,11 +498,11 @@ def voice_variants_pick(proj, page):
 @test
 def voice_files_per_model(proj, page):
     """tts.py names a file after the model (so voices never overwrite each other) and the voice just made becomes the chosen one."""
-    code = ("import sys; sys.path.insert(0,'tools'); import serve, tts\n"
-            "print(serve.variant_tag('elevenlabs/eleven-v4-turbo'), serve.variant_tag('x-ai/grok-voice-tts-1.0'))\n"
+    code = ("import sys; sys.path.insert(0,'tools'); import media, edits, tts\n"
+            "print(media.variant_tag('elevenlabs/eleven-v4-turbo'), media.variant_tag('x-ai/grok-voice-tts-1.0'))\n"
             "its=[dict(id='IMG003_1', scene='scene-02', model='elevenlabs/eleven-v3')]\n"
-            "serve.pick_made(its, {'IMG003_1':'ok'}, 'en')\n"
-            "print(serve.audio_variants('fa','IMG001_1')[0]['name'])")
+            "edits.pick_made(its, {'IMG003_1':'ok'}, 'en')\n"
+            "print(media.audio_variants('fa','IMG001_1')[0]['name'])")
     out = subprocess.run([sys.executable, "-c", code], cwd=proj.root, capture_output=True, text=True, encoding="utf-8")
     assert out.returncode == 0, out.stderr[-400:]
     assert out.stdout.split("\n")[0] == "eleven-v4-turbo grok-voice-tts-1-0", out.stdout

@@ -11,7 +11,8 @@ import argparse, html, os, sys, urllib.error
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import voices  # noqa: E402
-from serve import ROOT, parse_speakers, read_lines, STORY  # noqa: E402
+from kitcore import ROOT, STORY, read_lines  # noqa: E402
+from story import parse_speakers  # noqa: E402
 import tts  # noqa: E402
 
 OUT = os.path.join(ROOT, "audio", "_tests")

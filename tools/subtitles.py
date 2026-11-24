@@ -7,7 +7,9 @@ The timing is provisional until the final edit exists: run it again after the ed
 import os, re, shutil, subprocess, sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from serve import ROOT, audio_path, clean_spoken, story_scenes  # noqa: E402
+from kitcore import ROOT  # noqa: E402
+from media import audio_path  # noqa: E402
+from story import clean_spoken, story_scenes  # noqa: E402
 
 LINE_GAP, BLOCK_GAP, SILENT = 0.26, 0.38, 3.2  # same as the page's auto-play
 CPS = {"fa": 13.0, "en": 15.0}  # characters per second, only for lines without a voice file
