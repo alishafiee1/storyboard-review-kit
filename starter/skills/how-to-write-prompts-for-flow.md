@@ -43,6 +43,7 @@ images/refs/{STYLE,CH,LOC,PROP,GRP}/   ← رفرنس‌ها
 images/scenes/partNN/       ← تأییدشده‌ها (ردشده‌ها در _rejected/)
 images/_incoming/           ← تازه‌ساخته‌ها (کاربر می‌ریزد)
 videos/clips/               ← کلیپ‌ها
+premiere/                   ← خروجی ادیتور (بخش ۱۱)
 audio/fa  audio/en          ← صدای هر خط (IMG001_1.mp3)
 ```
 
@@ -145,3 +146,13 @@ pre, code { direction: ltr; text-align: left; }
 table, table th, table td { direction: rtl !important; text-align: right !important; width: 100%; border-collapse: collapse; vertical-align: top; padding: 0.35em 0.5em; }
 table td code, table th code { direction: ltr; unicode-bidi: embed; display: inline-block; }
 </style>
+
+## ۱۱) خروجی پریمیر و تحویل پروژه به ادیتور
+- **جای خروجی:** پوشهٔ `premiere/` کنار پوشه‌های اصلی پروژه، با سه چیز: فایل XML (`EP01_<زبان>_premiere.xml`)، یادداشت ادیت (`EP01_<زبان>_edit-notes.txt`) و پوشهٔ `media/` **فقط برای چیزهای ساخته‌شده** (لایه‌های شفاف، افکت صدا، صدای پس‌زمینه).
+- **عکس و صدا کپی نمی‌شوند.** XML مستقیم به `images/` و `audio/` خود پروژه اشاره می‌کند، مثل `../images/scenes/IMG001_x.jpg`.
+- **مسیرها همیشه نسبی‌اند** (از پوشهٔ خود XML)، هیچ‌وقت `D:\...` یا `file://localhost/...`. این‌طوری پروژه هر جای کامپیوتر ادیتور باشد باز می‌شود. (حدس: پریمیر مسیر نسبی را بدون خطا باز می‌کند؛ هنوز تست نشده. اگر آفلاین شد: راست‌کلیک روی کلیپ ← Link Media.)
+- **رندرها و پیش‌نمایش‌های خودمان** (preview، demo، پلن) هیچ‌وقت توی `premiere/` یا پوشهٔ تحویلی نمی‌آیند؛ جایشان `videos/final/EP01_<زبان>_renders/` است. `videos/` توی گیت نمی‌رود (`.gitignore`).
+- **چک خودکار:** بعد از هر ساخت XML این را بزن و تا «OK» نشد تحویل نده:
+  `python tools/premiere_check.py` (هر فایلی که XML لازم دارد باید باشد، و مسیر مطلق گزارش می‌شود).
+- **تحویل به ادیتور:** `python tools/pack.py` یک zip کنار پوشهٔ پروژه می‌سازد: کیت + سناریو + عکس‌ها + صداها + پکیج پریمیر، بدون رندرها، ویدیوهای خروجی، آرشیو، `.env` و کلیپ‌ها (کلیپ‌ها با `--clips`). اگر XML فایلی بخواهد که توی zip نیست هشدار می‌دهد.
+

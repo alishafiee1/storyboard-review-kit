@@ -1,0 +1,20 @@
+# Heavy or private things stay out of git (pictures and voices can be kept or not: your choice, see the lines below)
+.env
+__pycache__/
+*.tmp
+.engine-backup/
+graphify-out/
+
+# generated videos, previews and renders: never in git and never sent to the editor
+videos/
+*_renders/
+
+# archived and test files
+images/archive/
+audio/*/archive/
+audio/_samples/
+audio/_tests/
+
+# audio/ and images/ are NOT ignored by default. If the project gets big, uncomment:
+# audio/
+# images/

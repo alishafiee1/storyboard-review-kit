@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.13.0
+- `tools/pack.py`: one zip for an editor or a friend (kit, scenario, pictures, voices, Premiere package) without output videos, previews, renders, archives, test audio and `.env`; `--clips` adds `videos/clips/`. A Premiere XML is checked first.
+- `tools/premiere_check.py`: every file a Premiere XML points to must exist; absolute paths are reported (relative paths are the rule).
+- New projects get a `.gitignore` (videos, renders, archives, `.env`). The guide has a new section about the Premiere package: `premiere/` with the XML, notes and generated media only; pictures and voices are not copied, the XML points at them with relative paths.
+
 ## 1.12.0
 - «📎 اتچ» next to a picture's references opens a gallery of the project's reference pictures; tick or untick and save. Only the `[REFS TO ATTACH: ...]` line at the top of that prompt is rewritten (created when the prompt does not exist yet) and the picture is marked stale. Only reference names that exist on disk or that another prompt already uses are accepted.
 - 1 new test (34 in total).

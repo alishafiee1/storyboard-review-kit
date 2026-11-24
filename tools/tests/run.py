@@ -146,6 +146,7 @@ def test(fn):
 
 def norm(html):
     """Page HTML without the parts that change between runs (file timestamps)."""
+    html = re.sub(r"[۰-۹]{4}/[۰-۹]{1,2}/[۰-۹]{1,2}", "DATE", html)  # the voice list's date is «today»
     return re.sub(r"\?v=\d+", "?v=0", html).strip() + "\n"
 
 
@@ -691,6 +692,52 @@ def attach_references(proj, page):
     assert proj.api("/api/refs", {"id": "IMG003", "refs": ["NOPE_NOT_THERE"]})[0] == 400
     assert proj.api("/api/refs", {"id": "IMG003", "refs": ["bad name"]})[0] == 400
     assert proj.api("/api/refs", {"id": "IMG003", "refs": ["CH_ALI", "CH_ALI"]})[0] == 400
+
+
+@test
+def premiere_check_and_pack(proj, page):
+    """premiere_check: every file the XML points to must exist (relative paths). pack: one zip without videos, renders, archives, .env."""
+    root = proj.root
+
+    def touch(rel, data=b"x"):
+        f = os.path.join(root, *rel.split("/"))
+        os.makedirs(os.path.dirname(f), exist_ok=True)
+        open(f, "wb").write(data)
+
+    def xml(rel, urls):
+        touch(rel, ("<xmeml>" + "".join("<file><pathurl>%s</pathurl></file>" % u for u in urls) + "</xmeml>").encode("utf-8"))
+
+    def run(*args):
+        o = subprocess.run([sys.executable] + list(args), cwd=root, capture_output=True, text=True, encoding="utf-8")
+        return o.returncode, o.stdout + o.stderr
+
+    touch("premiere/media/overlays/a.mov")
+    xml("premiere/EP01_FA_premiere.xml", ["./media/overlays/a.mov", "../images/scenes/IMG001_start.png", "../images/scenes/NOPE.png"])
+    code, out = run("tools/premiere_check.py")
+    assert code == 1 and "NOPE.png" in out and "1 missing" in out, out
+    touch("images/scenes/NOPE.png")
+    code, out = run("tools/premiere_check.py")
+    assert code == 0 and "OK" in out and "0 with an absolute path" in out, out
+    xml("premiere/EP01_EN_premiere.xml", ["file://localhost/D%3a/nowhere/x.png"])
+    code, out = run("tools/premiere_check.py", "premiere/EP01_EN_premiere.xml")
+    assert code == 1 and "absolute" in out, out
+    os.remove(os.path.join(root, "premiere", "EP01_EN_premiere.xml"))
+    for rel in (".env", "videos/final/EP01_FA_renders/x.mp4", "videos/final/EP01_FA_preview.mp4", "images/archive/z.png",
+                "audio/fa/archive/q.mp3", "videos/clips/c.mp4", "audio/_tests/t.mp3"):
+        touch(rel)
+    zp = os.path.join(proj.tmp, "handoff.zip")
+    code, out = run("-c", "import sys; sys.path.insert(0, 'tools'); import pack; print(pack.problems()); print(pack.pack(out=sys.argv[1])[1])", zp)
+    assert code == 0 and out.startswith("[]"), out
+    import zipfile
+    names = [n.split("/", 1)[1] for n in zipfile.ZipFile(zp).namelist()]
+    for want in ("scenario/story.txt", "premiere/EP01_FA_premiere.xml", "premiere/media/overlays/a.mov", "images/scenes/IMG001_start.png", "tools/pack.py"):
+        assert want in names, want
+    for bad in (".env", "videos/final/EP01_FA_renders/x.mp4", "videos/final/EP01_FA_preview.mp4", "images/archive/z.png",
+                "audio/fa/archive/q.mp3", "videos/clips/c.mp4", "audio/_tests/t.mp3"):
+        assert bad not in names, bad
+    xml("premiere/EP01_FA_premiere.xml", ["../videos/clips/c.mp4"])  # a file the XML needs that the zip leaves out is reported
+    code, out = run("-c", "import sys; sys.path.insert(0, 'tools'); import pack; print(pack.problems()); print(pack.problems(clips=True))")
+    assert "would be left out" in out.split(chr(10))[0] and out.split(chr(10))[1].strip() == "[]", out
 
 
 @test
