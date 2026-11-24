@@ -7,6 +7,8 @@ import os, re, sys, zipfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import premiere_check  # noqa: E402
+from media import resolve, scan_images  # noqa: E402
+from story import story_scenes  # noqa: E402
 
 ROOT = premiere_check.ROOT
 SKIP_DIRS = {".git", ".kit", ".engine-backup", "__pycache__", "graphify-out", "archive", "_samples", "_tests", "_tmp"}
@@ -53,6 +55,20 @@ def problems(clips=False):
     return out
 
 
+def outdated_pictures():
+    """['<xml>: <path> -> <file the page shows now>']: a scene picture the Premiere XML points at that is not the picked version at its best quality
+    (a 4K file arrived later, or another version was chosen). Only a hint: the zip is built the same."""
+    picks = {im["id"]: im["pick"] for sc in story_scenes() for b in sc["blocks"] for im in b["images"]}
+    scan, out = scan_images(), []
+    for x in premiere_check.find_xmls():
+        for p in premiere_check.check(x)["paths"]:
+            m = re.match(r"(IMG\d{3})", os.path.basename(p))
+            r = resolve("image", m.group(1), picks.get(m.group(1), ""), scan=scan) if m and "/images/scenes/" in p.replace("\\", "/") else None
+            if r and os.path.normpath(r["path"]) != os.path.normpath(p):
+                out.append("%s: %s -> %s" % (os.path.basename(x), os.path.relpath(p, ROOT).replace("\\", "/"), r["src"]))
+    return out
+
+
 def pack(clips=False, out=None):
     out = out or os.path.join(os.path.dirname(ROOT), os.path.basename(ROOT) + "-for-editor.zip")
     n = 0
@@ -72,6 +88,8 @@ if __name__ == "__main__":
     pr = problems(clips)
     for p in pr:
         print("⚠", p)
+    for p in outdated_pictures():
+        print("ℹ", p)
     path, n = pack(clips)
     print("%d files, %.1f MB -> %s" % (n, os.path.getsize(path) / 1e6, path))
     sys.exit(1 if pr else 0)

@@ -38,7 +38,7 @@ function showVersion(f, m) {
   m.src = v.src;
   const c = f.querySelector('.vc');
   if (c)
-    c.textContent = `${ m.vi + 1 } / ${ m.versions.length }${ m.picked && v.name === m.picked ? ' ✔' : '' }`;
+    c.textContent = `${ m.vi + 1 } / ${ m.versions.length }${ v.q ? ' · ' + v.q : '' }${ m.picked && v.id === m.picked ? ' ✔' : '' }`;
 }
 export function wireVersions() {
   $$('figure.shot').forEach(f => {
@@ -60,12 +60,12 @@ export function wireVersions() {
               m.picked = '';
               setMark(f, m, '');
             } else {
-              const name = m.versions[m.vi].name;
+              const vid = m.versions[m.vi].id;
               await api('/api/image', {
                 id,
-                pick: name
+                pick: vid
               });
-              m.picked = name;
+              m.picked = vid;
               setMark(f, m, 'ok');
             }
             showVersion(f, m);
@@ -84,13 +84,13 @@ export function wireVersions() {
     /* ◀ ▶ browse the versions; the one you stop on is the chosen (approved) one */
     f.querySelectorAll('[data-vn]').forEach(b => b.onclick = async () => {
       try {
-        const n = m.versions.length, ni = (m.vi + +b.dataset.vn + n) % n, name = m.versions[ni].name;
+        const n = m.versions.length, ni = (m.vi + +b.dataset.vn + n) % n, vid = m.versions[ni].id;
         await api('/api/image', {
           id,
-          pick: name
+          pick: vid
         });
         m.vi = ni;
-        m.picked = name;
+        m.picked = vid;
         setMark(f, m, 'ok');
         showVersion(f, m);
       } catch (e) {

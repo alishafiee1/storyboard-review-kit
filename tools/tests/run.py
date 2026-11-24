@@ -488,6 +488,47 @@ def picture_versions_pick(proj, page):
 
 
 @test
+def flow_versions_browse(proj, page):
+    """Flow file names: qualities of one random id are ONE version (◀ ▶ counts versions), a « (1)» copy is ignored, sub-folders are read, pick: keeps the random id,
+    and a 4K that arrives later replaces the shown file without touching the pick."""
+    now = time.time()
+    def add(rel, age):
+        p = os.path.join(proj.root, *rel.split("/"))
+        os.makedirs(os.path.dirname(p), exist_ok=True)
+        open(p, "wb").write(png())
+        os.utime(p, (now - age, now - age))
+    add("images/scenes/part01/IMG002_sign_aaaa1111_2K.png", 50)
+    add("images/scenes/part01/IMG002_sign_aaaa1111.png", 60)
+    add("images/scenes/part01/IMG002_sign_aaaa1111 (1).png", 40)
+    add("images/scenes/b01/IMG002_sign_bbbb2222_2K.png", 30)
+    add("images/scenes/b01/IMG0021_other.png", 20)  # another picture (IMG0021), not a version of IMG002
+    page.reload()
+    page.wait_for_selector("section.blk")
+    f = "figure.shot[data-id=IMG002]"
+    assert page.inner_text(f + " .vc").strip().startswith("3 / 3"), page.inner_text(f + " .vc")  # IMG002_sign.png, aaaa1111, bbbb2222: files are not counted
+    _, data = proj.api("/api/project")
+    im = next(i for sc in data["scenes"] for b in sc["blocks"] for i in b["images"] if i["id"] == "IMG002")
+    assert [v["id"] for v in im["versions"]] == ["IMG002_sign.png", "aaaa1111", "bbbb2222"] and im["batch"] == "b01"
+    assert next(v for v in im["versions"] if v["id"] == "aaaa1111")["name"].endswith("aaaa1111_2K.png")  # 2K beats the normal file
+    page.click(f + " [data-vn='-1']")
+    proj.wait_in("[IMG002]", "pick: aaaa1111")
+    page.wait_for_function("(() => { const t = document.querySelector('figure.shot[data-id=IMG002] .vc').textContent; return t.includes('✔') && t.includes('2K'); })()")
+    add("images/scenes/b01/IMG002_sign_aaaa1111_4K.png", 0)  # a 4K of the chosen version arrives
+    page.reload()
+    page.wait_for_selector("section.blk")
+    assert page.inner_text(f + " .vc").strip().startswith("2 / 3") and "4K" in page.inner_text(f + " .vc") and "✔" in page.inner_text(f + " .vc")
+    assert "aaaa1111_4K" in page.get_attribute(f + " img", "src")
+    assert "pick: aaaa1111" in proj.story()  # nothing in story.txt changed
+    assert proj.api("/api/image", {"id": "IMG002", "pick": "IMG002_sign_aaaa1111_2K.png"})[0] == 200  # the old way (a file name) still works ...
+    proj.wait_in("[IMG002]", "pick: aaaa1111")  # ... and is stored as the random id
+    assert proj.api("/api/image", {"id": "IMG002", "pick": "bbbb2222"})[0] == 200
+    proj.wait_in("[IMG002]", "pick: bbbb2222")
+    assert proj.api("/api/image", {"id": "IMG002", "pick": "ffff0000"})[0] == 400
+    for name in os.listdir(os.path.join(proj.root, "images", "scenes", "part01")):
+        assert os.path.exists(os.path.join(proj.root, "images", "scenes", "part01", name))  # no file was renamed or removed
+
+
+@test
 def voice_variants_pick(proj, page):
     """A line made by several models keeps every file; the last one the user stops on is the final voice (voice-pick:)."""
     if not shutil.which("ffmpeg"):

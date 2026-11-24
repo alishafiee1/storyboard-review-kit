@@ -23,6 +23,7 @@ tools/serve.py
 tools/kitcore.py
 tools/api.py
 tools/story.py
+tools/flowname.py
 tools/media.py
 tools/edits.py
 tools/lineedits.py

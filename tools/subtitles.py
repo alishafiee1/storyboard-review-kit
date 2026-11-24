@@ -8,7 +8,7 @@ import os, re, shutil, subprocess, sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from kitcore import ROOT  # noqa: E402
-from media import audio_path  # noqa: E402
+from media import audio_index, resolve  # noqa: E402
 from story import clean_spoken, story_scenes  # noqa: E402
 
 LINE_GAP, BLOCK_GAP, SILENT = 0.26, 0.38, 3.2  # same as the page's auto-play
@@ -69,6 +69,7 @@ def stamp(t):
 
 def build(lang):
     t, cues, estimated = 0.0, [], []
+    idx = audio_index(lang)
     for sc in story_scenes():
         if sc["off"]:
             continue
@@ -79,8 +80,8 @@ def build(lang):
                 t += SILENT
                 continue
             for it, text in lines:
-                f = audio_path(lang, it["id"], sc["voice_pick"])  # the voice the user chose (else the old default or the newest)
-                d = duration(f) if f else None
+                v = resolve("voice", it["id"], sc["voice_pick"].get(f"{it['id']}.{lang}", ""), lang, idx=idx)  # the voice the user chose (else the old default or the oldest)
+                d = duration(v["path"]) if v else None
                 if d is None:
                     d = len(text) / CPS[lang] + 0.3
                     estimated.append(it["id"])

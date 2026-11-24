@@ -13,6 +13,7 @@
     "IMG002",
     "IMG003"
    ],
+   "versions": 1,
    "video": null
   }
  ],
@@ -23,6 +24,7 @@
      "images": [
       {
        "archived": [],
+       "batch": "b00",
        "end": 4,
        "fx": "",
        "id": "IMG000",
@@ -88,6 +90,7 @@
      "images": [
       {
        "archived": [],
+       "batch": "b01",
        "end": 12,
        "fx": "",
        "id": "IMG001",
@@ -116,11 +119,21 @@
        "status": "ok",
        "versions": [
         {
+         "files": [
+          "images/scenes/IMG001_start.png"
+         ],
+         "id": "IMG001_start.png",
          "name": "IMG001_start.png",
+         "q": "",
          "src": "images/scenes/IMG001_start.png"
         },
         {
+         "files": [
+          "images/scenes/IMG001_start_a1b2c3.png"
+         ],
+         "id": "IMG001_start_a1b2c3.png",
          "name": "IMG001_start_a1b2c3.png",
+         "q": "",
          "src": "images/scenes/IMG001_start_a1b2c3.png"
         }
        ],
@@ -228,6 +241,7 @@
      "images": [
       {
        "archived": [],
+       "batch": "b01",
        "end": 17,
        "fx": "",
        "id": "IMG002",
@@ -256,7 +270,12 @@
        "status": "",
        "versions": [
         {
+         "files": [
+          "images/scenes/IMG002_sign.png"
+         ],
+         "id": "IMG002_sign.png",
          "name": "IMG002_sign.png",
+         "q": "",
          "src": "images/scenes/IMG002_sign.png"
         }
        ],
@@ -340,6 +359,7 @@
      "images": [
       {
        "archived": [],
+       "batch": "b01",
        "end": 7,
        "fx": "",
        "id": "IMG003",
@@ -368,7 +388,12 @@
        "status": "redo",
        "versions": [
         {
+         "files": [
+          "images/scenes/IMG003_sea.png"
+         ],
+         "id": "IMG003_sea.png",
          "name": "IMG003_sea.png",
+         "q": "",
          "src": "images/scenes/IMG003_sea.png"
         }
        ],

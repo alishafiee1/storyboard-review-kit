@@ -263,7 +263,7 @@ def move_scene(lines, scene_id, step):
 
 def next_image_id(lines):
     used = [int(m.group(1)) for l in lines for m in [MARKER.match(l.strip())] if m for m in [re.match(r"IMG(\d{3})", m.group(1))] if m]
-    used += [int(k[3:]) for k in scan_images() if k.startswith("IMG")] + [int(k[3:]) for k in parse_prompts() if re.fullmatch(r"IMG\d{3}", k)]
+    used += [int(k[3:]) for k in scan_images() if re.fullmatch(r"IMG\d{3}", k)] + [int(k[3:]) for k in parse_prompts() if re.fullmatch(r"IMG\d{3}", k)]
     return max(used or [0]) + 1
 
 

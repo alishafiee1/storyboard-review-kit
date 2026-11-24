@@ -126,10 +126,11 @@ class Media(unittest.TestCase):
         self.assertEqual(media.variant_tag("x-ai/grok-voice-tts-1.0"), "grok-voice-tts-1-0")
 
     def test_image_state_prefers_the_pick(self):
-        scan = dict(versions=[dict(name="a.png", src="images/scenes/a.png"), dict(name="b.png", src="images/scenes/b.png")])
-        newest = media.image_state(dict(pick="", status=""), scan)
+        scan = dict(versions=[dict(name="a.png", src="images/scenes/a.png", id="a.png", files=["images/scenes/a.png"]),
+                              dict(name="b.png", src="images/scenes/b.png", id="b.png", files=["images/scenes/b.png"])])
+        newest = media.image_state(dict(id="IMG001", pick="", status=""), scan)
         self.assertEqual((newest["src"], newest["picked"], newest["status"]), ("images/scenes/b.png", "", ""))
-        chosen = media.image_state(dict(pick="a.png", status=""), scan)
+        chosen = media.image_state(dict(id="IMG001", pick="a.png", status=""), scan)
         self.assertEqual((chosen["src"], chosen["status"]), ("images/scenes/a.png", "ok"))
 
 

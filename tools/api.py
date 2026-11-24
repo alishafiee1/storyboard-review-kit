@@ -5,7 +5,7 @@ import os, re
 import history
 from kitcore import LANGS, MARKS, MODEL_RE, PROMPTS, STORY, VPROMPTS, read_lines, write_lines
 from story import clean_name, clean_tone, ensure_speaker, parse_prompts, parse_speakers, story_scenes
-from media import archive_item, audio_variants, scan_images, scan_refs
+from media import archive_item, audio_variants, find_version, scan_images, scan_refs
 from edits import add_image, add_scene, mark_stale, move_scene, patch_image, set_default_model, set_flag, set_line_pick, set_scene_fx, set_scene_model, set_scene_off, set_stale, speech_scenes
 from lineedits import add_issue, add_line, clear_issue, delete_line, edit_line, locate
 from promptedits import replace_prompt, set_prompt_refs, upsert_prompt
@@ -52,9 +52,11 @@ def image(d):
     pick, status = d.get("pick"), d.get("status")
     if pick is not None:
         pick = str(pick)
-        if pick and pick not in [v["name"] for v in scan_images().get(id_, {}).get("versions", [])]:
+        v = find_version(scan_images().get(id_, {}).get("versions", []), pick) if pick else None
+        if pick and not v:
             raise ValueError("no such picture file")
         if pick:
+            pick = v["id"]  # the random id (or, for a version without one, the file name); a better quality file of it later changes nothing
             status = ""  # choosing a picture approves it (and clears an old «redo»)
     patch_image(lines, id_, status, None if d.get("note") is None else str(d["note"])[:4000], d.get("stale"),
                 None if d.get("fx") is None else str(d["fx"])[:2000], pick, None if d.get("off") is None else bool(d["off"]))
@@ -89,12 +91,14 @@ def restore(d):
 
 def _archive_or_restore(d, back):
     kind, id_, name, lang = str(d["kind"]), str(d["id"]), str(d["name"]), str(d.get("lang", ""))
+    vs = scan_images().get(id_, {}).get("versions", []) if kind == "image" and not back else []
+    gone = find_version(vs, name)  # the version that is about to leave (all its quality files go together)
     archive_item(kind, id_, name, lang, back)
     if not back:
         lines = read_lines(STORY)
         if kind == "image":
             im = next((x for sc in story_scenes(lines) for b in sc["blocks"] for x in b["images"] if x["id"] == id_), None)
-            if im and im["pick"] == name:
+            if im and im["pick"] and gone and find_version([gone], im["pick"]):
                 patch_image(lines, id_, pick="")
                 write_lines(STORY, lines)
         else:

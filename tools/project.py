@@ -3,7 +3,7 @@
 import datetime, os
 from kitcore import LANGS, ROOT, STORY, VOICE_LIST, VPROMPTS, read_lines
 from story import default_model, parse_prompts, parse_speakers, story_scenes
-from media import archived_images, archived_voices, audio_url, image_state, scan_images, scan_refs, scan_videos, video_for
+from media import archived_images, archived_voices, audio_index, audio_url, image_state, scan_images, scan_refs, scan_videos, video_for
 from jobs import JOB
 import history
 
@@ -16,6 +16,7 @@ def project():
     images, prompts = scan_images(), parse_prompts()
     vprompts = parse_prompts(read_lines(VPROMPTS)) if os.path.exists(VPROMPTS) else {}
     vids = scan_videos()
+    aidx = {lg: audio_index(lg) for lg in LANGS}
     refs = scan_refs(prompts)
     for r in refs:
         r["video"] = video_for(r["name"], vids)
@@ -31,7 +32,7 @@ def project():
                            for im in b["images"]]
             for it in b["items"]:
                 if "id" in it:
-                    au = {lg: audio_url(lg, it["id"], sc["voice_pick"]) for lg in LANGS}
+                    au = {lg: audio_url(lg, it["id"], sc["voice_pick"], aidx[lg]) for lg in LANGS}
                     it["audio"] = {lg: au[lg][0] for lg in LANGS}
                     it["audio_v"] = {lg: dict(au[lg][1], archived=archived_voices(lg, it["id"])) for lg in LANGS}
         scenes.append(dict(id=sc["id"], title=sc["title"], time=sc["time"], env=sc["env"], issues=sc["issues"],

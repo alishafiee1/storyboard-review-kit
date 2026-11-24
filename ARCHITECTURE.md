@@ -21,7 +21,8 @@ Layers, each importing only from the ones above it:
 |---|---|
 | `kitcore.py` | paths, constants, the regexes of `story.txt`, safe read / write / replace of files, the file lock |
 | `story.py` | parse `story.txt` / `prompts.txt` into plain dicts (scenes, lines, speakers, prompts); no writes |
-| `media.py` | what is on disk: picture versions, references, videos, voice variants, archive folders |
+| `flowname.py` | reads Flow file names (`IMG001_slug_<rid>_2K.jpg`), groups files into versions (rid, quality, browser copy), `kit-config.json` (`name_pattern`, `quality`), `batch_of` |
+| `media.py` | what is on disk: picture versions, references, videos, voice variants, archive folders; `resolve()` is the one answer to «which file is this picture / voice line?» (page, subtitles, pack, Premiere export) |
 | `edits.py` | scene / picture / per-line voice choice and out-of-date flag edits as small raw-line edits (nothing else in the file is touched) |
 | `lineedits.py` | edits of single lines: change, add, delete a dialogue / action / translation line, format-issue notes |
 | `promptedits.py` | edits of `prompts.txt`: save a prompt, attach references |
@@ -45,7 +46,7 @@ tts-model: elevenlabs/eleven-v4-turbo           default voice model
 === scene-01 | title | 0:00-0:15 ===            scene header (ids may have 2-3 digits; order = order in the file)
 env: ...  fx: ...  model: ...  off: yes         scene-level keys right under the header (old files may also have voice-stale: / voice-pick: here; still read)
 [IMG001]                                        a picture slot; every act / say below it, up to the next [IMG], belongs to it
-status: redo | pick: file.png | off: yes | note: ... | fx: ... | image-stale: yes
+status: redo | pick: <rid> (or an old file name) | off: yes | note: ... | fx: ... | image-stale: yes
 act: ...   say: speaker (tone) | text   id: L007   en: translation   voice: fa=eleven-v3, en=default   voice-stale: fa   format-issue: ...
 (voice: / voice-stale: = the chosen voice and the out-of-date flag of that dialogue line; the old scene-level forms are read and moved to the lines when the page writes.
 id: = the stable name of the dialogue line above; its voice files are audio/<lang>/L007.mp3. Old files have no id: and
@@ -105,3 +106,9 @@ Both run on every push (`.github/workflows/tests.yml`).
 - No formatter or linter is installed in the repo. The page scripts were pretty-printed once by a one-off tool; keep new code in the same style (2 spaces, one statement per line).
 - Long HTML template strings in `render.js` / `dialogs.js` stay on single lines (about 50 lines are over 200 characters); splitting them would only add noise.
 - `editors.js` is the largest page file (about 550 lines); a unit test fails at 700 lines, which is the signal to split it.
+
+## Versions and file names (v1.18)
+- A picture version is `(base, rid)` (random 8-hex id from Flow), else `(base, slug)`, else `(base, "")`. `_1K/_2K/_4K` files of one version are one version; the best (4K, 2K, 1K, plain) is shown and exported; a browser copy ` (1)` is ignored while the original exists. `pick:` stores the rid, so a better file arriving later keeps the pick. No image file is ever renamed.
+- Scans (`images/scenes`, `images/refs`, `audio/<lang>`) are recursive and skip `archive/`, `_rejected/`, `inbox/`. Voice files `<id>_<rid>.mp3`, `<id>.<model>.mp3` and `<id>.mp3` are variants of one line.
+- Per project, `kit-config.json` may hold `name_pattern` (regex with the named groups `base`, `slug`, `rid`, `q`) and `quality` (best first).
+
