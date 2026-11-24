@@ -49,6 +49,7 @@ PHEADER = re.compile(r"^=== ([A-Za-z0-9_]+) ===$")
 
 
 SPEECH = ("say",)
+LINE_ID = re.compile(r"[A-Za-z0-9_-]{1,40}")  # the id: line of a dialogue line
 
 
 SPK = re.compile(r"^speaker:\s*(.*?)\s*\|\s*(#[0-9a-fA-F]{6})\s*(?:\|\s*([A-Za-z0-9_.:-]*)\s*)?(?:\|\s*(.*?)\s*)?$")

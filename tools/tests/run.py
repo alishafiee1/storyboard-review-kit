@@ -744,6 +744,35 @@ def premiere_check_and_pack(proj, page):
 
 
 @test
+def voices_follow_their_lines(proj, page):
+    """Adding or deleting a dialogue line must not move the voices of the other lines (each line has its own id: line)."""
+    if not shutil.which("ffmpeg"):
+        print("   (skipped: no ffmpeg to make test audio)", end="")
+        return
+
+    def says():
+        _, data = proj.api("/api/project")
+        return [i for b in data["scenes"][1]["blocks"] for i in b["items"] if i["k"] == "say"]
+    before = {i["id"]: i["audio"]["fa"] for i in says() if i["audio"]["fa"]}
+    assert set(before) == {"IMG001_1", "IMG001_2"}  # the fixture has voices for these two lines
+    first = says()[0]
+    code, _ = proj.api("/api/add", {"scene": "scene-01", "after": first["ln"], "kind": "say", "speaker": "راوی", "text": "یک خط تازه وسط"})
+    assert code == 200
+    now = {i["id"]: i for i in says()}
+    assert all(now[k]["audio"]["fa"] == v for k, v in before.items()), "old lines must keep their voice files"
+    new = next(i for i in now.values() if i["fa"] == "یک خط تازه وسط")
+    assert new["id"].startswith("L") and new["audio"]["fa"] is None
+    assert proj.story().count("id: ") == 4  # the three old ones were pinned, plus the new one
+    code, _ = proj.api("/api/delete", {"scene": "scene-01", "index": first["ln"] + 1, "old": "یک خط تازه وسط"})
+    assert code == 409  # that position is now an id: line, not the new dialogue: a stale page is refused, nothing is lost
+    now = {i["id"]: i for i in says()}
+    assert all(now[k]["audio"]["fa"] == v for k, v in before.items())
+    page.reload()
+    page.wait_for_selector("section.blk")
+    assert page.locator("#b1 .ab[data-lg=fa]").count() >= 2
+
+
+@test
 def engine_manifest_is_complete(proj, page):
     files = [l.strip() for l in open(os.path.join(KIT, "ENGINE.txt"), encoding="utf-8") if l.strip() and not l.startswith("#")]
     missing = [f for f in files if not os.path.exists(os.path.join(KIT, *f.split("/")))]

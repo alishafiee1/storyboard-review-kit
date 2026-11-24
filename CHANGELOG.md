@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.16.0
+- Every dialogue line gets a stable name: an `id:` line right under its `say:` (new lines get `L001`, `L002`...). Voice files, `voice-pick` and subtitles follow the id, so adding, deleting or moving dialogue no longer moves the voices of the other lines. Old projects need nothing: a line without `id:` keeps its old name (`IMG001_2`), and the page writes that same name into the file the first time a line is added or deleted in that scene (no audio file is renamed).
+- 8 new tests (31 unit tests and 36 browser tests in total).
+
 ## 1.15.1
 - `python tools/update.py` no longer puts `audio/` in a project's `.gitignore` (voices belong in git). It now adds the kit's ignore rules once, under a marker comment, and never touches the file again, so lines a project removed or added stay as they are. The rules: `.env`, `.engine-backup/`, `__pycache__/`, `*.tmp`, `graphify-out/`, `videos/`, `*_renders/`, video and archive file types (`*.mp4 *.mov *.mkv *.avi *.webm *.m4v *.rar *.zip *.7z`), `archive/`, `audio/_samples/`, `audio/_tests/`. The new-project `.gitignore` is the same list. Projects updated by an older version keep an `audio/` line if they have one: delete it by hand.
 

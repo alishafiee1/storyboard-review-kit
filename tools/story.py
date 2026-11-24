@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Reading story.txt and prompts.txt: scenes, dialogue lines, speakers, prompts. Pure text in, plain dicts out (no network, no file writes except through kitcore)."""
 import colorsys, random, re
-from kitcore import CONTENT, DEFAULT_MODEL, HEADER, KEYLINE, LANGS, MARKER, MARKS, PALETTE, PHEADER, PROMPTS, SPEECH, SPK, STORY, VOICE_LIST, read_lines
+from kitcore import LINE_ID, CONTENT, DEFAULT_MODEL, HEADER, KEYLINE, LANGS, MARKER, MARKS, PALETTE, PHEADER, PROMPTS, SPEECH, SPK, STORY, VOICE_LIST, read_lines
 
 
 def clean_spoken(t):
@@ -146,15 +146,20 @@ def parse_scene(raw_lines):
                 warn(s, i)
             else:
                 last_speech["en"], last_speech["en_ln"], last_obj = DEC(val), i, last_speech
+        elif key == "id":  # the stable name of the dialogue line above (its voice files carry it); it stays with the line when the line moves
+            if last_speech is None or not LINE_ID.fullmatch(val) or last_speech.get("eid"):
+                warn(s, i)
+            else:
+                last_speech["eid"], last_speech["id_ln"], last_obj = val, i, last_speech
         else:
             warn(s, i)
-    # speech ids: {first image id or scene id}_{n}, n counted inside the block
+    # speech ids: the line's own «id:» when it has one, else {first image id or scene id}_{n} (n counted inside the block, the old way)
     for b in sc["blocks"]:
         base, n = (b["images"][0]["id"] if b["images"] else sc["id"]), 0
         for it in b["items"]:
             if it["k"] in SPEECH:
                 n += 1
-                it["id"] = f"{base}_{n}"
+                it["id"] = it.get("eid") or f"{base}_{n}"
     return sc
 
 

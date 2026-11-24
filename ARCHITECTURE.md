@@ -46,7 +46,9 @@ env: ...  fx: ...  model: ...  off: yes         scene-level keys right under the
 voice-stale: fa   voice-pick: IMG001_1.fa=eleven-v3      flags and the chosen voice per line
 [IMG001]                                        a picture slot; its dialogue follows it
 status: redo | pick: file.png | off: yes | note: ... | fx: ... | image-stale: yes
-act: ...   say: speaker (tone) | text   en: translation   format-issue: ...
+act: ...   say: speaker (tone) | text   id: L007   en: translation   format-issue: ...
+(id: = the stable name of the dialogue line above; its voice files are audio/<lang>/L007.mp3. Old files have no id: and
+read as IMG001_2 (picture id + position in the block); the page writes that id explicitly before the first add / delete.)
 ```
 The full writing rules for AI assistants are in `starter/skills/how-to-write-prompts-for-flow.md`.
 
@@ -83,8 +85,8 @@ To change a shared value from several files, put it in `S` (`S.P = ...`), not in
 
 | Command | What |
 |---|---|
-| `python -m unittest discover -s tools/tests -p "test_*.py"` | 22 unit tests (text rules, imports/exports of the page modules, old-import compatibility), in milliseconds |
-| `python tools/tests/run.py` | 35 browser tests (needs `pip install playwright`) on a temporary copy of `tools/tests/fixture/`; nothing is charged |
+| `python -m unittest discover -s tools/tests -p "test_*.py"` | 31 unit tests (text rules, imports/exports of the page modules, old-import compatibility), in milliseconds |
+| `python tools/tests/run.py` | 36 browser tests (needs `pip install playwright`) on a temporary copy of `tools/tests/fixture/`; nothing is charged |
 | `python tools/tests/run.py --update-baseline` | refresh the recorded page after a deliberate change; read the diff in `tools/tests/baseline/` |
 
 Both run on every push (`.github/workflows/tests.yml`).

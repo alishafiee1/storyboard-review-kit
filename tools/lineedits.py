@@ -1,8 +1,40 @@
 # -*- coding: utf-8 -*-
 """Edits of single lines in story.txt: change, add, delete a dialogue / action / translation line, and format-issue notes."""
-from kitcore import Conflict, KEYLINE, LANGS, MARKER, SPEECH
-from story import DEC, ENC, clean_label, clean_line, clean_name, clean_tone, ensure_speaker, fmt_say, scene_span, split_act, split_say_head
+import glob, os, re
+from kitcore import Conflict, KEYLINE, LANGS, MARKER, ROOT, SPEECH
+from story import DEC, ENC, clean_label, clean_line, clean_name, clean_tone, ensure_speaker, fmt_say, parse_scene, scene_span, split_act, split_say_head
 from edits import set_flag
+
+
+def materialize_ids(lines, scene_id):
+    """Give every dialogue line of the scene that has no «id:» yet an explicit one: exactly the id it has now (IMG001_2), so no voice file
+    changes name. Done before a line is added or deleted, because those shift the old position-based ids. Returns the new line positions
+    (relative to the scene header), so callers can move the index they were given."""
+    s, e = scene_span(lines, scene_id)
+    sc = parse_scene(lines[s:e])
+    todo = [(it["ln"] + 1, it["id"]) for b in sc["blocks"] for it in b["items"] if it["k"] in SPEECH and not it.get("eid")]
+    for pos, id_ in sorted(todo, reverse=True):
+        lines[s + pos:s + pos] = ["id: " + id_]
+    return sorted(p for p, _ in todo)
+
+
+def shift(index, inserted):
+    """An old line index after `inserted` lines (positions) were put into the scene."""
+    return int(index) + sum(1 for p in inserted if p <= int(index))
+
+
+def next_line_id(lines):
+    """L001, L002 ...: the next number not used by an id: line, an audio file (also archived ones) or a voice-pick."""
+    used = [int(m.group(1)) for l in lines for m in [re.match(r"\s*id:\s*L(\d+)\s*$", l)] if m]
+    used += [int(m.group(1)) for f in glob.glob(os.path.join(glob.escape(ROOT), "audio", "**", "L*.mp3"), recursive=True)
+             for m in [re.match(r"L(\d+)\.", os.path.basename(f))] if m]
+    used += [int(m) for l in lines if l.strip().startswith("voice-pick:") for m in re.findall(r"\bL(\d+)\.", l)]
+    return "L%03d" % (max(used or [0]) + 1)
+
+
+def after_say(lines, a, e):
+    """Index just after a say line and its id: line (where an en: line goes)."""
+    return a + 2 if a + 1 < e and lines[a + 1].strip().startswith("id:") else a + 1
 
 
 def edit_line(lines, scene_id, index, old, new, op="edit"):
@@ -47,9 +79,10 @@ def edit_line(lines, scene_id, index, old, new, op="edit"):
     if op == "add_en":
         if not kv or kv.group(1) not in SPEECH:
             raise Conflict("این خط دیگر دیالوگ نیست؛ صفحه را دوباره بارگذاری کن.")
-        if a + 1 < e and lines[a + 1].strip().startswith("en:"):
+        at = after_say(lines, a, e)
+        if at < e and lines[at].strip().startswith("en:"):
             raise Conflict("برای این خط ترجمه از قبل هست؛ صفحه را دوباره بارگذاری کن.")
-        lines[a + 1:a + 1] = [f"en: {ENC(text)}"]
+        lines[at:at] = [f"en: {ENC(text)}"]
         set_flag(lines, scene_id, "en", True)
         return
     if not kv or kv.group(1) not in ("env", "act", "en") + SPEECH:
@@ -110,6 +143,9 @@ def add_line(lines, scene_id, after, kind, speaker, text, label="", tone=""):
     a = s + int(after)
     if not (s < a < e):
         raise ValueError("bad line index")
+    if kind == "say":  # a new dialogue shifts the old position-based ids of the lines after it: pin them first
+        a = s + shift(after, materialize_ids(lines, scene_id))
+        s, e = scene_span(lines, scene_id)
     t = clean_line(text)
     if not t:
         raise ValueError("متن خالی است")
@@ -126,7 +162,7 @@ def add_line(lines, scene_id, after, kind, speaker, text, label="", tone=""):
     if MARKER.match(l0):
         skip = ("status", "note", "image-stale", "fx", "format-issue")
     elif kv and kv.group(1) in SPEECH:
-        skip = ("en", "format-issue")
+        skip = ("en", "id", "format-issue")
     else:
         skip = ("format-issue",)
     pos = a + 1
@@ -135,7 +171,7 @@ def add_line(lines, scene_id, after, kind, speaker, text, label="", tone=""):
         if not k2 or k2.group(1) not in skip:
             break
         pos += 1
-    lines[pos:pos] = [new]
+    lines[pos:pos] = [new] + (["id: " + next_line_id(lines)] if kind == "say" else [])
     if name:
         ensure_speaker(lines, name)
         set_flag(lines, scene_id, "fa", True)
@@ -154,7 +190,11 @@ def delete_line(lines, scene_id, index, old):
     cmp = DEC(val.partition("|")[2].strip()) if key == "say" else DEC(split_act(val)[1]) if key == "act" else DEC(val)
     if cmp != str(old).strip():
         raise Conflict("این خط بیرون از مرورگر عوض شده؛ صفحه را دوباره بارگذاری کن.")
-    skip = ("en", "format-issue") if key == "say" else ("format-issue",) if key == "act" else ()
+    if key == "say":  # pin the position-based ids of the other lines first (deleting one shifts them)
+        ins = materialize_ids(lines, scene_id)
+        a = sa + shift(index, ins)
+        sa, e = scene_span(lines, scene_id)
+    skip = ("en", "id", "format-issue") if key == "say" else ("format-issue",) if key == "act" else ()
     end, had_en = a + 1, False
     while end < e:
         k2 = KEYLINE.match(lines[end].strip())
@@ -180,7 +220,7 @@ def add_issue(lines, scene_id, index, message):
     if MARKER.match(lines[a].strip()):
         skip = ("status", "note", "image-stale", "fx", "format-issue")
     elif kv and kv.group(1) in SPEECH:
-        skip = ("en", "format-issue")
+        skip = ("en", "id", "format-issue")
     else:
         skip = ("format-issue",)
     while pos < e:

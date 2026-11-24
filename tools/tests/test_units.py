@@ -150,6 +150,59 @@ class Handoff(unittest.TestCase):
         self.assertEqual(premiere_check.resolve("../images/a%20b.png", base), os.path.normpath(os.path.join(base, "..", "images", "a b.png")))
 
 
+class StableLineIds(unittest.TestCase):
+    """A dialogue line keeps its id (and so its voice files) when other lines are added, deleted or move."""
+
+    def ids(self, ls, sid="scene-01"):
+        return [i["id"] for b in scene(ls, sid)["blocks"] for i in b["items"] if i["k"] == "say"]
+
+    def first_say_ln(self, ls, sid="scene-01"):
+        return next(i["ln"] for b in scene(ls, sid)["blocks"] for i in b["items"] if i["k"] == "say")
+
+    def test_explicit_id_wins_over_position(self):
+        ls = lines()
+        ls.insert(FIXTURE.index("say: راوی | این علیه. صبح‌ها بدون قهوه آدم نیست.") + 1, "id: L042")
+        self.assertEqual(self.ids(ls)[:2], ["L042", "IMG001_2"])
+
+    def test_old_files_without_ids_still_read_as_before(self):
+        self.assertEqual(self.ids(lines()), ["IMG001_1", "IMG001_2", "IMG002_1"])
+
+    def test_adding_a_line_in_the_middle_keeps_every_old_id(self):
+        ls = lines()
+        before = self.ids(ls)
+        lineedits.add_line(ls, "scene-01", self.first_say_ln(ls), "say", "راوی", "یک خط تازه")
+        after = self.ids(ls)
+        self.assertEqual(len(after), len(before) + 1)
+        self.assertEqual([i for i in after if i in before], before)  # nobody was renamed
+        self.assertEqual(after[1][0], "L")  # the new one sits second and has its own id
+        self.assertIn("id: L001", ls)
+
+    def test_deleting_a_line_keeps_the_ids_of_the_others(self):
+        ls = lines()
+        first = next(i for b in scene(ls, "scene-01")["blocks"] for i in b["items"] if i["k"] == "say")
+        lineedits.delete_line(ls, "scene-01", first["ln"], first["fa"])
+        self.assertEqual(self.ids(ls), ["IMG001_2", "IMG002_1"])  # IMG001_2 did not become IMG001_1
+        self.assertNotIn("id: IMG001_1", ls)
+
+    def test_new_translation_goes_after_the_id_line(self):
+        ls = lines()
+        lineedits.add_line(ls, "scene-01", self.first_say_ln(ls), "say", "راوی", "بدون ترجمه")
+        new = next(i for b in scene(ls, "scene-01")["blocks"] for i in b["items"] if i["k"] == "say" and i["fa"] == "بدون ترجمه")
+        lineedits.edit_line(ls, "scene-01", new["ln"], "", "no translation", "add_en")
+        again = next(i for b in scene(ls, "scene-01")["blocks"] for i in b["items"] if i["k"] == "say" and i["fa"] == "بدون ترجمه")
+        self.assertEqual(again["en"], "no translation")
+        start = story.scene_span(ls, "scene-01")[0]  # ln counts from the scene header
+        self.assertTrue(ls[start + again["ln"] + 1].startswith("id:") and ls[start + again["ln"] + 2].startswith("en:"))
+
+    def test_an_id_line_nobody_owns_is_reported(self):
+        ls = lines()
+        ls.insert(FIXTURE.index("env: غروب، کنار دریا.") + 1, "id: L001")
+        self.assertTrue(any("id: L001" in w["text"] for w in scene(ls, "scene-02")["warnings"]))
+
+    def test_next_id_skips_numbers_already_used(self):
+        self.assertEqual(lineedits.next_line_id(["id: L003", "voice-pick: L007.fa=x"]), "L008")
+
+
 class GitIgnoreRules(unittest.TestCase):
     def test_starter_gitignore_matches_the_updater_and_keeps_pictures_and_voices(self):
         import update
