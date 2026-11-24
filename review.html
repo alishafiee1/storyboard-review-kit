@@ -6,6 +6,7 @@
  <nav id="nav" dir="ltr" aria-label="تصویر قبلی و بعدی"><button id="navPrev" class="ib" type="button" aria-label="تصویر قبلی" title="تصویر قبلی (←)" data-ic="chevL"></button><span id="pos">۰ / ۰</span><button id="navNext" class="ib" type="button" aria-label="تصویر بعدی" title="تصویر بعدی (→)" data-ic="chevR"></button>
   <input id="prog" type="range" min="0" max="0" value="0" aria-label="پرش به تصویر"><span id="apr" dir="rtl"></span></nav>
  <div class="be">
+  <button id="galBtn" class="ib" type="button" aria-label="گالری تصویرها" title="گالری تصویرها" data-ic="grid"></button>
   <span class="mw"><button id="more" class="ib" type="button" aria-label="منوی تصویر" aria-haspopup="menu" aria-expanded="false" title="منوی تصویر" data-ic="dots"></button>
    <div id="morePop" class="pop menu" role="menu" hidden></div></span>
   <button id="lang" class="pill" type="button" dir="ltr" aria-label="زبان متن و صدا" title="روشن = متن انگلیسی دیده شود و صدا انگلیسی پخش شود؛ خاموش = فقط فارسی"><span data-l="fa">فا</span> / <span data-l="en">EN</span></button>
@@ -16,6 +17,7 @@
   <button id="bFlag" class="ib" type="button" aria-label="نشانه‌گذاری مشکل" title="نشانه‌گذاری (ثبت مشکل برای هوش مصنوعی)" data-ic="flag"></button>
  </div>
 </header>
+<main id="gallery" hidden></main>
 <main id="list"></main>
 <footer id="foot">
  <div class="ftp" dir="ltr"><button id="prev" class="ib" type="button" aria-label="تصویر قبلی" data-ic="skipPrev"></button><button id="play" class="playb" type="button" aria-label="پخش خودکار" title="پخش خودکار (Space)"><span class="pi" data-ic="play"></span><span class="pp" data-ic="pause"></span></button><button id="next" class="ib" type="button" aria-label="تصویر بعدی" data-ic="skipNext"></button>

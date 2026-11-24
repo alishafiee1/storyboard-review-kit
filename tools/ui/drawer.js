@@ -236,7 +236,7 @@ function buildBatch() {
   });
   $('#pBatch').innerHTML = by.size ? `<p class="muted">پرامپت‌های یک دسته (۱۰ تصویر) با خط رفرنس و اسم خروجی، یک‌جا کپی می‌شن.</p>` + [...by].sort().map(([b, n]) => `<button type="button" class="opt" data-batch="${ b }"><span>دستهٔ <bdi dir="ltr">${ b }</bdi></span><span class="c">${ fa(n) } تصویر</span></button>`).join('') + '<div id="bmsg" class="muted" role="status"></div>' : '<p class="muted">تصویری توی پروژه نیست.</p>';
 }
-async function copyBatch(b) {
+export async function copyBatch(b) {
   try {
     const j = await (await fetch('/api/batch?b=' + encodeURIComponent(b))).json();
     if (j.error)
@@ -247,7 +247,8 @@ async function copyBatch(b) {
     }
     await copyText(j.text);
     toast(`${ fa(j.ids.length) } پرامپت دستهٔ ${ b } کپی شد`);
-    $('#bmsg').innerHTML = j.missing.length ? 'بدون پرامپت یا فایل رفرنس: <bdi dir="ltr">' + j.missing.map(esc).join('، ') + '</bdi>' : '';
+    if ($('#bmsg'))
+      $('#bmsg').innerHTML = j.missing.length ? 'بدون پرامپت یا فایل رفرنس: <bdi dir="ltr">' + j.missing.map(esc).join('، ') + '</bdi>' : '';
   } catch (e) {
     fail(e);
   }

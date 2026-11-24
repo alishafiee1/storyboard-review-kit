@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1.0
+- Gallery start page: `review.html` (no address, or `#gallery`) opens a dense grid of 16:9 tiles in file order (8 to 4 columns by width, 3 on a phone, 2px gaps): scene number top right, status dot bottom left (olive approved, sand pending, red ring set aside), version count when more than one, a dashed paper tile with the id for a picture with no file, a thin tick at scene boundaries. A tile opens the spread (`#IMG045`); the new grid icon in the top bar (and the browser's back button) returns. Thumbnails are `loading=lazy`.
+- Drag to reorder with pointer events (mouse: drag; touch: hold; the «انتخاب» button, Ctrl/Shift-click for several tiles): drop line, `POST /api/move`, reload; dropping beside the first / last picture of a scene crosses the boundary.
+- «جا نگرفته‌ها» strip (`unplaced` in `GET /api/project`: `IMG` ids with files or a prompt but no marker; plus image files of `inbox/`): drag into the grid or press `+` (`POST /api/addimage` with `id`; an inbox file only makes a new empty slot). The `+` tile at the end and the new `⋯` item «افزودن تصویر بعد از این…» open a picker (new empty slot, an unplaced picture, or an existing picture moved there with `/api/move`). Batch copy buttons (`b01`…) sit in the gallery toolbar as well as in the drawer.
+- New engine file: `tools/ui/gallery.js`. No `story.txt` change.
+
 ## 2.0.0
 - The sketchbook shell: the whole page is redrawn as a quiet open sketchbook (warm paper `#F3EEE4`, thin ink lines, fine-line 20px icons, no cards / gradients / emoji in the chrome). Vazirmatn Regular / Medium / Bold are bundled in `tools/ui/fonts/` (woff2 + `OFL.txt`) and listed in `ENGINE.txt`, so the page looks the same offline. Mock-up references: `docs/redesign/mockups/`; the honest comparison with the screenshots is `docs/redesign/screens/COMPARE.md`.
 - Top bar: hamburger, project title + muted episode label (`1-mimo-white-head` shows as «mimo white head · اپیزود ۱»), the navigator `‹ ۴۵ / ۵۰ ›` with a thin tick line (olive wash up to where you are; click to jump) and «تأیید شده» beside it, and on the left: flag, note (pencil: note + edit advice popover), image prompt, video prompt, the `فا / EN` pill and `⋯`. The old text-tab toolbar (review / references / voices tabs, speed, subtitles, jump, filter, floating play button) is gone.

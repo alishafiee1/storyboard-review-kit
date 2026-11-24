@@ -25,6 +25,7 @@ import { wire } from './editors.js';
 import { ic } from './icons.js';
 import { drawerRefresh } from './drawer.js';
 import { playUI } from './player.js';
+import { galleryRefresh } from './gallery.js';
 /* Drawing the page: scenes, dialogue lines, pictures. Every block (one picture + its lines) is in the page; only the current one is shown (see player.js). */
 /* ---------- render */
 let NUM = {};
@@ -227,6 +228,7 @@ export function render() {
   stats();
   filt();
   drawerRefresh();
+  galleryRefresh();
 }
 /* the line you are on (clicked, or being played): pale olive wash and a terracotta tick; the counter says which one it is */
 export function setActive(it) {

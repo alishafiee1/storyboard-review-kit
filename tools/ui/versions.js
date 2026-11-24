@@ -22,6 +22,7 @@ import {
   show
 } from './player.js';
 import { openDrawer } from './drawer.js';
+import { openPicker } from './gallery.js';
 /* Picture versions, the image «⋯» menu, scene management and voice variants. Everything is written to story.txt; no file is renamed or deleted. */
 /* ---------- where we are */
 const sceneId = () => $('#b' + S.cur).closest('section[data-scene]').dataset.scene;
@@ -133,6 +134,7 @@ function moreHtml() {
       if (moveTarget(m.id, 1))
         out.push(item('data-imv="1"', 'یک تصویر پایین‌تر'));
       out.push(item('data-iadd="1"', 'تصویر بعد از این'));
+      out.push(item('data-ipick="1"', 'افزودن تصویر بعد از این…'));
       if (!first)
         out.push(item('data-isc="1"', 'شروع صحنهٔ جدید از اینجا'));
       if (first && prev && prev.id !== 'scene-00')
@@ -174,6 +176,8 @@ async function onItem(b) {
         await api('/api/move', body);
       await reload();
     });
+  if (d.ipick)
+    return openPicker({ after: m.id }, true);
   if (d.iadd)
     return run(async () => {
       const r = await api('/api/addimage', { after: m.id });

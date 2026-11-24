@@ -23,6 +23,7 @@ tools/ui/prompts.js
 tools/ui/dialogs.js
 tools/ui/panels.js
 tools/ui/player.js
+tools/ui/gallery.js
 click-for-review.bat
 tools/serve.py
 tools/kitcore.py

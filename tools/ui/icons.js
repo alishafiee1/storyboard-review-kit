@@ -1,5 +1,7 @@
 /* Fine-line icons (24x24 grid, drawn at 20px, 1.5 stroke, currentColor): inline SVG so they work offline and take the colour of the text. */
 const P = {
+  grid: '<rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
   menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
   chevL: '<path d="M14.5 6l-6 6 6 6"/>',
   chevR: '<path d="M9.5 6l6 6-6 6"/>',

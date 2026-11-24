@@ -8,6 +8,7 @@ import { boot_dialogs } from './dialogs.js';
 import { boot_prompts } from './prompts.js';
 import { boot_panels } from './panels.js';
 import { boot_player } from './player.js';
+import { boot_gallery } from './gallery.js';
 boot_core();
 boot_drawer();
 boot_render();
@@ -16,5 +17,6 @@ boot_dialogs();
 boot_prompts();
 boot_panels();
 boot_player();
+boot_gallery();
 /* a read-only handle for the browser tests (they wait for the page to finish a reload) */
 window.__kit = { S };

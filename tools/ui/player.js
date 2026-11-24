@@ -20,6 +20,7 @@ import {
   reload
 } from './panels.js';
 import { ic } from './icons.js';
+import { startMode } from './gallery.js';
 import { stepVersion } from './versions.js';
 import {
   drawerOpen,
@@ -108,7 +109,8 @@ export function show(i, keepJ) {
   chrome();
   preTime(i);
   drawerRefresh();
-  history.replaceState(null, '', '#' + el.dataset.bid);
+  if (!document.body.classList.contains('gal'))
+    history.replaceState(null, '', '#' + el.dataset.bid);
 }
 /* the block of a picture / the block the page was showing (after a reload the numbers may have moved) */
 export const blockOf = id => S.BL.findIndex(b => b.images.some(m => m.id === id));
@@ -311,7 +313,7 @@ export function boot_player() {
         'INPUT'
       ].includes(tag) && e.target.id !== 'prog' || e.target.isContentEditable)
       return;
-    if (document.querySelector('dialog[open]') || drawerOpen() || !$('#morePop').hidden)
+    if (document.querySelector('dialog[open]') || document.body.classList.contains('gal') || drawerOpen() || !$('#morePop').hidden)
       return;
     if (e.code === 'Space' && tag !== 'BUTTON') {
       e.preventDefault();
@@ -346,6 +348,7 @@ export function boot_player() {
     }
     render();
     const at = blockByBid(decodeURIComponent(location.hash.slice(1)));
+    startMode(location.hash);
     show(at >= 0 ? at : 0);
     if (S.P.tts && S.P.tts.job.state === 'running')
       pollJob();

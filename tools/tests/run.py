@@ -185,6 +185,7 @@ def label(page):
 def use_story(proj, page, name="story-legacy.txt"):
     """Swap the project's story.txt for another fixture (the server re-reads it on every request) and reload the page."""
     shutil.copy2(os.path.join(FIX, name), os.path.join(proj.root, "scenario", "story.txt"))
+    page.evaluate("history.replaceState(null, '', '#review')")  # the old address may name a picture the new story does not have (that would open the gallery)
     page.reload()
     page.wait_for_selector(".blk.on")
     page._reloads = 0
@@ -232,7 +233,7 @@ def open_page(browser, proj, errors, wait_ready=True):
     page._dialogs = []
     page._errors = errors
     page.on("dialog", lambda d: (page._dialogs.append(d.message), d.accept(d.default_value) if d.type == "prompt" else d.accept()))
-    page.goto(proj.url + "/review.html")
+    page.goto(proj.url + "/review.html#review")  # no address = the gallery; #review = the spread on the first picture
     page._reloads = 0
     if wait_ready:
         page.wait_for_selector(".blk.on")
@@ -1253,6 +1254,7 @@ def image_menu_moves_and_scene_marks(proj, page):
     for i in range(3):  # undo the three moves
         assert proj.api("/api/undo", {})[0] == 200
     assert story_bytes(proj) == orig
+    page.evaluate("history.replaceState(null, '', '#review')")
     page.reload()
     page.wait_for_selector(".blk.on")
     at(page, "IMG002")
@@ -1262,6 +1264,7 @@ def image_menu_moves_and_scene_marks(proj, page):
     st = proj.story()
     assert st.index("[IMG002]") < st.index("[IMG004]") < st.index("=== scene-02")
     assert proj.api("/api/undo", {})[0] == 200
+    page.evaluate("history.replaceState(null, '', '#review')")
     page.reload()
     page.wait_for_selector(".blk.on")
     at(page, "IMG002")
@@ -1313,6 +1316,7 @@ def move_endpoints_stale_and_four_digit(proj, page):
     assert code == 200 and r["scene"] == "scene-01" and r["moved"] == 2
     st = proj.story()
     assert st.index("[IMG001]") < st.index("[IMG003]") < st.index("[IMG002]") and "=== scene-02" in st and "\n\n=== scene-02" in st
+    page.evaluate("history.replaceState(null, '', '#review')")
     page.reload()
     page.wait_for_selector(".blk.on")
     assert page.locator("section[data-scene=scene-01] figure.shot").count() == 3
@@ -1336,6 +1340,7 @@ def move_endpoints_stale_and_four_digit(proj, page):
     assert code == 200 and r["id"] == "IMG1000"
     assert proj.api("/api/addimage", {"before": "IMG002", "id": "IMG1000"})[0] == 409
     assert proj.api("/api/addimage", {"after": "IMG1000"})[1]["id"] == "IMG1001"
+    page.evaluate("history.replaceState(null, '', '#review')")
     page.reload()
     page.wait_for_selector("figure.shot[data-id=IMG1000]", state="attached")
     assert page.locator("section[data-scene=scene-02] figure.shot").count() == 3
@@ -1615,6 +1620,90 @@ def engine_manifest_is_complete(proj, page):
     css = open(os.path.join(KIT, "tools", "ui", "review.css"), encoding="utf-8").read()
     for ref in re.findall(r'@import url\("([^"]+)"\)', css):  # the style parts too
         assert "tools/ui/" + ref in files, "review.css imports %s but ENGINE.txt does not list it" % ref
+
+
+@test
+def gallery_open_tiles_drag_picker_batch(proj, page):
+    """The app opens on the gallery (#gallery); a tile opens the spread; drag reorders within a scene and across a scene boundary (/api/move);
+    unplaced pictures are placed by the + button; the + tile's picker adds a slot; batch buttons copy the batch text; the menu item opens the same picker."""
+    def order():
+        P = proj.api("/api/project")[1]
+        return [(sc["id"], im["id"]) for sc in P["scenes"] for b in sc["blocks"] for im in b["images"]]
+
+    def drag(src, dst, right_half):
+        a, b = page.locator('#ggrid .tile[data-id="%s"]' % src).bounding_box(), page.locator('#ggrid .tile[data-id="%s"]' % dst).bounding_box()
+        page.mouse.move(a["x"] + a["width"] / 2, a["y"] + a["height"] / 2)
+        page.mouse.down()
+        page.mouse.move(a["x"] + a["width"] / 2 + 12, a["y"] + a["height"] / 2 + 12, steps=3)
+        page.mouse.move(b["x"] + b["width"] * (0.8 if right_half else 0.2), b["y"] + b["height"] / 2, steps=8)
+        assert page.locator("#ggrid .gline:not([hidden])").count() == 1, "the drop line shows while dragging"
+        page.mouse.up()
+        page.wait_for_timeout(600)
+    page.goto(proj.url + "/review.html")
+    page.wait_for_selector("#ggrid .tile[data-id]")
+    assert page.evaluate("location.hash") == "#gallery" and page.locator("#ggrid .tile[data-id]").count() == 4
+    assert page.locator("#list").is_hidden() and page.locator("#galBtn").is_hidden()
+    assert page.locator('#ggrid .tile[data-id="IMG001"] .gvc').count() == 1 and page.locator('#ggrid .tile[data-id="IMG002"] .gvc').count() == 0  # versions count only when > 1
+    assert page.locator('#ggrid .tile[data-id="IMG003"].sb').count() == 1  # first picture of scene 2 carries the boundary tick
+    page.click('#ggrid .tile[data-id="IMG002"]')  # a tile opens the spread on that picture
+    page.wait_for_selector(".blk.on")
+    assert page.evaluate("location.hash") == "#IMG002" and page.locator("#gallery").is_hidden() and page.locator(".blk.on").get_attribute("data-bid") == "IMG002"
+    page.click("#galBtn")
+    page.wait_for_selector("#ggrid .tile[data-id]")
+    assert page.evaluate("location.hash") == "#gallery" and page.locator("#list").is_hidden()
+    drag("IMG002", "IMG001", True)  # right half = before (right-to-left page): within the scene
+    assert order() == [("scene-00", "IMG000"), ("scene-01", "IMG002"), ("scene-01", "IMG001"), ("scene-02", "IMG003")], order()
+    drag("IMG001", "IMG003", False)  # left half of the first picture of the next scene = after it: across the boundary
+    assert order() == [("scene-00", "IMG000"), ("scene-01", "IMG002"), ("scene-02", "IMG003"), ("scene-02", "IMG001")], order()
+    page.click("#gSel")  # select mode: two tiles, dragged together
+    page.click('#ggrid .tile[data-id="IMG003"]')
+    page.click('#ggrid .tile[data-id="IMG001"]')
+    assert page.locator("#ggrid .tile.sel").count() == 2 and page.evaluate("location.hash") == "#gallery"
+    drag("IMG003", "IMG002", True)
+    assert order() == [("scene-00", "IMG000"), ("scene-01", "IMG003"), ("scene-01", "IMG001"), ("scene-01", "IMG002")], order()
+    # pictures with a prompt or files but no marker
+    open(os.path.join(proj.root, "prompts", "prompts.txt"), "a", encoding="utf-8").write("\n=== IMG010 ===\nA prompt without a place.\n")
+    open(os.path.join(proj.root, "images", "scenes", "IMG011_x.png"), "wb").write(png())
+    page.reload()
+    page.wait_for_selector("#ggrid .tile[data-id]")
+    assert [u["id"] for u in proj.api("/api/project")[1]["unplaced"]] == ["IMG010", "IMG011"], proj.api("/api/project")[1]["unplaced"]
+    assert page.locator(".gun .uit").count() == 2
+    page.click('[data-gun="IMG011"]')
+    page.wait_for_selector('#ggrid .tile[data-id="IMG011"]')
+    assert order()[-1] == ("scene-01", "IMG011"), order()  # after the last picture (scene 2 is empty by now)
+    u = page.locator('.gun .uit[data-uid="IMG010"]').bounding_box()
+    t = page.locator('#ggrid .tile[data-id="IMG000"]').bounding_box()
+    page.mouse.move(u["x"] + 20, u["y"] + 10)
+    page.mouse.down()
+    page.mouse.move(u["x"] + 30, u["y"] - 20, steps=3)
+    page.mouse.move(t["x"] + t["width"] * 0.2, t["y"] + t["height"] / 2, steps=8)
+    page.mouse.up()
+    page.wait_for_selector('#ggrid .tile[data-id="IMG010"]')
+    assert order()[1] == ("scene-00", "IMG010"), order()  # left half of the first tile = after it
+    # the + tile: picker with a new empty slot
+    n = len(order())
+    page.click("#ggrid .tile.add")
+    page.wait_for_selector("dialog.gpick[open]")
+    assert page.locator("dialog.gpick [data-pk=new]").count() == 1 and page.locator("#pkAll option").count() == n
+    page.click("dialog.gpick [data-pk=new]")
+    page.wait_for_function("document.querySelectorAll('#ggrid .tile[data-id]').length == %d" % (n + 1))
+    assert len(order()) == n + 1 and order()[-1][0] == "scene-01"
+    # the review menu's item opens the same picker, then shows the new picture
+    page.click('#ggrid .tile[data-id="IMG001"]')
+    page.wait_for_selector(".blk.on")
+    more(page)
+    page.click("#morePop [data-ipick]")
+    page.wait_for_selector("dialog.gpick[open]")
+    page.click("dialog.gpick [data-pk=new]")
+    page.wait_for_function("window.__kit.S.P.scenes.flatMap(s => s.blocks).flatMap(b => b.images).length == %d" % (n + 2))
+    ids = [i for _, i in order()]
+    assert ids[ids.index("IMG001") + 1] == page.evaluate("location.hash").lstrip("#"), (ids, page.evaluate("location.hash"))
+    page.click("#galBtn")
+    page.wait_for_selector("#ggrid .tile[data-id]")
+    page.context.grant_permissions(["clipboard-read", "clipboard-write"], origin=proj.url)
+    page.click("[data-gbatch=b01]")
+    page.wait_for_function("document.querySelector('#toast') && !document.querySelector('#toast').hidden && document.querySelector('#toast').textContent.includes('b01')")
+    assert "=== IMG001 ===" in page.evaluate("navigator.clipboard.readText()")
 
 
 def main():

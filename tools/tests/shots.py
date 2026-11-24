@@ -33,6 +33,10 @@ def story():
             out += ["env: غار، آتش، نقاشی‌های دیواری."]
         for i in range(a, b + 1):
             out += ["[IMG%03d]" % i]
+            if i % 3 != 0 and i < 44:
+                out += ["status: ok"]
+            if i == 47:
+                out += ["off: yes"]
             if i == 45:
                 out += ["pick: e5f6a7b8", "note: دیوار پشت میمو کمی تاریک‌تر باشد.",
                         "say: راوی | برای اجداد ما، نقاشی روی دیوار غار فقط هنر نبود. یک جور جادو بود.",
@@ -67,6 +71,9 @@ def build(proj):
             pr += ["Prompt of picture %d." % i]
         pr += [""]
     open(os.path.join(root, "prompts", "prompts.txt"), "w", encoding="utf-8", newline="\n").write("\n".join(pr))
+    for f in os.listdir(os.path.join(root, "images", "scenes")):  # the fixture's own tiny pictures give way to the still
+        if f.startswith("IMG00") and f.endswith((".png",)) and "_x" not in f:
+            os.remove(os.path.join(root, "images", "scenes", f))
     still = open(STILL, "rb").read()
     now = time.time()
     put = lambda rel, age: (os.makedirs(os.path.dirname(os.path.join(root, rel)), exist_ok=True), open(os.path.join(root, rel), "wb").write(still),
@@ -74,8 +81,10 @@ def build(proj):
     for rel in ("images/refs/CH/CH_MIMO.png", "images/refs/STYLE/STYLE_ANCHOR.png"):
         put(rel, 900)
     for i in range(1, 51):
-        if i != 45:
+        if i != 45 and i != 49:  # picture 49 has no file: the empty slot of the gallery
             put("images/scenes/IMG%03d_x.png" % i, 800)
+        if i in (7, 21, 33):
+            put("images/scenes/IMG%03d_y_a1b2c3d4.png" % i, 700)
     for name, age in (("IMG045_cave.png", 500), ("IMG045_cave_e5f6a7b8_4K.png", 400), ("IMG045_cave_a1b2c3d4_2K.png", 300), ("IMG045_cave_9a8b7c6d.png", 200)):
         put("images/scenes/" + name, age)
     for lg in ("fa", "en"):
@@ -160,6 +169,18 @@ def main():
             page = open_at(390, 844)
             page.screenshot(path=os.path.join(OUT, "mobile-review.png"))
             page.context.close()
+            for name, w, h in (("desktop-gallery", 1376, 768), ("mobile-gallery", 390, 844)):  # the start page: no address
+                ctx = browser.new_context(viewport={"width": w, "height": h}, locale="fa-IR")
+                page = ctx.new_page()
+                t0 = time.time()
+                page.goto(proj.url + "/review.html")
+                page.wait_for_function("document.querySelectorAll('#ggrid .tile[data-id]').length == 50")
+                assert time.time() - t0 < 1.0, "50 tiles must show in under a second: %.2fs" % (time.time() - t0)
+                page.evaluate("document.fonts.ready")
+                page.wait_for_function("[...document.querySelectorAll('#ggrid img')].slice(0, 30).every(i => i.complete)")
+                page.wait_for_timeout(300)
+                page.screenshot(path=os.path.join(OUT, name + ".png"))
+                ctx.close()
         finally:
             proj.close()
         browser.close()
