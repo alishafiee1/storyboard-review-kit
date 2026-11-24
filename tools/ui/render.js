@@ -154,11 +154,38 @@ const vnavHtml = m => {
 /* one «⋯» menu per scene instead of a row of little buttons (the buttons are still plain elements, so wiring is unchanged) */
 const sceneTools = sc => `<span class="sct"><button class="mn" data-mn="1" aria-haspopup="menu" aria-expanded="false" aria-label="منوی صحنه" title="منوی صحنه">⋯</button><div class="menu" role="menu" hidden>${ sc.id === 'scene-00' ? '' : `<button role="menuitem" data-smv="-1">▲ یک صحنه بالاتر</button><button role="menuitem" data-smv="1">▼ یک صحنه پایین‌تر</button><button role="menuitem" data-soff="1" title="متن و فایل‌ها پاک نمی‌شن">🚫 کنار بذار</button>` }<button role="menuitem" data-addimg="${ sc.id }">＋ تصویر جدید در این صحنه</button>${ sc.id === 'scene-00' ? '' : `<button role="menuitem" data-addscene="${ sc.id }">＋ صحنهٔ جدید بعد از این</button>` }</div></span>`;
 const offSceneHtml = sc => `<section data-scene="${ sc.id }" class="scene-off"><h2 class="sc off"><span class="num">–</span><span class="t">${ esc(sc.title) }</span><span class="tm">کنار گذاشته شده</span><span class="sct"><button data-son="1" aria-label="برگرداندن صحنه" title="برگرداندن صحنه">↩ برگردان</button></span></h2></section>`;
-function figHtml(m) {
+/* where «one image up / down» puts a picture: past the neighbour in its scene, or over the scene header to the end of the scene above / the start of the
+   scene below (scenes that are set aside are skipped, and nothing goes into the thumbnail scene). null = nowhere to go. */
+export function moveTarget(id, step) {
+  const vis = S.P.scenes.filter(s => !s.off), imgs = sc => sc.blocks.flatMap(b => b.images.map(i => i.id));
+  const si = vis.findIndex(s => imgs(s).includes(id));
+  if (si < 0 || vis[si].id === 'scene-00')
+    return null;
+  const list = imgs(vis[si]), k = list.indexOf(id);
+  if (step < 0) {
+    if (k > 0)
+      return { ids: [id], before: list[k - 1] };
+    const prev = vis[si - 1];
+    return prev && prev.id !== 'scene-00' ? { ids: [id], to_end_of_scene: prev.id } : null;
+  }
+  if (k < list.length - 1)
+    return { ids: [id], after: list[k + 1] };
+  const next = vis[si + 1], nl = next ? imgs(next) : [];
+  return next ? nl.length ? { ids: [id], before: nl[0] } : { ids: [id], to_end_of_scene: next.id } : null;
+}
+/* the «⋯» menu of one picture: move it, start a scene at it, join its scene to the one above, add a slot after it */
+const imageTools = (m, sc) => {
+  if (sc.id === 'scene-00')
+    return '';
+  const vis = S.P.scenes.filter(s => !s.off), si = vis.indexOf(sc), first = sc.blocks.flatMap(b => b.images)[0]?.id === m.id;
+  const prev = vis[si - 1], up = moveTarget(m.id, -1), down = moveTarget(m.id, 1);
+  return `<span class="sct imn"><button class="mn" data-mn="1" aria-haspopup="menu" aria-expanded="false" aria-label="منوی تصویر" title="منوی تصویر">⋯</button><div class="menu" role="menu" hidden>${ up ? '<button role="menuitem" data-imv="-1">▲ یک تصویر بالاتر</button>' : '' }${ down ? '<button role="menuitem" data-imv="1">▼ یک تصویر پایین‌تر</button>' : '' }<button role="menuitem" data-iadd="1">＋ تصویر بعد از این</button>${ first ? '' : '<button role="menuitem" data-isc="1">✂ شروع صحنهٔ جدید از اینجا</button>' }${ first && prev && prev.id !== 'scene-00' ? '<button role="menuitem" data-imerge="1" title="عنوان این صحنه برداشته می‌شه و تصویرهاش می‌رن توی صحنهٔ قبل">⇡ ادغام با صحنهٔ قبل</button>' : '' }</div></span>`;
+};
+function figHtml(m, sc) {
   const im = m.src ? `<img src="${ m.src }" loading="lazy">` : `<div class="ph"><b>${ m.id }</b><br>هنوز ساخته نشده</div>`;
   const rj = m.rejected.length ? ` ردشده‌ها: ${ m.rejected.map((r, i) => `<a href="${ r }" target="_blank">${ i + 1 }</a>`).join('') }` : '';
   const chips = m.refs.map(c => c.src ? `<button class="chip ref" data-ref="${ c.src }" data-name="${ esc(c.name) }" title="باز کردن رفرنس">${ esc(c.name) }</button>${ c.video ? `<button class="chip ref" data-vid="${ esc(c.video) }" data-name="${ esc(c.name) }" title="پخش ویدیوی این رفرنس">▶</button>` : '' }` : `<span class="chip miss" title="این رفرنس هنوز ساخته نشده">${ esc(c.name) }</span>`).join('');
-  return `<figure class="shot${ m.off ? ' off' : '' }" data-id="${ m.id }" data-m="${ m.status }"><div class="idl"><span>${ m.id }</span><button class="b" data-ioff="1" title="${ m.off ? 'برگرداندن تصویر' : 'این تصویر از ترتیب نهایی کنار گذاشته بشه (فایلش پاک نمی‌شه)' }">${ m.off ? '↩ برگردان' : '🚫 کنار بذار' }</button></div>${ im }${ vnavHtml(m) }<div class="ctl">
+  return `<figure class="shot${ m.off ? ' off' : '' }" data-id="${ m.id }" data-m="${ m.status }"><div class="idl"><span>${ m.id }</span><button class="b" data-ioff="1" title="${ m.off ? 'برگرداندن تصویر' : 'این تصویر از ترتیب نهایی کنار گذاشته بشه (فایلش پاک نمی‌شه)' }">${ m.off ? '↩ برگردان' : '🚫 کنار بذار' }</button>${ imageTools(m, sc) }</div>${ im }${ vnavHtml(m) }<div class="ctl">
    <div class="refs">${ chips || '<small>بدون رفرنس</small>' }<button class="chip add" data-attach="1" title="رفرنس‌های این تصویر رو اضافه یا کم کن">📎 اتچ</button></div>
    <div class="nbox" data-key="panel:note:${ m.id }"><textarea class="nt" rows="1" data-key="note:${ m.id }" data-orig="${ esc(m.note) }" placeholder="یادداشت برای این صحنه... (Enter = ذخیره · Shift+Enter = خط بعد · Esc = برگشت)">${ esc(m.note) }</textarea>
      <div class="btns" hidden><button class="b" data-sn="1">💾 ذخیره یادداشت</button></div></div>
@@ -213,7 +240,7 @@ export function render() {
       d.className = 'blk' + (b.images.length ? '' : ' noimg');
       d.id = 'b' + i;
       d.dataset.bid = b.images.length ? b.images[0].id : sc.id + '#' + holder.children.length;
-      d.innerHTML = (b.images.length ? `<div class="imgs">${ b.images.map(figHtml).join('') }</div>` : '') + `<div class="txt">${ b.items.map((t, j) => itemHtml(t, sc, i, j)).join('') }${ addBar(b.items.length ? b.items[b.items.length - 1].ln : b.images[b.images.length - 1].ln) }</div>`;
+      d.innerHTML = (b.images.length ? `<div class="imgs">${ b.images.map(im => figHtml(im, sc)).join('') }</div>` : '') + `<div class="txt">${ b.items.map((t, j) => itemHtml(t, sc, i, j)).join('') }${ addBar(b.items.length ? b.items[b.items.length - 1].ln : b.images[b.images.length - 1].ln) }</div>`;
       holder.appendChild(d);
     });
   });

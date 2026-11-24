@@ -62,7 +62,7 @@ def outdated_pictures():
     scan, out = scan_images(), []
     for x in premiere_check.find_xmls():
         for p in premiere_check.check(x)["paths"]:
-            m = re.match(r"(IMG\d{3})", os.path.basename(p))
+            m = re.match(r"(IMG\d{3,4})(?!\d)", os.path.basename(p))
             r = resolve("image", m.group(1), picks.get(m.group(1), ""), scan=scan) if m and "/images/scenes/" in p.replace("\\", "/") else None
             if r and os.path.normpath(r["path"]) != os.path.normpath(p):
                 out.append("%s: %s -> %s" % (os.path.basename(x), os.path.relpath(p, ROOT).replace("\\", "/"), r["src"]))

@@ -617,7 +617,7 @@ def move_scenes(proj, page):
 @test
 def scene_menu_and_add_image(proj, page):
     """Every scene has one «⋯» menu; Esc and outside clicks close it; «new picture» appends an empty slot to an existing scene."""
-    sec = "section[data-scene=scene-01]"
+    sec = "section[data-scene=scene-01] h2"
     assert page.locator(sec + " .menu").is_hidden()
     menu(page, "scene-01")
     assert page.locator(sec + " .menu").is_visible() and page.get_attribute(sec + " [data-mn]", "aria-expanded") == "true"
@@ -627,7 +627,7 @@ def scene_menu_and_add_image(proj, page):
     page.click("h1, #title")
     assert page.locator(sec + " .menu").is_hidden()
     menu(page, "scene-01")
-    page.click(sec + " [data-addimg]")
+    page.click("section[data-scene=scene-01] [data-addimg]")
     proj.wait("scenario/story.txt", "[IMG004]")
     st = proj.story()
     assert st.index("[IMG002]") < st.index("[IMG004]") < st.index("=== scene-02"), "the new slot goes to the end of that scene"
@@ -999,6 +999,115 @@ def regen_makes_only_the_stale_lines(proj, page):
     assert "voice-stale" not in st
     assert os.path.exists(os.path.join(proj.root, "audio", "fa", "IMG001_2.eleven-v4-turbo.mp3"))
     assert "voice: fa=eleven-v4-turbo" in st and "IMG001_1.fa" not in st
+
+
+@test
+def image_menu_moves_and_scene_marks(proj, page):
+    """The «⋯» menu of a picture: one image up / down (over a scene header too), a slot after it, start a scene here, join the scene above.
+    Everything is a text move in story.txt; undo gives the bytes back."""
+    use_story(proj, page, "story.txt")
+    orig = story_bytes(proj)
+    fig = lambda i: "figure.shot[data-id=%s]" % i
+    items = lambda i: [b.inner_text() for b in page.locator(fig(i) + " [role=menuitem]").all()]
+    page.click(fig("IMG001") + " [data-mn]")
+    assert page.get_attribute(fig("IMG001") + " [data-mn]", "aria-expanded") == "true"
+    assert not page.locator(fig("IMG001") + " [data-imv='-1']").count(), "nothing above the first picture (the thumbnail scene is closed)"
+    assert not page.locator(fig("IMG001") + " [data-imerge]").count() and not page.locator(fig("IMG000") + " [data-mn]").count()
+    page.click(fig("IMG001") + " [data-imv='1']")  # down: past IMG002
+    page.wait_for_function("document.querySelector('section[data-scene=scene-01] figure.shot').dataset.id==='IMG002'")
+    st = proj.story()
+    assert st.index("[IMG002]") < st.index("[IMG001]") < st.index("=== scene-02")
+    assert "رنگ‌ها شاد باشه" in st.split("[IMG001]")[1].split("=== scene-02")[0], "its note went along"
+    page.click(fig("IMG001") + " [data-mn]")
+    page.click(fig("IMG001") + " [data-imv='1']")  # down again: over the header, first in the next scene
+    page.wait_for_function("document.querySelector('section[data-scene=scene-02] figure.shot').dataset.id==='IMG001'")
+    assert proj.story().index("=== scene-02") < proj.story().index("[IMG001]") < proj.story().index("[IMG003]")
+    page.click(fig("IMG001") + " [data-mn]")
+    page.click(fig("IMG001") + " [data-imv='-1']")  # up: back to the end of the scene above
+    page.wait_for_function("document.querySelectorAll('section[data-scene=scene-01] figure.shot').length===2")
+    assert proj.story().index("[IMG001]") < proj.story().index("=== scene-02")
+    for i in range(3):  # undo the three moves
+        assert proj.api("/api/undo", {})[0] == 200
+    assert story_bytes(proj) == orig
+    page.reload()
+    page.wait_for_selector("section.blk")
+    page.click(fig("IMG002") + " [data-mn]")  # a slot after this picture
+    page.click(fig("IMG002") + " [data-iadd]")
+    page.wait_for_selector(fig("IMG004"))
+    st = proj.story()
+    assert st.index("[IMG002]") < st.index("[IMG004]") < st.index("=== scene-02")
+    assert proj.api("/api/undo", {})[0] == 200
+    page.reload()
+    page.wait_for_selector("section.blk")
+    assert page.locator(fig("IMG002") + " [data-isc]").count() == 1 and page.locator(fig("IMG001") + " [data-isc]").count() == 0
+    page.click(fig("IMG002") + " [data-mn]")
+    page.click(fig("IMG002") + " [data-isc]")  # the page asks for a title; the test accepts the default
+    page.wait_for_selector("section[data-scene=scene-03] " + fig("IMG002"))
+    st = proj.story()
+    assert "\n\n=== scene-03 | صحنهٔ جدید | - ===\n[IMG002]" in st and st.index("=== scene-03") < st.index("=== scene-02")
+    assert page.locator("section[data-scene=scene-03] h2 .num").inner_text().strip() == "2" and page.locator("section[data-scene=scene-02] h2 .num").inner_text().strip() == "3"
+    page.click(fig("IMG002") + " [data-mn]")
+    assert items("IMG002")[-1].startswith("⇡"), items("IMG002")
+    page.click(fig("IMG002") + " [data-imerge]")  # join the scene above: only the header goes
+    page.wait_for_function("document.querySelectorAll('section[data-scene=scene-01] figure.shot').length===2")
+    assert page.locator("section[data-scene=scene-03]").count() == 0
+    st = proj.story()
+    assert "=== scene-03" not in st and "id: IMG001_1" in st and "id: IMG002_1" in st, "the old line ids were written out before the scene header moved"
+    assert [h["label"] for h in proj.api("/api/project")[1]["history"]] == ["scenemark", "scenemark"]
+    page.click(fig("IMG003") + " [data-mn]")  # the first picture of the scene below: it can be joined to the one above (that scene has env text: asked)
+    page.click(fig("IMG003") + " [data-imerge]")
+    page.wait_for_function("document.querySelectorAll('section[data-scene=scene-01] figure.shot').length===3")
+    st = proj.story()
+    assert "=== scene-02" not in st and "[IMG002]\nimage-stale: yes" in st and "env: غروب، کنار دریا." not in st
+    assert any("ادغام" in m for m in page._dialogs)
+    assert proj.api("/api/undo", {})[0] == 200
+    assert "env: غروب، کنار دریا." in proj.story()
+    while proj.api("/api/project")[1]["history"]:
+        assert proj.api("/api/undo", {})[0] == 200
+    assert story_bytes(proj) == orig
+
+
+@test
+def move_endpoints_stale_and_four_digit(proj, page):
+    """POST /api/move, /api/scenemark and /api/addimage from outside the page: positions, an existing id, a four-digit id, 409 for a stale page."""
+    use_story(proj, page, "story.txt")
+    orig = story_bytes(proj)
+    code, r = proj.api("/api/move", {"ids": ["IMG003", "IMG001"], "before": "IMG002"})
+    assert code == 200 and r["scene"] == "scene-01" and r["moved"] == 2
+    st = proj.story()
+    assert st.index("[IMG001]") < st.index("[IMG003]") < st.index("[IMG002]") and "=== scene-02" in st and "\n\n=== scene-02" in st
+    page.reload()
+    page.wait_for_selector("section.blk")
+    assert page.locator("section[data-scene=scene-01] figure.shot").count() == 3
+    assert page.locator("section[data-scene=scene-02] figure.shot").count() == 0
+    code, r = proj.api("/api/move", {"ids": ["IMG001"], "before": "IMG001"})
+    assert code == 200 and r["moved"] == 0
+    assert [h["label"] for h in proj.api("/api/project")[1]["history"]] == ["move"], "a move onto itself keeps no snapshot"
+    assert proj.api("/api/move", {"ids": ["IMG999"], "before": "IMG001"})[0] == 409
+    assert proj.api("/api/move", {"ids": ["IMG001"], "after": "IMG999"})[0] == 409
+    assert proj.api("/api/move", {"ids": ["IMG001"]})[0] == 400
+    assert proj.api("/api/move", {"ids": ["IMG001"], "before": "IMG002", "after": "IMG003"})[0] == 400
+    assert proj.api("/api/move", {"ids": ["IMG001"], "after": "IMG000"})[0] == 400, "nothing goes into the thumbnail scene"
+    assert proj.api("/api/scenemark", {"op": "remove", "scene": "scene-77"})[0] == 409
+    assert proj.api("/api/scenemark", {"op": "remove", "scene": "scene-02"})[0] == 400, "it has an env line: only with force"
+    assert proj.api("/api/scenemark", {"op": "remove", "scene": "scene-02", "force": True})[0] == 200
+    code, r = proj.api("/api/scenemark", {"op": "insert", "before": "IMG002", "title": "غار", "env": "تاریک"})
+    assert code == 200 and r["scene"] == "scene-02", "the next free number (scene-02 was just removed)"
+    assert proj.api("/api/scenemark", {"op": "edit", "scene": "scene-02", "title": "غار ۲", "fx": "برش"})[0] == 200
+    assert "=== scene-02 | غار ۲ | - ===\nenv: تاریک\nfx: برش\n[IMG002]" in proj.story()
+    code, r = proj.api("/api/addimage", {"before": "IMG002", "id": "IMG1000"})
+    assert code == 200 and r["id"] == "IMG1000"
+    assert proj.api("/api/addimage", {"before": "IMG002", "id": "IMG1000"})[0] == 409
+    assert proj.api("/api/addimage", {"after": "IMG1000"})[1]["id"] == "IMG1001"
+    page.reload()
+    page.wait_for_selector("figure.shot[data-id=IMG1000]")
+    assert page.locator("section[data-scene=scene-02] figure.shot").count() == 3
+    code, r = proj.api("/api/image", {"id": "IMG1000", "note": "چهار رقمی"})
+    assert code == 200 and "note: چهار رقمی" in proj.story()
+    n = len(proj.api("/api/project")[1]["history"])
+    while proj.api("/api/project")[1]["history"]:
+        assert proj.api("/api/undo", {"force": True})[0] == 200
+    assert n >= 6 and story_bytes(proj) == orig
 
 
 @test

@@ -14,7 +14,7 @@ BASE = r"(?P<base>IMG\d{3,4}|[A-Z]+(?:_(?!\d{8}(?![A-Za-z0-9]))[A-Z0-9]+)+)"  # 
 DEFAULT_PATTERN = (BASE + r"(?:_(?P<slug>[^.]*?))??(?:_(?P<rid>(?i:[0-9a-f]{8})))?(?:_(?P<q>(?i:[124]K)))?"
                    r"(?P<dup>\s\(\d+\))?\.(?P<ext>(?i:jpe?g|png|webp))$")
 QUALITY = ("4K", "2K", "1K")  # best first; a file without a suffix ranks below all of them
-LEGACY_IMG = re.compile(r"(IMG\d{3})(?!\d)")  # old projects: any file name that starts with the id still counts, even when it does not follow the pattern
+LEGACY_IMG = re.compile(r"(IMG\d{3,4})(?!\d)")  # old projects: any file name that starts with the id still counts, even when it does not follow the pattern
 AUDIO_NAME = re.compile(r"^(?P<stem>.+?)(?P<dup>\s\(\d+\))?\.mp3$", re.I)
 AUDIO_RID = re.compile(r"^(?P<id>.+)_(?P<rid>[0-9a-f]{8})$")
 _cache = {}

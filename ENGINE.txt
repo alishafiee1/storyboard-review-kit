@@ -28,6 +28,7 @@ tools/media.py
 tools/edits.py
 tools/lineedits.py
 tools/history.py
+tools/moves.py
 tools/promptedits.py
 tools/jobs.py
 tools/project.py

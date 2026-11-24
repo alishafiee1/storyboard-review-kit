@@ -10,7 +10,10 @@ import {
   stats
 } from './panels.js';
 import { S } from './state.js';
-import { stopLine } from './render.js';
+import {
+  moveTarget,
+  stopLine
+} from './render.js';
 /* Picture versions, voice variants and scene management (set aside, move, add). Everything is written to story.txt; no file is renamed or deleted. */
 /* the scene «⋯» menu: opens on click, closes on any other click or Esc (also when a menu item is used) */
 const closeMenus = () => document.querySelectorAll('.sct .menu:not([hidden])').forEach(m => {
@@ -96,6 +99,65 @@ export function wireVersions() {
       } catch (e) {
         fail(e);
       }
+    });
+    const where = () => {
+      const sec = f.closest('section[data-scene]');
+      return S.P.scenes.find(x => x.id === sec.dataset.scene);
+    };
+    const done = async (to = id) => {
+      await reload();
+      const g = document.querySelector(`figure.shot[data-id="${ to }"]`);
+      if (g)
+        g.scrollIntoView({
+          block: 'center',
+          behavior: SMOOTH
+        });
+    };
+    const edit = (sel, run) => {
+      const b = f.querySelector(sel);
+      if (b)
+        b.onclick = async () => {
+          closeMenus();
+          try {
+            await done(await run(b));
+          } catch (e) {
+            fail(e);
+          }
+        };
+    };
+    f.querySelectorAll('[data-imv]').forEach(b => b.onclick = async () => {
+      closeMenus();
+      try {
+        const body = moveTarget(id, +b.dataset.imv);
+        if (body)
+          await api('/api/move', body);
+        await done();
+      } catch (e) {
+        fail(e);
+      }
+    });
+    edit('[data-iadd]', async () => {
+      return (await api('/api/addimage', { after: id })).id;
+    });
+    edit('[data-isc]', async () => {
+      const title = prompt('عنوان صحنهٔ جدید که از این تصویر شروع می‌شه؟', 'صحنهٔ جدید');
+      if (title === null)
+        return;
+      await api('/api/scenemark', {
+        op: 'insert',
+        before: id,
+        title
+      });
+    });
+    edit('[data-imerge]', async () => {
+      const sc = where(), info = sc.env.length || sc.fx || sc.model;
+      if (!confirm('این صحنه با صحنهٔ قبلش ادغام بشه؟\nعنوان این صحنه برداشته می‌شه و تصویرهاش می‌رن توی صحنهٔ قبل' + (info ? '؛ محیط و ادیتِ صحنه هم حذف می‌شه' : '') + '.\nبا «برگردان» می‌شه برگشت.'))
+        return;
+      await api('/api/scenemark', {
+        op: 'remove',
+        scene: sc.id,
+        force: !!info
+      });
     });
     const off = f.querySelector('[data-ioff]');
     if (off)

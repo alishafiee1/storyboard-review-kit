@@ -94,7 +94,7 @@ def by_scene(stale, ids):
 def api_regen(d):
     """Make the voices of the lines that are out of date: all of them, or only those of one picture (`image`) or one scene (`scene`)."""
     scene, image = str(d.get("scene", "")), str(d.get("image", ""))
-    if scene and not re.fullmatch(r"scene-\d{2,3}", scene) or image and not re.fullmatch(r"IMG\d{3}", image):
+    if scene and not re.fullmatch(r"scene-\d{2,3}", scene) or image and not re.fullmatch(r"IMG\d{3,4}", image):
         raise ValueError("bad scene or image")
     if JOB["state"] == "running":
         raise ValueError("یک بازسازی دیگر در حال انجام است")

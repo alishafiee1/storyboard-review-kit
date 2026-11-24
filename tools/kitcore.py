@@ -39,7 +39,7 @@ LOCK = threading.Lock()
 HEADER = re.compile(r"^=== (scene-\d{2,3}) \| (.*?) \| (.*?) ===$")
 
 
-MARKER = re.compile(r"^\[(IMG\d{3})\]$")
+MARKER = re.compile(r"^\[(IMG\d{3,4})\]$")  # three or four digits: IMG045, IMG1000 (IMG0451 is another picture than IMG045)
 
 
 KEYLINE = re.compile(r"^([a-z][a-z-]*):\s?(.*)$")

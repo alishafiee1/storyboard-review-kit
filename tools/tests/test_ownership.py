@@ -270,7 +270,7 @@ class Snapshots(unittest.TestCase):
 
     def test_structural_endpoints_are_the_ones_that_keep_a_snapshot(self):
         import api
-        self.assertEqual(api.STRUCTURAL, {"/api/add", "/api/delete", "/api/addimage", "/api/addscene", "/api/scenemove", "/api/sceneoff"})
+        self.assertEqual(api.STRUCTURAL, {"/api/add", "/api/delete", "/api/addimage", "/api/addscene", "/api/scenemove", "/api/sceneoff", "/api/move", "/api/scenemark"})
         self.assertIn("/api/undo", api.ROUTES)
 
 

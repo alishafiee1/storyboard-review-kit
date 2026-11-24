@@ -4,9 +4,10 @@ ValueError (-> 400) or Conflict (-> 409); returning nothing means {"ok": true}."
 import os, re
 import history
 from kitcore import LANGS, MARKS, MODEL_RE, PROMPTS, STORY, VPROMPTS, read_lines, write_lines
-from story import clean_name, clean_tone, ensure_speaker, parse_prompts, parse_speakers, story_scenes
+from story import clean_name, clean_tone, ensure_speaker, parse_prompts, parse_speakers, scene_ranges, story_scenes
 from media import archive_item, audio_variants, find_version, scan_images, scan_refs
 from edits import add_image, add_scene, mark_stale, move_scene, patch_image, set_default_model, set_flag, set_line_pick, set_scene_fx, set_scene_model, set_scene_off, set_stale, speech_scenes
+from moves import add_image_at, move_images, scene_mark
 from lineedits import add_issue, add_line, clear_issue, delete_line, edit_line, locate
 from promptedits import replace_prompt, set_prompt_refs, upsert_prompt
 
@@ -46,7 +47,7 @@ def undo(d):
 def image(d):
     """one picture: status, note, edit advice (fx), stale flag, chosen version (pick), set aside (off)"""
     id_ = str(d["id"])
-    if not re.fullmatch(r"IMG\d{3}", id_) or str(d.get("status", "")) not in MARKS:
+    if not re.fullmatch(r"IMG\d{3,4}", id_) or str(d.get("status", "")) not in MARKS:
         raise ValueError("bad id or status")
     lines = read_lines(STORY)
     pick, status = d.get("pick"), d.get("status")
@@ -144,14 +145,52 @@ def addscene(d):
 
 @route("/api/addimage", snapshot=True)
 def addimage(d):
-    """one more empty picture slot at the end of a scene"""
-    sid = str(d["scene"])
-    if not re.fullmatch(r"scene-\d{2,3}", sid):
-        raise ValueError("bad scene")
+    """one more empty picture slot: at the end of a scene {scene}, or right {after: IMG} / {before: IMG} a picture; {id: IMG045} places a picture id
+    that has files or a prompt but no marker yet (409 when it already has one)"""
+    anchors = [k for k in ("after", "before") if d.get(k)]
+    if len(anchors) + bool(d.get("scene")) != 1:
+        raise ValueError("دقیقاً یکی از scene و after و before لازم است")
     lines = read_lines(STORY)
-    iid = add_image(lines, sid)
+    if anchors:
+        iid = add_image_at(lines, before=d.get("before"), after=d.get("after"), image_id=d.get("id"))
+    else:
+        sid = str(d["scene"])
+        if not re.fullmatch(r"scene-\d{2,3}", sid):
+            raise ValueError("bad scene")
+        if d.get("id"):
+            if not any(r[0] == sid for r in scene_ranges(lines)):
+                raise ValueError("scene not found")
+            iid = add_image_at(lines, scene=sid, image_id=d["id"])
+        else:
+            iid = add_image(lines, sid)
     write_lines(STORY, lines)
     return {"ok": True, "id": iid}
+
+
+@route("/api/move", snapshot=True)
+def move(d):
+    """move one or several pictures (their [IMG] line and all that belongs to it) {ids:[IMG..]} to just {before: IMG} / {after: IMG} a picture or
+    {to_end_of_scene: scene-id}, also across scene headers; they keep their order in the file; onto itself changes nothing; 409 when a picture
+    or scene is not in the file any more"""
+    ids = d.get("ids", [d["id"]] if d.get("id") else [])
+    if not isinstance(ids, list):
+        raise ValueError("ids must be a list")
+    lines = read_lines(STORY)
+    scene = move_images(lines, ids, before=d.get("before"), after=d.get("after"), to_end=d.get("to_end_of_scene"))
+    if scene is None:
+        return {"ok": True, "moved": 0}
+    write_lines(STORY, lines)
+    return {"ok": True, "moved": len(ids), "scene": scene}
+
+
+@route("/api/scenemark", snapshot=True)
+def scenemark(d):
+    """the scene markers: op=insert {before: IMG, title, env?} starts a new scene at that picture; op=remove {scene, force?} deletes only the
+    header so its pictures join the previous scene; op=edit {scene, title?, env?, fx?}"""
+    lines = read_lines(STORY)
+    res = scene_mark(lines, str(d.get("op", "")), d)
+    write_lines(STORY, lines)
+    return dict(res, ok=True)
 
 
 @route("/api/flag")
@@ -269,7 +308,7 @@ def scenefx(d):
 def vprompt(d):
     """save the image-to-video prompt of a picture"""
     id_ = str(d["id"])
-    if not re.fullmatch(r"IMG\d{3}", id_):
+    if not re.fullmatch(r"IMG\d{3,4}", id_):
         raise ValueError("bad id")
     lines = read_lines(VPROMPTS) if os.path.exists(VPROMPTS) else [
         "# پرامپت‌های ویدیو (تصویر به ویدیو). هر بلوک با «=== IMG### ===» شروع می‌شه و کامل و مستقل است؛ تصویر همان شناسه، فریم اول ویدیوست.", ""]
@@ -282,7 +321,7 @@ def refs(d):
     """attach / detach reference pictures of one shot (edits the top line of its prompt)"""
     id_ = str(d["id"])
     names = [str(n) for n in d["refs"]]
-    if not re.fullmatch(r"IMG\d{3}", id_) or len(names) > 12 or len(set(names)) != len(names) or not all(re.fullmatch(r"[A-Za-z0-9_]+", n) for n in names):
+    if not re.fullmatch(r"IMG\d{3,4}", id_) or len(names) > 12 or len(set(names)) != len(names) or not all(re.fullmatch(r"[A-Za-z0-9_]+", n) for n in names):
         raise ValueError("bad id or reference names")
     lines = read_lines(PROMPTS)
     pr = parse_prompts(lines)
@@ -308,7 +347,7 @@ def prompt(d):
     lines = read_lines(PROMPTS)
     changed = replace_prompt(lines, id_, str(d["old"]), str(d["new"]))
     write_lines(PROMPTS, lines)
-    if changed and re.fullmatch(r"IMG\d{3}", id_):  # the picture was made from the old prompt
+    if changed and re.fullmatch(r"IMG\d{3,4}", id_):  # the picture was made from the old prompt
         sl = read_lines(STORY)
         try:
             patch_image(sl, id_, stale=True)

@@ -27,6 +27,7 @@ Layers, each importing only from the ones above it:
 | `lineedits.py` | edits of single lines: change, add, delete a dialogue / action / translation line, format-issue notes |
 | `promptedits.py` | edits of `prompts.txt`: save a prompt, attach references |
 | `jobs.py` | slow network actions (voices, samples, subtitles) and the shared state of the running job |
+| `moves.py` | moving pictures and scene markers: `move_images` (a picture = its `[IMG]` line and all it owns, also across scene headers), `scene_mark` (insert / remove / edit a header), `add_image_at`; `pin_scene` writes the old position-based line ids and scene-level voice keys under the lines first |
 | `history.py` | snapshots of `story.txt` before structural edits (`.kit/history/`, last 30) and `undo` |
 | `project.py` | builds the one JSON the page loads |
 | `api.py` | one small function per write endpoint, registered with `@route("/api/...")` |
@@ -56,9 +57,9 @@ The full writing rules for AI assistants are in `starter/skills/how-to-write-pro
 
 ## Write API (`api.py`; all `POST`, JSON in, JSON out)
 
-`undo` (`.kit/history`), `image`, `voicepick`, `archive`, `restore`, `sceneoff`, `scenemove`, `addscene`, `addimage`, `flag`, `line`, `add`, `speaker`, `ttsmodel`, `voicetest`,
+`undo` (`.kit/history`), `image`, `voicepick`, `archive`, `restore`, `sceneoff`, `scenemove`, `addscene`, `addimage` (end of a scene, `{after}` / `{before}` a picture, or an existing `{id}`), `move` (`{ids, before | after | to_end_of_scene}`), `scenemark` (`op` = insert / remove / edit), `flag`, `line`, `add`, `speaker`, `ttsmodel`, `voicetest`,
 `delete`, `issue`, `scenefx`, `vprompt`, `refs`, `prompt` (each under `/api/`). Slow ones (`jobs.SLOW`, no file lock): `subtitles`, `voices/refresh`,
-`sample`, `regen`, `linevoice`. Reads: `GET /api/project`, `/api/job`, `/api/ping`. Line endpoints (`line`, `add`, `delete`, `issue`) address a line as `{image, index}` (counted from the `[IMG]` line) or the old `{scene, index}`; `voicepick`/`flag` use the line id; `regen` takes nothing (all stale lines), `image` or `scene`. Errors: 400 bad input, 409 the file changed outside the page.
+`sample`, `regen`, `linevoice`. Reads: `GET /api/project`, `/api/job`, `/api/ping`. Line endpoints (`line`, `add`, `delete`, `issue`) address a line as `{image, index}` (counted from the `[IMG]` line) or the old `{scene, index}`; `voicepick`/`flag` use the line id; `regen` takes nothing (all stale lines), `image` or `scene`. Errors: 400 bad input, 409 the file changed outside the page (also: a picture or scene the request names is no longer in `story.txt`). Structural endpoints (add / delete line, addscene, addimage, move, scenemark, scenemove, sceneoff) keep a snapshot first. Picture ids have three or four digits (`IMG045`, `IMG1000`).
 
 ## The page (`tools/ui/`)
 

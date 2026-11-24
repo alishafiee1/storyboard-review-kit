@@ -11,7 +11,7 @@ def locate(lines, d, key="index"):
     image's own [IMG001] line (so the address survives moving the image to another scene). Old form: {"scene": "scene-01", key: n}."""
     if d.get("image"):
         img = str(d["image"])
-        if not re.fullmatch(r"IMG\d{3}", img):
+        if not re.fullmatch(r"IMG\d{3,4}", img):
             raise ValueError("bad image")
         sid, s, m, end = image_range(lines, img)
         a = m + int(d[key])

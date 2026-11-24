@@ -262,8 +262,8 @@ def move_scene(lines, scene_id, step):
 
 
 def next_image_id(lines):
-    used = [int(m.group(1)) for l in lines for m in [MARKER.match(l.strip())] if m for m in [re.match(r"IMG(\d{3})", m.group(1))] if m]
-    used += [int(k[3:]) for k in scan_images() if re.fullmatch(r"IMG\d{3}", k)] + [int(k[3:]) for k in parse_prompts() if re.fullmatch(r"IMG\d{3}", k)]
+    used = [int(m.group(1)[3:]) for l in lines for m in [MARKER.match(l.strip())] if m]
+    used += [int(k[3:]) for k in scan_images() if re.fullmatch(r"IMG\d{3,4}", k)] + [int(k[3:]) for k in parse_prompts() if re.fullmatch(r"IMG\d{3,4}", k)]
     return max(used or [0]) + 1
 
 
@@ -282,7 +282,7 @@ def add_scene(lines, after, title, images):
         raise ValueError("too many scenes")
     sid = "scene-%02d" % num
     first = next_image_id(lines)
-    if first + images - 1 > 999:
+    if first + images - 1 > 9999:
         raise ValueError("too many pictures")
     block = [f"=== {sid} | {title} | - ==="] + [f"[IMG{first + k:03d}]" for k in range(images)]
     if after:
@@ -302,7 +302,7 @@ def add_image(lines, scene_id):
     """One more empty picture slot at the end of an existing scene. Returns the new id (e.g. IMG007)."""
     s_, e = scene_span(lines, scene_id)
     n = next_image_id(lines)
-    if n > 999:
+    if n > 9999:
         raise ValueError("too many pictures")
     while e > s_ + 1 and not lines[e - 1].strip():
         e -= 1
