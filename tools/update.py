@@ -10,7 +10,10 @@ import io, os, re, shutil, sys, time, urllib.request, zipfile
 
 REPO = os.environ.get("STORYBOARD_KIT_REPO", "alishafiee1/storyboard-review-kit")
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(globals().get("__file__") or "tools/update.py")))  # (no __file__ when started with python -c)
-IGNORE = [".env", ".engine-backup/", "audio/", "__pycache__/", "*.tmp"]
+MARK = "# --- storyboard-review-kit ignore rules: added once, edit or delete any line freely ---"
+IGNORE = [".env", ".engine-backup/", "__pycache__/", "*.tmp", "graphify-out/",
+          "videos/", "*_renders/", "*.mp4", "*.mov", "*.mkv", "*.avi", "*.webm", "*.m4v", "*.rar", "*.zip", "*.7z",
+          "archive/", "audio/_samples/", "audio/_tests/"]  # pictures (images/) and voices (audio/) are NOT ignored: they belong in git
 
 
 def fetch():
@@ -47,10 +50,13 @@ def write(z, pre, rel, dest_root):
 
 def ensure_ignore(root):
     p = os.path.join(root, ".gitignore")
+    """Add the kit's ignore rules to the project's .gitignore ONCE (marked by a comment). Later updates never touch the file again,
+    so lines the project removed or added stay as they are."""
     cur = open(p, encoding="utf-8").read().splitlines() if os.path.exists(p) else []
+    if MARK in cur:
+        return
     add = [x for x in IGNORE if x not in cur]
-    if add:
-        open(p, "a", encoding="utf-8", newline="").write(("\n" if cur and cur[-1] else "") + "\n".join(add) + "\n")
+    open(p, "a", encoding="utf-8", newline="").write(("\n" if cur and cur[-1] else "") + MARK + "\n" + "\n".join(add) + "\n")
 
 
 def update():

@@ -150,6 +150,29 @@ class Handoff(unittest.TestCase):
         self.assertEqual(premiere_check.resolve("../images/a%20b.png", base), os.path.normpath(os.path.join(base, "..", "images", "a b.png")))
 
 
+class GitIgnoreRules(unittest.TestCase):
+    def test_starter_gitignore_matches_the_updater_and_keeps_pictures_and_voices(self):
+        import update
+        starter = open(os.path.join(os.path.dirname(os.path.dirname(HERE)), "starter", ".gitignore"), encoding="utf-8").read().splitlines()
+        self.assertEqual([l for l in starter if l and not l.startswith("#")], update.IGNORE)
+        self.assertIn(update.MARK, starter)
+        for kept in ("audio/", "images/", "audio", "images"):
+            self.assertNotIn(kept, update.IGNORE)
+
+    def test_updater_adds_the_rules_once_and_never_again(self):
+        import tempfile, update
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, ".gitignore")
+            open(p, "w", encoding="utf-8").write("node_modules/\n")
+            update.ensure_ignore(d)
+            first = open(p, encoding="utf-8").read()
+            self.assertIn("videos/", first)
+            self.assertTrue(first.startswith("node_modules/"))
+            open(p, "w", encoding="utf-8").write(first.replace("videos/\n", ""))  # the project removes a line
+            update.ensure_ignore(d)
+            self.assertNotIn("videos/", open(p, encoding="utf-8").read().splitlines())
+
+
 class OldImports(unittest.TestCase):
     def test_serve_still_exports_what_older_project_scripts_import(self):
         import serve

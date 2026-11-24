@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.15.1
+- `python tools/update.py` no longer puts `audio/` in a project's `.gitignore` (voices belong in git). It now adds the kit's ignore rules once, under a marker comment, and never touches the file again, so lines a project removed or added stay as they are. The rules: `.env`, `.engine-backup/`, `__pycache__/`, `*.tmp`, `graphify-out/`, `videos/`, `*_renders/`, video and archive file types (`*.mp4 *.mov *.mkv *.avi *.webm *.m4v *.rar *.zip *.7z`), `archive/`, `audio/_samples/`, `audio/_tests/`. The new-project `.gitignore` is the same list. Projects updated by an older version keep an `audio/` line if they have one: delete it by hand.
+
 ## 1.15.0
 - The page scripts are now ES modules (`main.js` is the only script; `state.js` holds the shared values; start-up code lives in `boot_*()` functions). Nothing changes on screen.
 - `edits.py` split into `edits.py`, `lineedits.py` and `promptedits.py`.
