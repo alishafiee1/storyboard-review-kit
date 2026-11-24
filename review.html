@@ -3,9 +3,13 @@
 <header id="bar">
  <div class="bs"><button id="menuBtn" class="ib" type="button" aria-label="منو" aria-haspopup="dialog" aria-expanded="false" data-ic="menu"></button>
   <div class="ttl"><h1 id="title">بازبینی</h1><span id="ep"></span></div></div>
+ <div id="gstat"><span id="gst"></span><span class="gbar"><i></i></span><span id="gpct"></span></div>
  <nav id="nav" dir="ltr" aria-label="تصویر قبلی و بعدی"><button id="navPrev" class="ib" type="button" aria-label="تصویر قبلی" title="تصویر قبلی (←)" data-ic="chevL"></button><span id="pos">۰ / ۰</span><button id="navNext" class="ib" type="button" aria-label="تصویر بعدی" title="تصویر بعدی (→)" data-ic="chevR"></button>
   <input id="prog" type="range" min="0" max="0" value="0" aria-label="پرش به تصویر"><span id="apr" dir="rtl"></span></nav>
  <div class="be">
+  <input id="gq" type="search" aria-label="جست‌وجوی تصویر" placeholder="شناسه یا متن…" autocomplete="off" hidden>
+  <button id="gSearch" class="ib gonly" type="button" aria-label="جست‌وجو" title="جست‌وجو" data-ic="search"></button>
+  <button id="gFilter" class="ib gonly" type="button" aria-label="فیلتر" title="فیلتر" data-ic="sliders"></button>
   <button id="galBtn" class="ib" type="button" aria-label="گالری تصویرها" title="گالری تصویرها" data-ic="grid"></button>
   <span class="mw"><button id="more" class="ib" type="button" aria-label="منوی تصویر" aria-haspopup="menu" aria-expanded="false" title="منوی تصویر" data-ic="dots"></button>
    <div id="morePop" class="pop menu" role="menu" hidden></div></span>
@@ -20,9 +24,10 @@
 <main id="gallery" hidden></main>
 <main id="list"></main>
 <footer id="foot">
- <div class="ftp" dir="ltr"><button id="prev" class="ib" type="button" aria-label="تصویر قبلی" data-ic="skipPrev"></button><button id="play" class="playb" type="button" aria-label="پخش خودکار" title="پخش خودکار (Space)"><span class="pi" data-ic="play"></span><span class="pp" data-ic="pause"></span></button><button id="next" class="ib" type="button" aria-label="تصویر بعدی" data-ic="skipNext"></button>
+ <div class="ftp" dir="ltr"><button id="prev" class="ib" type="button" aria-label="تصویر قبلی" data-ic="skipPrev"></button><button id="play" class="playb" type="button" aria-label="پخش خودکار" title="پخش خودکار (Space)"><span class="pi" data-ic="play"></span><span class="pp" data-ic="pause"></span></button><button id="next" class="ib" type="button" aria-label="تصویر بعدی" data-ic="skipNext"></button><button id="playS" class="ib monly" type="button" data-fwd="play" aria-label="پخش خودکار" data-ic="play"></button>
   <span id="ttime" dir="ltr">۰:۰۰ / ۰:۰۰</span><span id="tbar" aria-hidden="true"><i></i></span></div>
- <div class="ftt"><button id="aside" class="quiet" type="button" data-ioff="1"></button><button id="approve" class="stamp" type="button" data-approve="1" title="این نسخه را تأیید کن (ایستادن روی یک نسخه هم یعنی تأیید)"><span data-ic="check"></span><span class="sl">تأیید</span></button></div>
+ <div class="mact monly"><button class="ib" type="button" data-fwd="bNote" aria-label="یادداشت و ادیت" data-ic="pencil"></button><button class="ib" type="button" data-fwd="bPrompt" aria-label="پرامپت تصویر" data-ic="image"></button><button class="ib" type="button" data-fwd="bVprompt" aria-label="پرامپت ویدیو" data-ic="clapper"></button><button class="ib" type="button" data-fwd="bFlag" aria-label="نشانه‌گذاری مشکل" data-ic="flag"></button></div>
+ <div class="ftt"><button id="aside" class="quiet" type="button" data-ioff="1"></button></div>
 </footer>
 <div id="scrim" hidden></div>
 <aside id="drawer" role="dialog" aria-modal="true" aria-label="منو" aria-hidden="true">

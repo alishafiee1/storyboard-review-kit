@@ -74,38 +74,6 @@ async function browse(d) {
   }
 }
 export const stepVersion = d => browse(d);
-/* approve = choose the shown version (the same as stopping on it); once more = take the approval back */
-async function approve() {
-  const c = curImg();
-  if (!c)
-    return;
-  const {m, f} = c;
-  try {
-    if (m.versions.length) {
-      if (m.status === 'ok') {
-        await api('/api/image', {
-          id: m.id,
-          pick: '',
-          status: ''
-        });
-        m.picked = '';
-        m.status = '';
-        paint(f, m);
-      } else
-        await pickVersion(f, m, m.vi);
-    } else {
-      const v = m.status === 'ok' ? '' : 'ok';
-      await api('/api/image', {
-        id: m.id,
-        status: v
-      });
-      m.status = v;
-      paint(f, m);
-    }
-  } catch (e) {
-    fail(e);
-  }
-}
 export async function archiveShown() {
   const c = curImg();
   if (!c || !c.m.versions[c.m.vi])
@@ -275,8 +243,6 @@ export function boot_versions() {
     const b = e.target.closest('[data-vn]');
     if (b)
       browse(+b.dataset.vn);
-    if (e.target.closest('[data-approve]'))
-      approve();
     const o = e.target.closest('[data-ioff]');
     if (o && !o.closest('#morePop'))
       onItem(o);

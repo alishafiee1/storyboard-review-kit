@@ -55,7 +55,7 @@ export function playUI() {
   $('#play').setAttribute('aria-label', on ? 'توقف پخش' : 'پخش خودکار');
   $('#play').title = (on ? 'توقف پخش' : 'پخش خودکار') + ' (Space)';
 }
-/* top bar: «۴۵ / ۵۰», the tick line, «approved», the icons that need a picture; footer: set aside and the approve stamp */
+/* top bar: «۴۵ / ۵۰», the tick line, «approved», the icons that need a picture; footer: set aside */
 export function chrome() {
   const v = vis(), p = v.indexOf(S.cur), n = v.length, c = curImg(), m = c && c.m;
   $('#pos').textContent = `${ fa(Math.max(0, p) + 1 - (n ? 0 : 1)) } / ${ fa(n) }`;
@@ -82,10 +82,6 @@ export function chrome() {
   const a = $('#aside');
   a.disabled = !m;
   a.innerHTML = ic('tray') + `<span>${ m && m.off ? 'برگردان' : 'کنار بگذار' }</span>`;
-  const ap = $('#approve'), ok = !!(m && m.status === 'ok');
-  ap.disabled = !m || !m.src;
-  ap.classList.toggle('on', ok);
-  ap.querySelector('.sl').textContent = ok ? 'تأیید شد' : 'تأیید';
   const en = $('#showEN').checked;
   $('#lang').setAttribute('aria-pressed', en ? 'true' : 'false');
   $('#lang').classList.toggle('en', en);
@@ -262,6 +258,11 @@ export function stopPlayback() {
   stop();
 }
 export function boot_player() {
+  document.addEventListener('click', e => {
+    const f = e.target.closest('[data-fwd]');
+    if (f)
+      document.getElementById(f.dataset.fwd).click();
+  });
   $('#play').onclick = () => {
     stopLine();
     if (S.playing)

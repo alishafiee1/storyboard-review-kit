@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """Screenshots of the real review page, for the visual comparison with docs/redesign/mockups/ (phase 6).
-  python tools/tests/shots.py            writes docs/redesign/screens/{desktop-review,desktop-modal,desktop-drawer,mobile-review}.png
+  python tools/tests/shots.py            writes docs/redesign/screens/{desktop-review,desktop-modal,desktop-drawer,mobile-review,mobile-drawer,mobile-modal,*-gallery}.png
 It builds a throw-away project (the test fixture plus a 50-picture story in the style of the mock-ups: scene 4 «غار», picture 45, two voices),
 starts its own server on a free port and drives the page like a user. The still is a crop of the painting in the mock-up (fixture/still-cave.png,
 made once from docs/redesign/mockups/desktop.png). Nothing in the page is faked: what you see is what the app draws."""
@@ -168,6 +168,15 @@ def main():
             page.context.close()
             page = open_at(390, 844)
             page.screenshot(path=os.path.join(OUT, "mobile-review.png"))
+            page.click("#menuBtn")
+            page.wait_for_timeout(400)
+            page.screenshot(path=os.path.join(OUT, "mobile-drawer.png"))
+            page.keyboard.press("Escape")
+            page.wait_for_timeout(300)
+            page.click("[data-fwd=bPrompt]")
+            page.wait_for_selector("dialog.pm[open]")
+            page.wait_for_timeout(400)
+            page.screenshot(path=os.path.join(OUT, "mobile-modal.png"))
             page.context.close()
             for name, w, h in (("desktop-gallery", 1376, 768), ("mobile-gallery", 390, 844)):  # the start page: no address
                 ctx = browser.new_context(viewport={"width": w, "height": h}, locale="fa-IR")

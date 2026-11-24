@@ -636,13 +636,7 @@ def picture_versions_pick(proj, page):
     page.wait_for_function("document.querySelector('figure.shot[data-id=IMG001] .vc').textContent.trim() === '۱/۲'")
     page.keyboard.press("ArrowDown")
     proj.wait_in("[IMG001]", "pick: IMG001_start_a1b2c3.png")
-    page.click("#approve")  # the stamp takes the approval back, and gives it again
-    proj.wait_in("[IMG001]", "pick:", absent=True)
-    page.wait_for_function("!document.querySelector('%s .vok')" % f)
-    assert "تأیید" == page.inner_text("#approve").strip()
-    page.click("#approve")
-    proj.wait_in("[IMG001]", "pick: IMG001_start_a1b2c3.png")
-    page.wait_for_function("document.querySelector('#approve').classList.contains('on')")
+    assert page.locator("#approve").count() == 0  # no approve button: stopping on a version is the approval
     assert proj.api("/api/image", {"id": "IMG001", "pick": ""})[0] == 200  # un-choosing is still possible through the API
     proj.wait_in("[IMG001]", "pick:", absent=True)
     for name in ("IMG001_start.png", "IMG001_start_a1b2c3.png"):
@@ -1574,7 +1568,7 @@ def noimg_block_and_icons_need_a_picture(proj, page):
     use_story(proj, page)
     noimg = page.evaluate("document.querySelector('.blk.noimg').dataset.bid")
     at(page, noimg)
-    for sel in ("#bNote", "#bPrompt", "#bVprompt", "#bFlag", "#more", "#approve", "#aside"):
+    for sel in ("#bNote", "#bPrompt", "#bVprompt", "#bFlag", "#more", "#aside"):
         assert page.is_disabled(sel), sel
     assert page.locator(".blk.on .it.act").count() == 1 and page.locator(".blk.on .ph").count() == 1
     assert page.locator("#apr.show").count() == 0
@@ -1585,26 +1579,54 @@ def noimg_block_and_icons_need_a_picture(proj, page):
 
 @test
 def mobile_stack_and_drawer(proj, page):
-    """Below 900px: the picture above, the text below, no sideways scrolling, and the drawer opens over it."""
-    ctx = page.context.browser.new_context(viewport={"width": 390, "height": 844}, locale="fa-IR")
+    """Phone (390x844): one fixed page (bar, picture, playback line, scrolling text, action bar), the drawer takes ~80% from the right, the prompt is a
+    bottom sheet, nothing scrolls sideways and every control is at least 44px."""
+    ctx = page.context.browser.new_context(viewport={"width": 390, "height": 844}, locale="fa-IR", has_touch=True)
     m = ctx.new_page()
     errs = []
     m.on("pageerror", lambda e: errs.append(str(e)))
     m.goto(proj.url + "/review.html#IMG001")
     m.wait_for_selector(".blk.on")
     m.wait_for_timeout(300)
-    img, txt = m.locator(".blk.on .imgs").bounding_box(), m.locator(".blk.on .txt").bounding_box()
-    assert img["y"] < txt["y"] and img["width"] > 300 and txt["width"] > 300, (img, txt)
+    bar, img, txt = m.locator("#bar").bounding_box(), m.locator(".blk.on .imgs").bounding_box(), m.locator(".blk.on .txt").bounding_box()
+    act = m.locator("#prev").bounding_box()
+    assert bar["height"] <= 60 and bar["y"] < img["y"] < txt["y"] < act["y"], (bar, img, txt, act)
+    assert img["width"] > 340 and txt["width"] > 340 and act["y"] + act["height"] <= 844 + 1
     assert m.evaluate("document.documentElement.scrollWidth <= innerWidth + 1"), "no sideways scrolling"
+    assert m.evaluate("document.body.scrollHeight <= innerHeight + 1"), "the page itself does not scroll; only the text does"
+    assert m.locator("#approve").count() == 0 and m.locator("#aside").is_hidden()
+    assert m.locator("#bPrompt").is_hidden() and m.locator("[data-fwd=bPrompt]").is_visible()
+
+    def small():  # every visible control (buttons, inputs, selects) under 44px
+        return m.evaluate("""() => [...document.querySelectorAll('button,input:not([type=hidden]):not([type=range]),select,summary,[role=button]')]
+          .filter(e => e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden' && !e.closest('[hidden]'))
+          .map(e => [e.id || e.className || e.tagName, Math.round(e.getBoundingClientRect().width), Math.round(e.getBoundingClientRect().height)])
+          .filter(x => x[1] < 44 || x[2] < 44)""")
+    assert not small(), small()
+    m.click("[data-fwd=bPrompt]")  # the prompt as a bottom sheet
+    m.wait_for_selector("dialog.pm[open]")
+    m.wait_for_timeout(350)
+    d = m.locator("dialog.pm").bounding_box()
+    assert d["width"] >= 389 and abs(d["y"] + d["height"] - 844) < 2 and 0.7 * 844 <= d["height"] <= 0.8 * 844, d
+    assert not small(), small()
+    m.keyboard.press("Escape")
+    m.wait_for_selector("dialog.pm", state="detached")
     m.click("#menuBtn")
     m.wait_for_function("document.body.classList.contains('dopen')")
+    m.wait_for_timeout(300)
     d = m.locator("#drawer").bounding_box()
-    assert d["width"] >= 330 and d["x"] + d["width"] >= 389
+    assert 0.78 * 390 <= d["width"] <= 0.82 * 390 and d["x"] + d["width"] >= 389 and d["x"] > 50, d
+    assert not small(), small()
+    m.keyboard.press("Escape")  # Esc closes the drawer
+    m.wait_for_function("!document.body.classList.contains('dopen')")
+    m.click("#menuBtn")
     m.click("[data-panel=scenes]")
     m.click("#slist .srow >> nth=1")
     m.wait_for_function("!document.body.classList.contains('dopen')")
-    m.click("#navNext")
-    m.wait_for_function("document.querySelector('.blk.on').dataset.bid==='IMG002'")
+    m.keyboard.press("ArrowRight")  # the keys still move between pictures
+    m.wait_for_function("document.querySelector('.blk.on').dataset.bid!=='IMG001'")
+    m.click("[data-fwd=bNote]")  # the bottom bar forwards to the real buttons
+    m.wait_for_selector(".nbox:not(.hide)")
     assert not errs, errs
     ctx.close()
 
@@ -1620,6 +1642,36 @@ def engine_manifest_is_complete(proj, page):
     css = open(os.path.join(KIT, "tools", "ui", "review.css"), encoding="utf-8").read()
     for ref in re.findall(r'@import url\("([^"]+)"\)', css):  # the style parts too
         assert "tools/ui/" + ref in files, "review.css imports %s but ENGINE.txt does not list it" % ref
+
+
+@test
+def gallery_toolbar_search_filter_reorder_a11y(proj, page):
+    """Gallery top bar: «n / m تأیید شده» with a bar and percent, search by id/text, the filter icon opens the filter panel, a reorder toggle; icon buttons are named;
+    Esc closes the drawer."""
+    page.goto(proj.url + "/review.html#gallery")
+    page.wait_for_selector("#ggrid .tile[data-id]")
+    assert "تأیید شده" in page.inner_text("#gst") and "٪" in page.inner_text("#gpct") and page.locator("#gstat .gbar").is_visible()
+    n = page.locator("#ggrid .tile[data-id]").count()
+    page.click("#gSearch")
+    page.fill("#gq", "img001")
+    assert page.locator("#ggrid .tile[data-id]:visible").count() == 1
+    page.fill("#gq", "")
+    assert page.locator("#ggrid .tile[data-id]:visible").count() == n
+    page.click("#gSearch")
+    assert page.locator("#gq").is_hidden()
+    page.click("#gFilter")
+    page.wait_for_function("document.body.classList.contains('dopen')")
+    assert page.locator("#pFilter").is_visible()
+    page.keyboard.press("Escape")
+    page.wait_for_function("!document.body.classList.contains('dopen')")
+    page.click("#gMove")
+    assert page.locator("#gallery.reorder").count() == 1 and page.get_attribute("#gMove", "aria-pressed") == "true"
+    bare = page.evaluate("""() => [...document.querySelectorAll('button')].filter(b => b.getClientRects().length && !b.textContent.trim() && !b.getAttribute('aria-label')).map(b => b.id || b.className)""")
+    assert not bare, bare
+    page.goto(proj.url + "/review.html#IMG001")
+    page.wait_for_selector(".blk.on")
+    bare = page.evaluate("""() => [...document.querySelectorAll('button')].filter(b => b.getClientRects().length && !b.textContent.trim() && !b.getAttribute('aria-label') && !b.title).map(b => b.id || b.className)""")
+    assert not bare, bare
 
 
 @test

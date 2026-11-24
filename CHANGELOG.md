@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.2.0
+- The «تأیید» stamp button is gone from the footer (JS, CSS and tests too). Approval is still «stopping on a version»; the check on the picture and «تأیید شده» in the top bar stay.
+- Gallery fidelity: 5-6 columns, 8px gaps, 24px page padding, hairline ink border on tiles, 22px paper number badge (13px digits), 10px status dot; top bar shows centered «n / m تأیید شده» with a thin bar and percent, search (id / scene title / line text) and filter (opens the drawer's filter panel) icons on the left; «جابه‌جایی» (reorder mode) toggle so touch scrolling does not drag, long-press (350ms) still works.
+- Phone (<900px): a fixed one-screen page (slim single-row bar, 16:9 picture with tape, thin playback line + time + small play, scrolling text, bottom action bar: prev, play, next, note, image prompt, video prompt, flag), drawer 80% wide, prompt card as a bottom sheet with a drag tick, all controls at least 44px.
+- Focus ring for every focusable element (also tiles), Esc closes drawer / dialog / picker / gallery search. No new engine files, no `story.txt` change.
+
 ## 2.1.0
 - Gallery start page: `review.html` (no address, or `#gallery`) opens a dense grid of 16:9 tiles in file order (8 to 4 columns by width, 3 on a phone, 2px gaps): scene number top right, status dot bottom left (olive approved, sand pending, red ring set aside), version count when more than one, a dashed paper tile with the id for a picture with no file, a thin tick at scene boundaries. A tile opens the spread (`#IMG045`); the new grid icon in the top bar (and the browser's back button) returns. Thumbnails are `loading=lazy`.
 - Drag to reorder with pointer events (mouse: drag; touch: hold; the «انتخاب» button, Ctrl/Shift-click for several tiles): drop line, `POST /api/move`, reload; dropping beside the first / last picture of a scene crosses the boundary.

@@ -60,3 +60,9 @@
 - **مرز صحنه:** یه خط ۲ پیکسلی خاکستری کنار اولین کاشی هر صحنه؛ ماکاپ مرز ندارد، و روی عکس‌های تیره کم‌دیده می‌شه.
 - **نوار ابزار:** دکمه‌ی «انتخاب» و دکمه‌های کپی دسته (b01…) بالای شبکه‌ان و ماکاپ ندارد؛ دکمه‌ی پخش شناور ماکاپ نیست (در گالری معنی ندارد). نوار بالا فقط منو و کلید زبان.
 - **موبایل:** ۳ ستون؛ نوار بالا هنوز دو ردیفه (فاز ۸). نوار «جا نگرفته‌ها» فقط وقتی هست که چیزی جا نگرفته باشد و در عکس‌ها دیده نمی‌شه.
+
+## Phase 8 (v2.2.0): phone and gallery, compared once
+- **Gallery (desktop-gallery.png vs flow_gallery.jpg):** now close: 6 columns at 1376px (the mock-up shows 5; we switch to 5 below 1500px), 8px gaps, hairline ink border, 22px number badge, olive / sand dots, centered «n / m تأیید شده» with bar and percent, search and filter on the left. Still different: our thumbnails are all the same test picture; no floating play button; the terracotta ring of a set-aside tile is on the dot only, not around the tile.
+- **mobile-review.png vs mobile.png / flow_mobile.jpg:** layout now matches (slim bar, framed 16:9 still with tape, line + time + small play, scrolling text, bottom bar). Differences: no «تأیید» stamp (user decision); the `فا / EN` pill keeps a 44px touch height so it looks bigger than the mock-up's; tape is thinner; the bar has a gallery icon the mock-up lacks; the playback line is a plain line with a dot, no percent label.
+- **mobile-drawer.png:** 80% wide from the right with a dimmed sliver, as in the mock-up; rows are taller (44px minimum) and the menu has more rows than the mock-up (undo, batch prompts, inbox).
+- **mobile-modal.png:** bottom sheet at 75% with a drag tick (no mock-up for it); the tick is decoration, the sheet is not draggable. Fixed in this round: the wide content that pushed the grid sideways, and the invisible footer row.

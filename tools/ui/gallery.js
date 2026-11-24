@@ -12,10 +12,10 @@ import { ic } from './icons.js';
 import { reload } from './panels.js';
 import { sceneNo } from './render.js';
 import { blockByBid } from './player.js';
-import { copyBatch } from './drawer.js';
+import { copyBatch, openDrawer } from './drawer.js';
 /* The gallery: the page the app opens on. A dense grid of 16:9 tiles (one per picture, in file order), drag to reorder, the strip of pictures that have no
    place yet, the "+" tile and its picker. The address is review.html#gallery; review.html#IMG045 is the spread of that picture. */
-let SEL = new Set(), LAST = null, PICK = false, D = null, SWALLOW = false;
+let SEL = new Set(), LAST = null, PICK = false, D = null, SWALLOW = false, REORD = false, GQ = '';
 const gal = () => document.body.classList.contains('gal');
 const rtl = () => getComputedStyle($('#gallery')).direction === 'rtl';
 const modeOf = h => {
@@ -40,11 +40,15 @@ export function startMode(hash) {
 /* the pictures of the scenes that are on, in file order, with their scene's number */
 const tiles = () => S.P.scenes.filter(s => !s.off).flatMap(sc => sc.blocks.flatMap(b => b.images.map(m => ({
   m,
-  sc
+  sc,
+  b
 }))));
-const tileHtml = ({m, sc}, first) => {
+/* the search of the gallery: the id, the scene title or any line of the picture's block */
+const hit = ({m, sc, b}) => !GQ || [m.id, sc.title, ...b.items.flatMap(i => [i.fa, i.en])].some(t => t && String(t).toLowerCase().includes(GQ));
+const tileHtml = (t, first) => {
+  const {m, sc} = t;
   const st = m.off ? 'off' : m.status === 'ok' ? 'ok' : 'pend', n = m.versions.length;
-  return `<div class="tile ${ m.src ? '' : 'empty' } ${ st }${ first ? ' sb' : '' }${ SEL.has(m.id) ? ' sel' : '' }" data-id="${ m.id }" data-drag="tile" tabindex="0" role="button" aria-label="${ m.id }">${ m.src ? `<img src="${ esc(m.src) }" alt="" loading="lazy" decoding="async" draggable="false">` : `<span class="gid" dir="ltr">${ m.id }</span>` }${ sc.id === 'scene-00' ? '' : `<b class="no">${ fa(sceneNo(sc)) }</b>` }<i class="dot"></i>${ n > 1 ? `<u class="gvc">${ fa(n) }</u>` : '' }</div>`;
+  return `<div class="tile ${ m.src ? '' : 'empty' } ${ st }${ first ? ' sb' : '' }${ SEL.has(m.id) ? ' sel' : '' }" ${ hit(t) ? '' : 'hidden' } data-id="${ m.id }" data-drag="tile" tabindex="0" role="button" aria-label="${ m.id }">${ m.src ? `<img src="${ esc(m.src) }" alt="" loading="lazy" decoding="async" draggable="false">` : `<span class="gid" dir="ltr">${ m.id }</span>` }${ sc.id === 'scene-00' ? '' : `<b class="no">${ fa(sceneNo(sc)) }</b>` }<i class="dot"></i>${ n > 1 ? `<u class="gvc">${ fa(n) }</u>` : '' }</div>`;
 };
 function paint() {
   const g = $('#gallery');
@@ -60,10 +64,18 @@ function paint() {
   }).join('') + `<button type="button" class="tile add" data-gadd="1" aria-label="افزودن تصویر" title="افزودن تصویر">${ ic('plus') }</button>`;
   const batches = [...new Set(all.map(t => t.m.batch).filter(Boolean))].sort();
   const un = S.P.unplaced || [], inbox = (S.P.inbox || []).filter(f => f.kind === 'image');
-  g.innerHTML = `<div class="gtools"><button type="button" class="quiet sm" id="gSel" aria-pressed="${ PICK }">انتخاب</button><span class="gcount" id="gCount"></span><span class="gsp"></span>${ batches.map(b => `<button type="button" class="quiet sm" data-gbatch="${ b }" title="کپی پرامپت‌های این دسته">${ ic('image') }<bdi dir="ltr">${ b }</bdi></button>`).join('') }</div><div class="ggrid" id="ggrid">${ grid }<div class="gline" hidden></div></div>${ un.length || inbox.length ? `<div class="gun"><h4>جا نگرفته‌ها <small>(بکش توی گالری، یا + بزن)</small></h4><div class="gur">${ un.map(u => `<div class="uit" data-drag="un" data-uid="${ u.id }">${ u.src ? `<img src="${ esc(u.src) }" alt="" loading="lazy" draggable="false">` : '<span class="uph"></span>' }<bdi dir="ltr">${ u.id }</bdi><button type="button" class="ib sm" data-gun="${ u.id }" aria-label="جاگذاری ${ u.id }">${ ic('plus') }</button></div>`).join('') }${ inbox.map(f => `<div class="uit" data-drag="un" data-uid=""><span class="uph"></span><bdi dir="ltr">${ esc(f.name) }</bdi><button type="button" class="ib sm" data-gun="" aria-label="جای تازه">${ ic('plus') }</button></div>`).join('') }</div></div>` : '' }`;
+  g.innerHTML = `<div class="gtools"><button type="button" class="quiet sm" id="gSel" aria-pressed="${ PICK }">انتخاب</button><button type="button" class="quiet sm" id="gMove" aria-pressed="${ REORD }" title="در حالت جابه‌جایی، با کشیدن انگشت تصویر جابه‌جا می‌شود و صفحه جابه‌جا نمی‌شود">جابه‌جایی</button><span class="gcount" id="gCount"></span><span class="gsp"></span>${ batches.map(b => `<button type="button" class="quiet sm" data-gbatch="${ b }" title="کپی پرامپت‌های این دسته">${ ic('image') }<bdi dir="ltr">${ b }</bdi></button>`).join('') }</div><div class="ggrid" id="ggrid">${ grid }<div class="gline" hidden></div></div>${ un.length || inbox.length ? `<div class="gun"><h4>جا نگرفته‌ها <small>(بکش توی گالری، یا + بزن)</small></h4><div class="gur">${ un.map(u => `<div class="uit" data-drag="un" data-uid="${ u.id }">${ u.src ? `<img src="${ esc(u.src) }" alt="" loading="lazy" draggable="false">` : '<span class="uph"></span>' }<bdi dir="ltr">${ u.id }</bdi><button type="button" class="ib sm" data-gun="${ u.id }" aria-label="جاگذاری ${ u.id }">${ ic('plus') }</button></div>`).join('') }${ inbox.map(f => `<div class="uit" data-drag="un" data-uid=""><span class="uph"></span><bdi dir="ltr">${ esc(f.name) }</bdi><button type="button" class="ib sm" data-gun="" aria-label="جای تازه">${ ic('plus') }</button></div>`).join('') }</div></div>` : '' }`;
+  g.classList.toggle('reorder', REORD);
   count();
 }
+const stat = () => {
+  const all = tiles(), ok = all.filter(t => t.m.status === 'ok' && !t.m.off).length, pct = all.length ? Math.round(ok * 100 / all.length) : 0;
+  $('#gst').textContent = `${ fa(ok) } / ${ fa(all.length) } تأیید شده`;
+  $('#gpct').textContent = fa(pct) + '٪';
+  $('#gstat .gbar i').style.width = pct + '%';
+};
 const count = () => {
+  stat();
   const c = $('#gCount');
   if (c)
     c.textContent = SEL.size ? `${ fa(SEL.size) } انتخاب‌شده` : `${ fa(tiles().length) } تصویر`;
@@ -165,7 +177,7 @@ function pointerMove(e) {
   if (!D || e.pointerId !== D.pid)
     return;
   if (!D.on) {
-    if (e.pointerType !== 'touch' && Math.hypot(e.clientX - D.x, e.clientY - D.y) > 6)
+    if ((e.pointerType !== 'touch' || REORD) && Math.hypot(e.clientX - D.x, e.clientY - D.y) > 6)
       begin();
     else if (Math.hypot(e.clientX - D.x, e.clientY - D.y) > 10)
       clearTimeout(D.timer);
@@ -231,7 +243,29 @@ export function boot_gallery() {
   $('#galBtn').addEventListener('click', () => {
     location.hash = 'gallery';
   });
-  const g = $('#gallery');
+  const g = $('#gallery'), q = $('#gq');
+  $('#gSearch').addEventListener('click', () => {
+    q.hidden = !q.hidden;
+    $('#gSearch').setAttribute('aria-expanded', String(!q.hidden));
+    if (q.hidden)
+      q.value = '', GQ = '', paint();
+    else
+      q.focus();
+  });
+  q.addEventListener('input', () => {
+    GQ = q.value.trim().toLowerCase();
+    $$('#ggrid .tile[data-id]').forEach(el => {
+      const t = tiles().find(x => x.m.id === el.dataset.id);
+      el.hidden = !(t && hit(t));
+    });
+  });
+  q.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      $('#gSearch').click();
+    }
+  });
+  $('#gFilter').addEventListener('click', () => openDrawer('filter'));
   g.addEventListener('pointerdown', e => {
     const t = e.target.closest('[data-drag]');
     if (!t || e.button > 0)
@@ -245,7 +279,7 @@ export function boot_gallery() {
       pid: e.pointerId,
       on: false
     };
-    if (e.pointerType === 'touch')
+    if (e.pointerType === 'touch' && !REORD)
       D.timer = setTimeout(begin, 350);
   });
   window.addEventListener('pointermove', pointerMove, { passive: false });
@@ -261,6 +295,12 @@ export function boot_gallery() {
       return;
     }
     const b = e.target.closest('button');
+    if (b && b.id === 'gMove') {
+      REORD = !REORD;
+      b.setAttribute('aria-pressed', REORD);
+      g.classList.toggle('reorder', REORD);
+      return;
+    }
     if (b && b.id === 'gSel') {
       PICK = !PICK;
       b.setAttribute('aria-pressed', PICK);
