@@ -211,6 +211,37 @@ def mark_test(model=None, voice=None, tone=None, result="", tags=None):
         save_config(cfg)
 
 
+TONE_NAME = re.compile(r"[^|()\[\]\n\r]{1,30}")
+TONE_TAG = re.compile(r"\[[A-Za-z][A-Za-z \-]{1,30}\]")
+
+
+def add_tone(fa, tag="", match=None):
+    """A new tone: the Persian name (what is written in story.txt) and the English audio tag it sends ("" = a known tone that sends nothing)."""
+    fa, tag = (fa or "").strip(), (tag or "").strip()
+    if not TONE_NAME.fullmatch(fa):
+        raise ValueError("اسم لحن باید فارسی و کوتاه باشه (تا ۳۰ حرف، بدون | و پرانتز)")
+    if tag and not TONE_TAG.fullmatch(tag):
+        raise ValueError("برچسب باید مثل [whispers] باشه: انگلیسی، توی کروشه")
+    with LOCK:
+        cfg = load_config()
+        if match_tones(fa, cfg):
+            raise ValueError("این لحن (یا یه لحن هم‌معنی‌اش) از قبل هست")
+        n = 1 + max([int(t["id"][1:]) for t in cfg["tones"] if re.fullmatch(r"c\d+", t["id"])] or [0])
+        cfg["tones"].append(dict(id="c%d" % n, fa=fa, match=[m.strip() for m in (match or []) if m and m.strip()], tag=tag, tests={}))
+        save_config(cfg)
+    return "c%d" % n
+
+
+def remove_tone(tone_id):
+    with LOCK:
+        cfg = load_config()
+        left = [t for t in cfg["tones"] if t["id"] != tone_id]
+        if len(left) == len(cfg["tones"]):
+            raise ValueError("unknown tone")
+        cfg["tones"] = left
+        save_config(cfg)
+
+
 def status():
     return dict(has_key=bool(load_key()), updated=int(os.path.getmtime(CONFIG)) if os.path.exists(CONFIG) else None)
 

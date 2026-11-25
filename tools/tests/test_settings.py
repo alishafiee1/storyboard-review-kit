@@ -88,6 +88,40 @@ class SettingsTests(unittest.TestCase):
         self.assertNotIn(KEY, json.dumps(r))
 
 
+class ToneTests(unittest.TestCase):
+    """add_tone / remove_tone of voices/voice-config.json (a throw-away config)."""
+
+    def setUp(self):
+        import voices
+        self.voices = voices
+        self.tmp = tempfile.mkdtemp(prefix="srk-tone-")
+        for name, val in (("CONFIG", os.path.join(self.tmp, "voice-config.json")), ("CATALOG", os.path.join(self.tmp, "catalog.txt"))):
+            p = mock.patch.object(voices, name, val)
+            p.start()
+            self.addCleanup(p.stop)
+
+    def test_add_checks_the_name_and_the_tag_and_refuses_a_twin(self):
+        v = self.voices
+        tid = v.add_tone("  غمگین ", "[sad]")
+        t = next(x for x in v.load_config()["tones"] if x["id"] == tid)
+        self.assertEqual((t["fa"], t["tag"]), ("غمگین", "[sad]"))
+        self.assertEqual(v.tone_tags("غمگین")[0], ["[sad]"])
+        for bad in (("غمگین", "[sad]"), ("آهسته", ""), ("", "[x]"), ("a|b", ""), ("x" * 31, ""), ("خوب", "sad"), ("خوب", "[bad tag!]")):
+            with self.assertRaises(ValueError, msg=str(bad)):
+                v.add_tone(*bad)
+        self.assertEqual(v.add_tone("ساده", ""), "c2")  # a tone with no tag is fine (it sends nothing)
+
+    def test_remove_drops_only_that_tone(self):
+        v = self.voices
+        tid = v.add_tone("غمگین", "[sad]")
+        before = len(v.load_config()["tones"])
+        v.remove_tone(tid)
+        self.assertEqual(len(v.load_config()["tones"]), before - 1)
+        self.assertFalse(v.tone_tags("غمگین")[1])  # no longer known
+        with self.assertRaises(ValueError):
+            v.remove_tone(tid)
+
+
 if __name__ == "__main__":
     unittest.main()
 

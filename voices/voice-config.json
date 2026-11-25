@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "models": {
+
+  },
+  "voices": {
+
+  },
+  "tones": [
+    {"id": "whisper", "fa": "آهسته", "match": ["یواشکی", "نجوا"], "tag": "[whispers]", "tests": {}},
+    {"id": "annoyed", "fa": "طلبکار", "match": [], "tag": "[annoyed]", "tests": {}},
+    {"id": "sheepish", "fa": "شرمنده", "match": [], "tag": "[sheepishly]", "tests": {}},
+    {"id": "laugh", "fa": "خنده", "match": ["خندان"], "tag": "[chuckles]", "tests": {}},
+    {"id": "worried", "fa": "نگران", "match": [], "tag": "[worried]", "tests": {}},
+    {"id": "mischievous", "fa": "شیطون", "match": [], "tag": "[mischievously]", "tests": {}},
+    {"id": "playful", "fa": "شوخ", "match": ["بازیگوش"], "tag": "[playfully]", "tests": {}},
+    {"id": "mysterious", "fa": "مرموز", "match": ["رازآلود"], "tag": "[mysteriously]", "tests": {}},
+    {"id": "scared", "fa": "ترسیده", "match": ["ترس"], "tag": "[scared]", "tests": {}},
+    {"id": "surprised", "fa": "با تعجب", "match": ["متعجب", "تعجب"], "tag": "[surprised]", "tests": {}},
+    {"id": "curious", "fa": "کنجکاو", "match": ["پرسشی"], "tag": "[curious]", "tests": {}},
+    {"id": "thoughtful", "fa": "متفکر", "match": ["فکور"], "tag": "[thoughtful]", "tests": {}},
+    {"id": "neutral", "fa": "عادی", "match": ["توصیفی", "طبیعی", "صمیمی", "گرم"], "tag": "", "tests": {}}
+  ]
+}

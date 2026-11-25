@@ -26,6 +26,7 @@ const P = {
   subs: '<path d="M4 5h16v11H9l-4 4v-4H4z"/><path d="M8 9.5h8M8 12.5h5"/>',
   file: '<path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M9.5 12h5.5M9.5 16h5.5"/>',
   calendar: '<path d="M4 6h16v14H4z"/><path d="M4 10h16M8 4v4M16 4v4"/>',
+  help: '<circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.6a2.4 2.4 0 014.8 0c0 1.6-2.4 1.9-2.4 3.4M12 16.6h.01"/>',
   gear: '<circle cx="12" cy="12" r="3"/><path d="M12 3.5v2.2M12 18.3v2.2M3.5 12h2.2M18.3 12h2.2M6 6l1.6 1.6M16.4 16.4L18 18M6 18l1.6-1.6M16.4 7.6L18 6"/>',
   undo: '<path d="M8.5 6.5L4 11l4.5 4.5"/><path d="M4.5 11H15a4.5 4.5 0 010 9h-4"/>',
   batch: '<rect x="8" y="4" width="12" height="12"/><path d="M4 8v12h12"/>',

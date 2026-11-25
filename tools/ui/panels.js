@@ -25,7 +25,10 @@ import {
   show,
   showNear
 } from './player.js';
-import { closeDrawer } from './drawer.js';
+import {
+  closeDrawer,
+  openDrawer
+} from './drawer.js';
 import {
   openComposer,
   openEditor,
@@ -43,7 +46,104 @@ export function speakersTab() {
   $('#spkl').innerHTML = (S.P.speakers || []).map(s => `<option value="${ esc(s.name) }">`).join('');
   $('#voicel').innerHTML = (S.P.voices || []).map(v => `<option value="${ v }">`).join('');
   const t = TT(), upd = t.updated ? new Date(t.updated * 1000).toLocaleDateString('fa-IR') : 'هنوز ساخته نشده', dm = t.default;
-  $('#spk').innerHTML = `<div class="ttsbox">${ t.has_key ? 'کلید API پیدا شد' : 'کلید API پیدا نشد؛ توی پوشه‌ی پروژه فایل <code>.env</code> بساز و یه خط <code>OPENROUTER_API_KEY=...</code> توش بنویس' } · فهرست صداها: ${ upd } <button class="b" data-vrf="1" ${ t.has_key ? '' : 'disabled' }>رفرش لیست صداها</button> <span id="vmsg"></span><span>· مدل پیش‌فرض: <select data-dm="1">${ modelOpts(dm, false) }</select></span></div>` + `<p class="env">رنگ، صدا و لحن پیش‌فرض هر گوینده توی بالای <code>story.txt</code> نگه داشته می‌شه؛ لحن هر دیالوگ جدا هم قابل تغییره. گوینده‌ی جدید رو توی صفحه با نوشتن اسمش (توی «+ دیالوگ») می‌سازی. صدای هر گوینده از فهرست مدل پیش‌فرض می‌آد؛ عوض کردنش همه‌ی صحنه‌های اون گوینده رو «کهنه» می‌کنه.</p>` + (S.P.speakers || []).map((s, i) => `<div class="spt"><input type="color" value="${ s.color }" data-sc="${ i }"><b>${ esc(s.name) }</b>${ modelById(dm) && modelById(dm).voices.length ? `<select data-sv="${ i }">${ voiceOpts(dm, s.voice) }</select><button class="b" data-smp="${ i }">نمونه</button>` : `<input type="text" list="voicel" value="${ esc(s.voice) }" placeholder="صدا (مثلاً george)" data-sv="${ i }">` }<input type="text" list="tonel" maxlength="40" value="${ esc(s.tone || '') }" placeholder="لحن پیش‌فرض" data-st="${ i }" class="${ toneKnown(s.tone) ? '' : 'unk' }" title="${ toneKnown(s.tone) ? '' : 'این لحن توی voices/voice-config.json نیست' }" style="direction:rtl"><span>${ used[s.name] || 0 } خط</span></div>`).join('') + unknown.map(n => `<div class="issue">گوینده‌ی «${ esc(n) }» توی فهرست نیست (${ used[n] } خط). <button class="b" data-addspk="${ esc(n) }">افزودن با رنگ و صدای خودکار</button></div>`).join('');
+  const tones = S.P.tts.tones || [], dmod = modelById(dm), haveVoices = !!(dmod && dmod.voices.length), ut0 = unknownTones();
+  const toneVoice = ((S.P.speakers || []).find(sp => haveVoices && dmod.voices.some(v => v.name === sp.voice)) || {}).voice || (haveVoices ? dmod.voices[0].name : '');
+  const mark = tn => (tn.tests || {})[dm] || '';
+  const speakerCard = (s, i) => `<div class="spcard">
+      <div class="srow"><input type="color" value="${ s.color }" data-sc="${ i }" aria-label="رنگ"><span class="st"><b>${ esc(s.name) }</b><small class="muted">${ used[s.name] || 0 } خط</small></span></div>
+      <div class="srow">${ haveVoices ? `<select data-sv="${ i }" aria-label="صدا">${ voiceOpts(dm, s.voice) }</select><button type="button" class="outline" data-smp="${ i }">نمونه</button>` : `<input type="text" list="voicel" value="${ esc(s.voice) }" placeholder="صدا (مثلاً george)" data-sv="${ i }" aria-label="صدا">` }</div>
+      <div class="srow"><input type="text" list="tonel" maxlength="40" value="${ esc(s.tone || '') }" placeholder="لحن پیش‌فرض" aria-label="لحن پیش‌فرض" data-st="${ i }" class="${ toneKnown(s.tone) ? '' : 'unk' }" style="direction:rtl"></div>
+      ${ toneKnown(s.tone) ? '' : `<div class="vwarn">لحن «${ esc(s.tone) }» تعریف نشده و برچسبی نمی‌فرسته. <button type="button" class="quiet" data-addtone="${ esc(s.tone) }">افزودن به لحن‌ها</button></div>` }
+    </div>`;
+  const toneRow = tn => {
+    const m = mark(tn), st = m === 'good' ? '<span class="tag ok">کار می‌کنه</span>' : m === 'bad' ? '<span class="tag bad">کار نمی‌کنه</span>' : '<span class="tag">تست نشده</span>';
+    return `<div class="tnrow"><div class="srow"><span class="st"><b>${ esc(tn.fa) }</b>${ tn.tag ? `<bdi class="tg" dir="ltr">${ esc(tn.tag) }</bdi>` : '<small class="muted">بدون برچسب (چیزی نمی‌فرسته)</small>' }</span>${ tn.tag ? st : '' }</div>
+      <div class="srow act">${ tn.tag && haveVoices && toneVoice ? `<button type="button" class="outline" data-tsmp="${ esc(tn.id) }">نمونه</button><button type="button" class="quiet" data-tmark="${ esc(tn.id) }:good">کار می‌کنه</button><button type="button" class="quiet" data-tmark="${ esc(tn.id) }:bad">کار نمی‌کنه</button>` : '' }<button type="button" class="quiet" data-tdel="${ esc(tn.id) }">حذف</button></div></div>`;
+  };
+  $('#spk').innerHTML = `<section class="vsec"><h4>مدل پیش‌فرض</h4>
+      <div class="srow"><select data-dm="1" aria-label="مدل پیش‌فرض">${ modelOpts(dm, false) }</select></div>
+      <div class="srow"><span class="st"><small class="muted">فهرست صداها: ${ upd }</small></span><button type="button" class="outline" data-vrf="1" ${ t.has_key ? '' : 'disabled' }>رفرش لیست صداها</button></div>
+      <small class="muted" id="vmsg" role="status"></small>
+      ${ t.has_key ? '' : '<div class="vwarn">کلید API تنظیم نشده. <button type="button" class="quiet" data-gosettings="1">رفتن به تنظیمات</button></div>' }
+      <p class="muted vhint">صدای هر گوینده از فهرست این مدل میاد؛ عوض‌کردنش صدای اون گوینده رو «کهنه» می‌کنه.</p>
+    </section>
+    <section class="vsec"><h4>گوینده‌ها</h4>
+      ${ (S.P.speakers || []).map(speakerCard).join('') }
+      ${ unknown.map(n => `<div class="vwarn">گوینده‌ی «${ esc(n) }» توی فهرست نیست (${ used[n] } خط). <button type="button" class="quiet" data-addspk="${ esc(n) }">افزودن با رنگ و صدای خودکار</button></div>`).join('') }
+    </section>
+    <section class="vsec"><h4>لحن‌ها</h4>
+      <p class="muted vhint">لحن یه برچسب انگلیسی به مدل می‌فرسته (مثل <bdi dir="ltr">[whispers]</bdi>) و فقط بعضی مدل‌ها اون رو می‌فهمن. برای هر لحن یه نمونه بساز، گوش بده و علامت بزن که توی مدل <bdi dir="ltr">${ esc(dm) }</bdi> کار می‌کنه یا نه.</p>
+      ${ tones.map(toneRow).join('') || '<p class="muted">هنوز لحنی نیست.</p>' }
+      <div class="tnadd"><b>افزودن لحن</b>
+        <input id="tnfa" type="text" maxlength="30" placeholder="اسم فارسی، مثلاً غمگین" aria-label="اسم لحن" style="direction:rtl">
+        <input id="tntag" type="text" dir="ltr" maxlength="32" placeholder="[sad]  (خالی = بدون برچسب)" aria-label="برچسب انگلیسی" spellcheck="false">
+        <div class="srow"><button type="button" class="outline" data-tadd="1">افزودن لحن</button></div>
+      </div>
+      ${ ut0.size ? `<p class="muted vhint">لحن‌های بدون تعریف توی متن: ${ [...ut0.keys()].map(esc).join('، ') }</p>` : '' }
+    </section>`;
+  $$('#spk [data-gosettings]').forEach(b => b.onclick = () => openDrawer('settings'));
+  $$('#spk [data-addtone]').forEach(b => b.onclick = () => {
+    $('#tnfa').value = b.dataset.addtone;
+    $('#tnfa').scrollIntoView({ block: 'center' });
+    $('#tntag').focus();
+  });
+  $$('#spk [data-tadd]').forEach(b => b.onclick = async () => {
+    try {
+      await api('/api/tone', {
+        op: 'add',
+        fa: $('#tnfa').value.trim(),
+        tag: $('#tntag').value.trim()
+      });
+      await reload();
+    } catch (e) {
+      fail(e);
+    }
+  });
+  $$('#spk [data-tdel]').forEach(b => b.onclick = async () => {
+    if (!confirm('این لحن از فهرست حذف بشه؟ توی متن‌ها دست نمی‌خوره، فقط برچسبش دیگه فرستاده نمی‌شه.'))
+      return;
+    try {
+      await api('/api/tone', {
+        op: 'remove',
+        id: b.dataset.tdel
+      });
+      await reload();
+    } catch (e) {
+      fail(e);
+    }
+  });
+  $$('#spk [data-tmark]').forEach(b => b.onclick = async () => {
+    const [id, result] = b.dataset.tmark.split(':');
+    const cur = (tones.find(x => x.id === id) || {}).tests || {};
+    try {
+      await api('/api/voicetest', {
+        model: dm,
+        tone: id,
+        result: cur[dm] === result ? '' : result
+      });
+      await reload();
+    } catch (e) {
+      fail(e);
+    }
+  });
+  $$('#spk [data-tsmp]').forEach(b => b.onclick = async () => {
+    const txt = b.textContent;
+    b.disabled = true;
+    b.textContent = '…';
+    try {
+      const r = await api('/api/tonesample', {
+        model: dm,
+        voice: toneVoice,
+        tone: b.dataset.tsmp
+      });
+      await new Audio(r.url).play();
+    } catch (e) {
+      fail(e);
+    } finally {
+      b.disabled = false;
+      b.textContent = txt;
+    }
+  });
   $$('#spk [data-sc]').forEach(c => c.onchange = async () => {
     const s = S.P.speakers[+c.dataset.sc];
     try {
@@ -125,7 +225,7 @@ export function speakersTab() {
     $('#list').insertAdjacentHTML('afterbegin', `<div class="msg spkwarn">گوینده‌ای که توی فهرست نیست: ${ unknown.map(esc).join('، ') } — منو ← «صداها و گوینده‌ها» رو ببین.</div>`);
 }
 export function toneList() {
-  $('#tonel').innerHTML = (S.P.tts.tones || []).map(t => `<option value="${ esc(t.fa) }" label="${ esc(t.tag || 'بدون برچسب') }">`).join('');
+  $('#tonel').innerHTML = (S.P.tts.tones || []).map(t => `<option value="${ esc(t.fa) }">`).join('');
 }
 export function labelList() {
   const L = new Set(['گگ']);

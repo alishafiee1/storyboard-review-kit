@@ -263,6 +263,19 @@ def ttsmodel(d):
     write_lines(STORY, lines)
 
 
+@route("/api/tone")
+def tone(d):
+    """add ({op: "add", fa, tag}) or remove ({op: "remove", id}) a tone of voices/voice-config.json"""
+    import voices
+    op = d.get("op")
+    if op == "add":
+        return dict(ok=True, id=voices.add_tone(str(d.get("fa", "")), str(d.get("tag", "")), d.get("match") if isinstance(d.get("match"), list) else None))
+    if op == "remove":
+        voices.remove_tone(str(d.get("id", "")))
+        return None
+    raise ValueError("op must be add or remove")
+
+
 @route("/api/voicetest")
 def voicetest(d):
     """what you heard in audio/_tests/index.html: a voice, a tone, or the model's tag support"""

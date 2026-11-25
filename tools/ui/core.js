@@ -65,7 +65,7 @@ export const TT = () => S.P.tts || {
 export const modelOpts = (sel, withDefault, hint) => (withDefault ? `<option value="">پیش‌فرض (${ esc(TT().default) })</option>` : '') + TT().catalog.map(m => `<option value="${ esc(m.id) }"${ m.id === sel ? ' selected' : '' }>${ esc(m.id) } · $${ esc(m.price) }/k${ m.voices.length ? '' : ' · بدون فهرست صدا' }${ hint ? hint(m) : '' }</option>`).join('') + (sel && !modelById(sel) ? `<option value="${ esc(sel) }" selected>${ esc(sel) } (توی فهرست نیست)</option>` : '');
 export const voiceOpts = (model, sel) => {
   const m = modelById(model), vs = m ? m.voices : [];
-  return vs.map(v => `<option value="${ esc(v.name) }"${ v.name === sel ? ' selected' : '' }>${ esc(v.name) } · ${ esc(v.accent) }</option>`).join('') + (sel && !vs.some(v => v.name === sel) ? `<option value="${ esc(sel) }" selected>${ vs.length ? '' : '' }${ esc(sel) }${ vs.length ? ' (برای این مدل نیست)' : '' }</option>` : '');
+  return vs.map(v => `<option value="${ esc(v.name) }"${ v.name === sel ? ' selected' : '' }>${ esc(v.name) }${ v.accent && v.accent !== '؟' ? ' · ' + esc(v.accent) : '' }</option>`).join('') + (sel && !vs.some(v => v.name === sel) ? `<option value="${ esc(sel) }" selected>${ vs.length ? '' : '' }${ esc(sel) }${ vs.length ? ' (توی این مدل نیست)' : '' }</option>` : '');
 };
 const smpAudio = new Audio();
 export async function sample(model, voice, btn) {

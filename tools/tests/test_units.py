@@ -3,6 +3,7 @@
 Run:  python -m unittest discover -s tools/tests -p "test_*.py"
 The browser tests (python tools/tests/run.py) cover the page; these cover the text editing rules in milliseconds."""
 import os, sys, unittest
+from unittest import mock
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
@@ -142,6 +143,24 @@ class Handoff(unittest.TestCase):
         for rel in ("scenario/story.txt", "images/scenes/IMG001.png", "premiere/media/overlays/a.mov", "audio/fa/IMG001_1.mp3"):
             self.assertFalse(pack.skip(rel), rel)
         self.assertFalse(pack.skip("videos/clips/c.mp4", clips=True))
+
+    def test_pack_keeps_only_the_chosen_premiere_package(self):
+        pkg = "videos/final/EP02_FA_premiere_package"
+        others = ["premiere", "videos/final/EP01_FA_premiere_package", pkg]
+        with mock.patch.object(pack, "package_dirs", return_value=others):
+            for rel in ("old_export_premiere.xml", "premiere/EP01_FA_premiere.xml", "videos/final/EP01_FA_premiere_package/x.xml",
+                        "videos/final/EP01_FA_premiere_package/media/a.mov", "premiere/media/b.mov"):
+                self.assertTrue(pack.skip(rel, pkg=pkg), rel)
+            for rel in (pkg + "/EP02_FA_premiere.xml", pkg + "/media/a.mov", "scenario/story.txt", "images/scenes/IMG001.png", "audio/fa/IMG001-1.mp3"):
+                self.assertFalse(pack.skip(rel, pkg=pkg), rel)
+        self.assertFalse(pack.skip("old_export_premiere.xml"))  # no package folder found: the old rule (every XML stays)
+
+    def test_pack_help_does_not_build_a_zip(self):
+        import subprocess
+        r = subprocess.run([sys.executable, os.path.join(os.path.dirname(HERE), "pack.py"), "--help"], capture_output=True, text=True, encoding="utf-8")
+        self.assertEqual(r.returncode, 0)
+        self.assertIn("--list", r.stdout)
+        self.assertIn("--package", r.stdout)
 
     def test_premiere_paths(self):
         self.assertTrue(premiere_check.is_absolute("file://localhost/D%3a/x.png"))

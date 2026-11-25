@@ -37,7 +37,8 @@ const PANELS = {
   undo: '#pUndo',
   batch: '#pBatch',
   inbox: '#pInbox',
-  settings: '#pSettings'
+  settings: '#pSettings',
+  help: '#pHelp'
 };
 const ROWS = [
   [
@@ -94,6 +95,11 @@ const ROWS = [
     'settings',
     'gear',
     'تنظیمات'
+  ],
+  [
+    'help',
+    'help',
+    'راهنما'
   ]
 ];
 const FILTERS = [
@@ -265,7 +271,7 @@ function buildInbox() {
   const t = P.triage || [], i = P.inbox || [], m = P.imports || [];
   $('#pInbox').innerHTML = !t.length && !i.length && !m.length ? '<p class="muted">فایل تازه‌ای نیامده. فایل‌های متفرقه رو بریز توی پوشهٔ <bdi dir="ltr">inbox/</bdi> تا هوش مصنوعی مرتبشون کنه.</p>' : (t.length ? `<h4>نیاز به مرتب‌سازی (اسم رفرنس نیستن)</h4><ul data-triage="1">${ t.map(x => `<li><bdi dir="ltr">${ esc(x.src) }</bdi></li>`).join('') }</ul>` : '') + (i.length ? `<h4>inbox/ (${ fa(i.length) })</h4><ul data-inbox="1">${ i.map(f => `<li><bdi dir="ltr">${ esc(f.name) }</bdi> <small>${ esc(f.kind) } · ${ sz(f.size) }</small></li>`).join('') }</ul>` : '') + (m.length ? `<h4>آخرین ورودی‌ها</h4><ul data-imports="1">${ m.map(x => `<li><bdi dir="ltr">${ esc(x.time) } → ${ esc(x.to) }</bdi></li>`).join('') }</ul>` : '');
 }
-/* ---- settings: the OpenRouter key (written to .env, never shown again), the Downloads watcher, the version */
+/* ---- settings: one row per service (its key is written to .env and never shown again), the Downloads watcher */
 async function buildSettings() {
   const P = $('#pSettings');
   if (P.querySelector('#skey') && P.querySelector('#skey').value)
@@ -278,23 +284,39 @@ async function buildSettings() {
     return;
   }
   const src = { env: 'از متغیر محیطی', '.env': 'از فایل <bdi dir="ltr">.env</bdi>' }[s.key_source] || '';
-  P.innerHTML = `<h4>ساخت صدا (OpenRouter)</h4>
-    <p class="muted">برای ساخت صدا یه کلید API لازمه؛ از <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai/keys</a> بگیر. کلید فقط توی فایل <bdi dir="ltr">.env</bdi> کنار پروژه ذخیره می‌شه (توی گیت نمی‌ره) و دوباره نشون داده نمی‌شه.</p>
-    <p id="skst" role="status">${ s.key_set ? 'کلید تنظیم شده ' + src : 'هنوز کلیدی تنظیم نشده' }</p>
-    <input id="skey" type="password" dir="ltr" autocomplete="off" spellcheck="false" placeholder="sk-or-v1-…" aria-label="کلید API">
-    <div class="srow"><button type="button" class="outline" data-sset="key">ذخیره کلید</button><button type="button" class="outline" data-sset="test"${ s.key_set ? '' : ' disabled' }>تست کلید</button></div>
+  P.innerHTML = `<h4>سرویس‌ها</h4>
+    <div class="svc">
+      <div class="srow"><span class="st"><b>OpenRouter</b><small class="muted">ساخت صدا${ s.key_set ? ' · ' + src : '' }</small></span><span class="tag${ s.key_set ? ' ok' : '' }" id="skst" role="status">${ s.key_set ? 'تنظیم شده' : 'تنظیم نشده' }</span><button type="button" class="outline" data-sset="keyopen">${ s.key_set ? 'تغییر' : 'افزودن کلید' }</button></div>
+      <div id="skeybox" hidden>
+        <input id="skey" type="password" dir="ltr" autocomplete="off" spellcheck="false" placeholder="sk-or-v1-…" aria-label="کلید API">
+        <div class="srow"><button type="button" class="outline" data-sset="key">ذخیره</button><button type="button" class="quiet" data-sset="keyclose">انصراف</button>${ s.key_set ? '<button type="button" class="quiet" data-sset="test">تست کلید</button>' : '' }<a class="muted" href="https://openrouter.ai/keys" target="_blank" rel="noopener">گرفتن کلید</a></div>
+      </div>
+    </div>
+    <p class="muted">کلید فقط توی فایل <bdi dir="ltr">.env</bdi> کنار پروژه ذخیره می‌شه (توی گیت نمی‌ره) و دوباره نشون داده نمی‌شه. سرویس تازه‌ای که اضافه بشه همین‌جا یه ردیف می‌گیره.</p>
     <h4>دانلودها</h4>
-    <label class="srow"><input type="checkbox" id="swatch"${ s.watch ? ' checked' : '' }> فایل‌های Flow که مال این پروژه‌ان از پوشهٔ دانلود خودکار برن توی پوشهٔ درست</label>
-    <label for="sdl" class="muted">پوشهٔ دانلود (خالی = پوشهٔ Downloads کاربر)</label>
-    <input id="sdl" type="text" dir="ltr" autocomplete="off" spellcheck="false" value="${ esc(s.downloads_custom) }" placeholder="${ esc(s.downloads) }">
-    <div class="srow"><button type="button" class="outline" data-sset="dl">ذخیره</button></div>
-    <h4>درباره</h4>
-    <p class="muted">نسخهٔ کیت <bdi dir="ltr">${ esc(s.version) }</bdi> · برای به‌روزرسانی: <bdi dir="ltr">python tools/update.py</bdi></p>`;
+    <label class="srow"><input type="checkbox" id="swatch"${ s.watch ? ' checked' : '' }> <span>فایل‌های Flow که مال این پروژه‌ان از پوشهٔ دانلود خودکار برن توی پوشهٔ درست</span></label>
+    <div class="srow"><span class="st"><small class="muted">پوشه</small><bdi dir="ltr">${ esc(s.downloads) }</bdi></span><button type="button" class="outline" data-sset="dlopen">تغییر</button></div>
+    <div id="sdlbox" hidden>
+      <input id="sdl" type="text" dir="ltr" autocomplete="off" spellcheck="false" value="${ esc(s.downloads_custom) }" placeholder="${ esc(s.downloads) }" aria-label="پوشهٔ دانلود">
+      <div class="srow"><button type="button" class="outline" data-sset="dl">ذخیره</button><button type="button" class="quiet" data-sset="dlclose">انصراف</button><small class="muted">خالی = پوشهٔ Downloads کاربر</small></div>
+    </div>`;
+  $('#swatch').onchange = e => settingsClick('watch', e.target.checked);
 }
-async function settingsClick(act) {
+async function settingsClick(act, on) {
   const st = $('#skst');
   try {
-    if (act === 'key') {
+    if (act === 'keyopen') {
+      $('#skeybox').hidden = false;
+      $('#skey').focus();
+    } else if (act === 'keyclose') {
+      $('#skey').value = '';
+      $('#skeybox').hidden = true;
+    } else if (act === 'dlopen') {
+      $('#sdlbox').hidden = false;
+      $('#sdl').focus();
+    } else if (act === 'dlclose') {
+      $('#sdlbox').hidden = true;
+    } else if (act === 'key') {
       const k = $('#skey').value.trim();
       if (!k)
         return toast('اول کلید رو بنویس');
@@ -307,16 +329,64 @@ async function settingsClick(act) {
       const r = await api('/api/settings/testkey', {});
       st.textContent = (r.ok ? 'درسته: ' : 'ناموفق: ') + r.message;
     } else if (act === 'dl') {
-      await api('/api/settings', {
-        downloads: $('#sdl').value.trim(),
-        watch_downloads: $('#swatch').checked
-      });
+      await api('/api/settings', { downloads: $('#sdl').value.trim() });
       toast('ذخیره شد');
       await buildSettings();
+    } else if (act === 'watch') {
+      await api('/api/settings', { watch_downloads: on });
+      toast(on ? 'نگهبان دانلودها روشن شد' : 'نگهبان دانلودها خاموش شد');
     }
   } catch (e) {
     fail(e);
   }
+}
+/* ---- help: the cards of skills/how-to-write-prompts-for-flow.md (the same guide the AI reads), short, with «more» under each; the project's own scripts; the version */
+const HELP = { cards: null };
+const plain = t => t.replace(/^```.*$/gm, '').replace(/\*\*/g, '').replace(/`/g, '').replace(/\n{3,}/g, '\n\n').trim();
+async function loadHelp() {
+  if (HELP.cards)
+    return;
+  const get = async u => {
+    try {
+      const r = await fetch(u);
+      return r.ok ? await r.text() : '';
+    } catch (e) {
+      return '';
+    }
+  };
+  const guide = await get('/skills/how-to-write-prompts-for-flow.md'), own = await get('/skills/project-scripts.md');
+  const cards = [];
+  guide.split(/^## /m).slice(1).forEach(part => {
+    const lines = part.replace(/<style>[\s\S]*$/, '').split('\n'), title = lines[0].replace(/^[\d۰-۹]+\)\s*/, '').trim();
+    const sum = lines.findIndex(l => l.startsWith('> خلاصه:'));
+    cards.push({
+      title: plain(title),
+      summary: sum >= 0 ? plain(lines[sum].replace('> خلاصه:', '')) : '',
+      body: plain(lines.slice(1).filter((l, i) => i + 1 !== sum).join('\n'))
+    });
+  });
+  const ownBody = own.replace(/```[\s\S]*?```/g, '');
+  if (/^## /m.test(ownBody))
+    cards.push({
+      title: 'اسکریپت‌های این پروژه',
+      summary: 'اسکریپت‌هایی که فقط مال همین پروژه‌ان و جای دستور کیت می‌شینن.',
+      body: plain(own.replace(/^#.*\n/, ''))
+    });
+  HELP.cards = cards;
+}
+async function buildHelp() {
+  const P = $('#pHelp');
+  if (P.dataset.ready === '1')
+    return;
+  P.innerHTML = '<p class="muted">در حال خوندن…</p>';
+  await loadHelp();
+  let ver = '';
+  try {
+    ver = (await (await fetch('/api/settings')).json()).version || '';
+  } catch (e) {
+  }
+  P.dataset.ready = '1';
+  P.innerHTML = !HELP.cards.length ? '<p class="muted">فایل راهنما پیدا نشد. با <bdi dir="ltr">python tools/update.py</bdi> به‌روزش کن.</p>' : HELP.cards.map((c, i) => `<div class="hcard"><div class="srow"><span class="st"><b>${ esc(c.title) }</b><small class="muted">${ esc(c.summary) }</small></span><button type="button" class="outline" data-hmore="${ i }" aria-expanded="false">توضیح بیشتر</button></div><pre class="hbody" hidden>${ esc(c.body) }</pre></div>`).join('') + `<div class="hcard"><div class="srow"><span class="st"><b>درباره</b><small class="muted">نسخهٔ کیت <bdi dir="ltr">${ esc(ver) }</bdi> · به‌روزرسانی: <bdi dir="ltr">python tools/update.py</bdi></small></span></div></div>`;
 }
 function build(name) {
   ({
@@ -327,7 +397,8 @@ function build(name) {
     undo: buildUndo,
     batch: buildBatch,
     inbox: buildInbox,
-    settings: buildSettings
+    settings: buildSettings,
+    help: buildHelp
   })[name]?.();
 }
 /* the menu rows with their trailing values; called after every redraw and when the picture changes */
@@ -405,6 +476,12 @@ export function boot_drawer() {
         }).then(reload, fail);
     } else if (d.sset)
       settingsClick(d.sset);
+    else if (d.hmore != null) {
+      const body = t.closest('.hcard').querySelector('.hbody'), open = body.hidden;
+      body.hidden = !open;
+      t.textContent = open ? 'کمتر' : 'توضیح بیشتر';
+      t.setAttribute('aria-expanded', String(open));
+    }
     else if (d.undo)
       undo(false);
     else if (d.batch)

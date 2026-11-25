@@ -145,7 +145,34 @@ def api_subtitles(d):
     return subtitles.make_all()
 
 
-SLOW = {"/api/settings/testkey": lambda d: __import__("settings").test_key(), "/api/subtitles": api_subtitles, "/api/voices/refresh": api_refresh, "/api/sample": api_sample, "/api/regen": api_regen, "/api/linevoice": api_linevoice}
+def api_tonesample(d):
+    """The fixed Persian sentence with a tone's tag in front, in this model + voice (cached): so a tone can be heard before it is marked as working."""
+    import tts, voices
+    model, voice, tid = str(d.get("model", "")), str(d.get("voice", "")), str(d.get("tone", ""))
+    if not MODEL_RE.fullmatch(model) or not VOICE_RE.fullmatch(voice):
+        raise ValueError("bad model or voice")
+    t = next((x for x in voices.load_config()["tones"] if x["id"] == tid), None)
+    if not t or not t.get("tag"):
+        raise ValueError("این لحن برچسبی نداره که تست بشه")
+    bad = tts.voice_problem(model, voice)
+    if bad:
+        raise ValueError(bad)
+    key = voices.load_key()
+    if not key:
+        raise ValueError("کلید API پیدا نشد")
+    name = "%s__%s__%s.mp3" % (re.sub(r"[^A-Za-z0-9_.-]", "_", model), re.sub(r"[^A-Za-z0-9_.-]", "_", voice), re.sub(r"[^A-Za-z0-9_.-]", "_", tid))
+    p = os.path.join(ROOT, "audio", "_samples", name)
+    if not os.path.exists(p):
+        try:
+            data = tts.synth(model, voice, t["tag"] + " " + SAMPLE_TEXT, key)
+        except RuntimeError as e:
+            raise ValueError(str(e))
+        os.makedirs(os.path.dirname(p), exist_ok=True)
+        open(p, "wb").write(data)
+    return {"ok": True, "url": "audio/_samples/" + name}
+
+
+SLOW = {"/api/tonesample": api_tonesample, "/api/settings/testkey": lambda d: __import__("settings").test_key(), "/api/subtitles": api_subtitles, "/api/voices/refresh": api_refresh, "/api/sample": api_sample, "/api/regen": api_regen, "/api/linevoice": api_linevoice}
 
 
 SAMPLE_TEXT = "سلام، این یه نمونهٔ صداست. امروز می‌خوام یه چیز جالب بهت نشون بدم."

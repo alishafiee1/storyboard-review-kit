@@ -454,7 +454,7 @@ def format_issue_flag(proj, page):
 def drawer_panels_filter_search_jump(proj, page):
     """The drawer replaces the old tabs: references, scene list (jump), filter, search, speed, voices; ‹ goes back, Esc and the dimmed page close it."""
     drawer(page)
-    assert page.locator("#dmenu .drow").count() == 11 and page.is_hidden("#dback")
+    assert page.locator("#dmenu .drow").count() == 12 and page.is_hidden("#dback")
     labels = page.locator("#dmenu .rt").all_inner_texts()
     assert labels[:3] == ["فهرست صحنه‌ها", "فیلتر و جست‌وجو", "سرعت پخش"] and "کپی پرامپت‌های دسته" in labels
     drawer(page, "refs")
@@ -485,7 +485,7 @@ def drawer_panels_filter_search_jump(proj, page):
     page.click("#dback")
     assert "۱٫۳" in page.inner_text("[data-panel=speed] .trail")
     page.click("[data-panel=spk]")
-    assert page.locator("#spk .spt").count() == 3
+    assert page.locator("#spk .spcard").count() == 3
     page.click("#dback")
     page.click("#dclose")
     assert not page.evaluate("document.body.classList.contains('dopen')")
@@ -1537,18 +1537,67 @@ def keys_do_not_steal_typing(proj, page):
 
 
 @test
+def voices_panel_has_three_sections_and_tones_can_be_added_marked_and_removed(proj, page):
+    """Voices panel: default model, speakers, tones. A tone is added with a Persian name and an English tag, marked works / does not work for the
+    default model, removed again; the tone list of the per-line menu shows the Persian name only (no English tag as a label)."""
+    drawer(page, "spk")
+    page.wait_for_selector("#spk .vsec")
+    assert page.locator("#spk .vsec").count() == 3 and page.locator("#spk .spcard").count() >= 2
+    assert page.locator("#spk .ttsbox").count() == 0 and "؟" not in page.inner_text("#spk")  # no unknown-accent marks
+    assert page.locator("#tonel option[label]").count() == 0  # the English tag used to be the label of every option
+    page.fill("#tnfa", "غمگین")
+    page.fill("#tntag", "[sad]")
+    page.click("[data-tadd]")
+    page.wait_for_selector('#spk .tnrow:has-text("غمگین")')
+    assert '"[sad]"' in proj.read("voices/voice-config.json")
+    assert page.locator('#tonel option[value="غمگین"]').count() == 1
+    code, body = proj.api("/api/tone", {"op": "add", "fa": "غمگین", "tag": "[sad]"})  # the same tone again is refused
+    assert code == 400, (code, body)
+    code, body = proj.api("/api/tone", {"op": "add", "fa": "x", "tag": "sad"})  # a tag must look like [word]
+    assert code == 400
+    cid = json.loads(proj.read("voices/voice-config.json"))["tones"][-1]["id"]
+    code, _ = proj.api("/api/voicetest", {"model": json.loads(proj.read("voices/voice-config.json"))["models"] and list(json.loads(proj.read("voices/voice-config.json"))["models"])[0], "tone": cid, "result": "good"})
+    assert code == 200
+    page.click('#spk .tnrow:has-text("غمگین") [data-tdel]')
+    page.wait_for_function("!document.querySelector('#spk').innerText.includes('غمگین')")
+    assert '"[sad]"' not in proj.read("voices/voice-config.json")
+
+
+@test
+def help_panel_shows_the_guide_cards_with_more(proj, page):
+    """Help in the drawer: the cards of skills/how-to-write-prompts-for-flow.md (one-line summary, «more» opens the rest), the version at the end, and a project's own scripts card."""
+    os.makedirs(os.path.join(proj.root, "skills"), exist_ok=True)
+    shutil.copy2(os.path.join(KIT, "skills", "how-to-write-prompts-for-flow.md"), os.path.join(proj.root, "skills"))
+    open(os.path.join(proj.root, "skills", "project-scripts.md"), "w", encoding="utf-8").write("# x" + chr(10) * 2 + "## خروجی پریمیر" + chr(10) + "- **دستور:** `python tools/export_premiere.py`" + chr(10))
+    drawer(page, "help")
+    page.wait_for_selector("#pHelp .hcard")
+    n = page.locator("#pHelp [data-hmore]").count()
+    assert n >= 9, n  # the cards of the guide + the project's own scripts
+    assert "اسکریپت‌های این پروژه" in page.inner_text("#pHelp")
+    assert page.locator("#pHelp .hbody:visible").count() == 0  # only summaries at first
+    page.click("#pHelp [data-hmore] >> nth=1")
+    page.wait_for_selector("#pHelp .hbody:visible")
+    assert "دستور" in page.inner_text("#pHelp .hbody:visible") and page.locator("#pHelp .hbody:visible").count() == 1
+    assert "نسخهٔ کیت" in page.inner_text("#pHelp")
+
+
+@test
 def settings_panel_writes_the_key_and_the_watcher_switch(proj, page):
     """Settings in the drawer: the key goes to .env (never shown again), the Downloads folder and the watcher switch go to kit-config.json, a foreign origin is refused."""
     drawer(page, "settings")
-    page.wait_for_selector("#skey")
+    page.wait_for_selector('[data-sset="keyopen"]')
+    assert page.is_hidden("#skey")  # the key field is not always open: it opens with «افزودن کلید» / «تغییر»
+    page.click('[data-sset="keyopen"]')
+    page.wait_for_selector("#skey", state="visible")
     page.fill("#skey", "sk-or-v1-testtesttest1234")
     page.click('[data-sset="key"]')
     page.wait_for_function("document.querySelector('#skey') && document.querySelector('#skey').value === ''")
     assert "OPENROUTER_API_KEY=sk-or-v1-testtesttest1234" in open(os.path.join(proj.root, ".env"), encoding="utf-8").read()
     assert "testtesttest1234" not in page.content() and "testtesttest1234" not in json.dumps(proj.api("/api/settings")[1])
     page.wait_for_selector("#swatch")
+    page.check("#swatch")  # the switch saves by itself (the test server starts with the watcher off)
+    proj.wait("kit-config.json", '"watch_downloads": true')
     page.uncheck("#swatch")
-    page.click('[data-sset="dl"]')
     proj.wait("kit-config.json", '"watch_downloads": false')
     assert proj.api("/api/settings")[1]["watch"] is False
     req = urllib.request.Request(proj.url + "/api/settings", data=b"{}", headers={"Origin": "http://evil.example"})
