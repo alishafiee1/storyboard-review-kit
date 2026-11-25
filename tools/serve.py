@@ -11,6 +11,7 @@ from api import handle
 from jobs import JOB, SLOW
 from project import project
 import batch, watch
+import settings as kitsettings  # (the star imports below bring in another name «settings»)
 from flowname import config
 
 # Older project scripts do «from serve import ROOT, spoken_lines, ...» (serve.py used to hold everything). Keep those names importable from here.
@@ -22,7 +23,7 @@ from lineedits import *  # noqa: F401,F403,E402
 from promptedits import *  # noqa: F401,F403,E402
 
 last_ping, seen_ping = [time.time()], [False]
-WATCHING = [False]  # True while the Downloads watcher thread runs (on by default; kit-config.json "watch_downloads": false turns it off)
+WATCHING = [False]  # True while the Downloads watcher thread runs (on by default; the settings panel or kit-config.json "watch_downloads": false switches it)
 
 
 class H(http.server.SimpleHTTPRequestHandler):
@@ -55,6 +56,8 @@ class H(http.server.SimpleHTTPRequestHandler):
                 self.wfile.write(b)
                 return
             return self._json(200, r)
+        if p == "/api/settings":
+            return self._json(200, dict(kitsettings.get(), watching=WATCHING[0]))
         if p == "/api/job":
             return self._json(200, JOB)
         if p == "/api/ping":
@@ -70,6 +73,9 @@ class H(http.server.SimpleHTTPRequestHandler):
         return super().do_GET()
 
     def do_POST(self):
+        o = self.headers.get("Origin")  # a web page of another site must not write to the project (the key, the folders)
+        if o and urllib.parse.urlparse(o).hostname not in ("127.0.0.1", "localhost", "::1"):
+            return self._json(403, {"error": "forbidden origin"})
         n = int(self.headers.get("Content-Length") or 0)
         if n <= 0 or n > 200000:
             return self._json(400, {"error": "bad size"})
@@ -105,11 +111,17 @@ if __name__ == "__main__":
                 return
 
     threading.Thread(target=watchdog, daemon=True).start()
-    wd = config().get("watch_downloads")
-    # on by default; "watch_downloads": false turns it off; the tests set STORYBOARD_NO_WATCH=1 so a throw-away project never touches the real Downloads folder
-    if wd is True or (wd is not False and not os.environ.get("STORYBOARD_NO_WATCH")):
-        WATCHING[0] = True
-        threading.Thread(target=watch.watch_loop, daemon=True).start()
-        print("watching " + watch.downloads_dir(), flush=True)
+
+    def watcher():  # the page can switch it on and off, so look at the setting on every pass
+        while True:
+            try:
+                WATCHING[0] = kitsettings.watch_enabled()
+                if WATCHING[0]:
+                    watch.run_once(settle=1.0)
+            except Exception as e:  # a bad file or a busy disk must not stop the watcher
+                print("watch:", e, file=sys.stderr, flush=True)
+            time.sleep(3.0)
+
+    threading.Thread(target=watcher, daemon=True).start()
     srv.serve_forever()
     print("stopped (page closed)", flush=True)

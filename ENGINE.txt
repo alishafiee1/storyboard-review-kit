@@ -49,5 +49,6 @@ tools/premiere_export.py
 tools/watch.py
 tools/batch.py
 tools/update.py
+tools/settings.py
 VERSION
 skills/how-to-write-prompts-for-flow.md

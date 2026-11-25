@@ -36,7 +36,8 @@ const PANELS = {
   vers: '#pVers',
   undo: '#pUndo',
   batch: '#pBatch',
-  inbox: '#pInbox'
+  inbox: '#pInbox',
+  settings: '#pSettings'
 };
 const ROWS = [
   [
@@ -88,6 +89,11 @@ const ROWS = [
     'inbox',
     'inbox',
     'ورودی‌ها و inbox'
+  ],
+  [
+    'settings',
+    'gear',
+    'تنظیمات'
   ]
 ];
 const FILTERS = [
@@ -259,6 +265,59 @@ function buildInbox() {
   const t = P.triage || [], i = P.inbox || [], m = P.imports || [];
   $('#pInbox').innerHTML = !t.length && !i.length && !m.length ? '<p class="muted">فایل تازه‌ای نیامده. فایل‌های متفرقه رو بریز توی پوشهٔ <bdi dir="ltr">inbox/</bdi> تا هوش مصنوعی مرتبشون کنه.</p>' : (t.length ? `<h4>نیاز به مرتب‌سازی (اسم رفرنس نیستن)</h4><ul data-triage="1">${ t.map(x => `<li><bdi dir="ltr">${ esc(x.src) }</bdi></li>`).join('') }</ul>` : '') + (i.length ? `<h4>inbox/ (${ fa(i.length) })</h4><ul data-inbox="1">${ i.map(f => `<li><bdi dir="ltr">${ esc(f.name) }</bdi> <small>${ esc(f.kind) } · ${ sz(f.size) }</small></li>`).join('') }</ul>` : '') + (m.length ? `<h4>آخرین ورودی‌ها</h4><ul data-imports="1">${ m.map(x => `<li><bdi dir="ltr">${ esc(x.time) } → ${ esc(x.to) }</bdi></li>`).join('') }</ul>` : '');
 }
+/* ---- settings: the OpenRouter key (written to .env, never shown again), the Downloads watcher, the version */
+async function buildSettings() {
+  const P = $('#pSettings');
+  if (P.querySelector('#skey') && P.querySelector('#skey').value)
+    return;
+  let s;
+  try {
+    s = await (await fetch('/api/settings')).json();
+  } catch (e) {
+    P.innerHTML = '<p class="muted">تنظیمات خونده نشد.</p>';
+    return;
+  }
+  const src = { env: 'از متغیر محیطی', '.env': 'از فایل <bdi dir="ltr">.env</bdi>' }[s.key_source] || '';
+  P.innerHTML = `<h4>ساخت صدا (OpenRouter)</h4>
+    <p class="muted">برای ساخت صدا یه کلید API لازمه؛ از <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai/keys</a> بگیر. کلید فقط توی فایل <bdi dir="ltr">.env</bdi> کنار پروژه ذخیره می‌شه (توی گیت نمی‌ره) و دوباره نشون داده نمی‌شه.</p>
+    <p id="skst" role="status">${ s.key_set ? 'کلید تنظیم شده ' + src : 'هنوز کلیدی تنظیم نشده' }</p>
+    <input id="skey" type="password" dir="ltr" autocomplete="off" spellcheck="false" placeholder="sk-or-v1-…" aria-label="کلید API">
+    <div class="srow"><button type="button" class="outline" data-sset="key">ذخیره کلید</button><button type="button" class="outline" data-sset="test"${ s.key_set ? '' : ' disabled' }>تست کلید</button></div>
+    <h4>دانلودها</h4>
+    <label class="srow"><input type="checkbox" id="swatch"${ s.watch ? ' checked' : '' }> فایل‌های Flow که مال این پروژه‌ان از پوشهٔ دانلود خودکار برن توی پوشهٔ درست</label>
+    <label for="sdl" class="muted">پوشهٔ دانلود (خالی = پوشهٔ Downloads کاربر)</label>
+    <input id="sdl" type="text" dir="ltr" autocomplete="off" spellcheck="false" value="${ esc(s.downloads_custom) }" placeholder="${ esc(s.downloads) }">
+    <div class="srow"><button type="button" class="outline" data-sset="dl">ذخیره</button></div>
+    <h4>درباره</h4>
+    <p class="muted">نسخهٔ کیت <bdi dir="ltr">${ esc(s.version) }</bdi> · برای به‌روزرسانی: <bdi dir="ltr">python tools/update.py</bdi></p>`;
+}
+async function settingsClick(act) {
+  const st = $('#skst');
+  try {
+    if (act === 'key') {
+      const k = $('#skey').value.trim();
+      if (!k)
+        return toast('اول کلید رو بنویس');
+      const r = await api('/api/settings', { key: k });
+      $('#skey').value = '';
+      toast('کلید ذخیره شد' + (r.note ? ' · ' + r.note : ''));
+      await buildSettings();
+    } else if (act === 'test') {
+      st.textContent = 'در حال تست…';
+      const r = await api('/api/settings/testkey', {});
+      st.textContent = (r.ok ? 'درسته: ' : 'ناموفق: ') + r.message;
+    } else if (act === 'dl') {
+      await api('/api/settings', {
+        downloads: $('#sdl').value.trim(),
+        watch_downloads: $('#swatch').checked
+      });
+      toast('ذخیره شد');
+      await buildSettings();
+    }
+  } catch (e) {
+    fail(e);
+  }
+}
 function build(name) {
   ({
     scenes: buildScenes,
@@ -267,7 +326,8 @@ function build(name) {
     vers: buildVers,
     undo: buildUndo,
     batch: buildBatch,
-    inbox: buildInbox
+    inbox: buildInbox,
+    settings: buildSettings
   })[name]?.();
 }
 /* the menu rows with their trailing values; called after every redraw and when the picture changes */
@@ -343,7 +403,9 @@ export function boot_drawer() {
           id: c.m.id,
           name: d.irestore
         }).then(reload, fail);
-    } else if (d.undo)
+    } else if (d.sset)
+      settingsClick(d.sset);
+    else if (d.undo)
       undo(false);
     else if (d.batch)
       copyBatch(d.batch);

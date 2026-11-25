@@ -137,7 +137,7 @@ def update():
 
 def new_project(folder):
     folder = os.path.abspath(folder)
-    if os.path.exists(folder) and os.listdir(folder):
+    if os.path.exists(folder) and [n for n in os.listdir(folder) if n not in (".git", ".claude")]:  # an AI assistant may have made .git / .claude already
         sys.exit("The folder is not empty: " + folder)
     z, pre = fetch()
     files = [l.strip() for l in read(z, pre, "ENGINE.txt").splitlines() if l.strip() and not l.startswith("#")]

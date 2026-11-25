@@ -51,7 +51,7 @@ videos/clips/   audio/fa  audio/en  (+ voices.tsv)   subtitles/   premiere/   .k
 ```
 
 ## ۵) ورود فایل‌ها
-- **نگهبان `Downloads`** با روشن‌شدن سرور خودکار روشن است (خاموش: `{"watch_downloads": false}` در `kit-config.json`؛ اختیاری: `"downloads"`، `"match_slug"`). فایل‌های جور با الگوی Flow را که اسم پایه‌شان در این پروژه هست و `slug`شان با اسم خروجی می‌خواند **می‌برد** (نه کپی) به `images/scenes/bNN/` یا `images/refs/<KIND>/` و در `.kit/imports.tsv` ثبت می‌کند. دستی: `python tools/watch.py --once` (`--dry-run` فقط گزارش). فایل ناجور دست نمی‌خورد.
+- **نگهبان `Downloads`** با روشن‌شدن سرور خودکار روشن است (خاموش: از منو ← تنظیمات، یا `{"watch_downloads": false}` در `kit-config.json`؛ اختیاری: `"downloads"`، `"match_slug"`). فایل‌های جور با الگوی Flow را که اسم پایه‌شان در این پروژه هست و `slug`شان با اسم خروجی می‌خواند **می‌برد** (نه کپی) به `images/scenes/bNN/` یا `images/refs/<KIND>/` و در `.kit/imports.tsv` ثبت می‌کند. دستی: `python tools/watch.py --once` (`--dry-run` فقط گزارش). فایل ناجور دست نمی‌خورد.
 - **پرامپت دسته:** `python tools/batch.py b05` ده پرامپت را با اسم واقعی رفرنس‌ها و اسم خروجی برای کپی در Flow می‌دهد.
 - **`inbox/`:** وقتی کاربر گفت «inbox را مرتب کن»: هر فایل را باز کن و تشخیص بده؛ اسمش را به قرارداد اسم‌ها دربیاور؛ **با جابه‌جایی (نه کپی، نه حذف)** به `images/scenes/bNN/`، `images/refs/<KIND>/`، `audio/<زبان>/` یا `videos/clips/` ببر و یک خط `زمان<TAB>از<TAB>به<TAB>اندازه` به `.kit/imports.tsv` اضافه کن. فایل نامعلوم یا شبیه قسمت دیگر را بگذار بماند و بپرس. تکراری را به `archive/` ببر.
 - فایلی که کاربر خودش در هر زیرپوشهٔ `images/` یا `audio/<زبان>/` بگذارد همان‌جا خوانده می‌شود. فایل نامعتبر در `images/refs/` زیر «نیاز به مرتب‌سازی» می‌آید؛ اسمش را درست کن.

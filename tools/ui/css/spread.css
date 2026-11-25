@@ -791,3 +791,22 @@ figure.shot > .pacts {
   justify-content:flex-end;
   margin-top:4px;
 }
+
+/* settings panel */
+#pSettings input[type=password],
+#pSettings input[type=text] {
+  width:100%;
+  margin:6px 0;
+  padding:8px 10px;
+  border:1px solid var(--line);
+  background:var(--paper-bright);
+  color:var(--ink);
+  font:inherit;
+}
+
+#pSettings .srow {
+  display:flex;
+  gap:8px;
+  align-items:center;
+  margin:6px 0 14px;
+}

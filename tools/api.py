@@ -2,7 +2,7 @@
 """The page's write API: one small function per endpoint, registered with @route. Each runs under the file lock and may raise
 ValueError (-> 400) or Conflict (-> 409); returning nothing means {"ok": true}."""
 import os, re
-import history
+import history, settings
 from kitcore import LANGS, MARKS, MODEL_RE, PROMPTS, STORY, VPROMPTS, read_lines, write_lines
 from story import clean_name, clean_tone, ensure_speaker, parse_prompts, parse_speakers, scene_ranges, story_scenes
 from media import archive_item, audio_variants, find_version, scan_images, scan_refs
@@ -35,6 +35,12 @@ def handle(path, d):
     if path in STRUCTURAL:
         history.record(path.rsplit("/", 1)[-1], before)  # only when the edit succeeded and really changed the file
     return {"ok": True} if res is None else res
+
+
+@route("/api/settings")
+def settings_save(d):
+    """change the key / the Downloads folder / the watcher switch (only the fields sent); answers the new state, never the key"""
+    return settings.save(d)
 
 
 @route("/api/undo")

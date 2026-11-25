@@ -2,7 +2,19 @@
 
 **A free, single-page storyboard and review tool for AI-made videos and animations.** Keep your scenario, picture prompts, generated images and narration in plain text files, review everything on one page, edit it in the browser, and generate voice-over per speaker. No database, no build step, no account: just Python and a browser.
 
-[فارسی](README.fa.md) · [Website](https://alishafiee1.github.io/storyboard-review-kit/) · [Changelog](CHANGELOG.md) · License: MIT
+[فارسی](README.fa.md) · [Website](https://alishafiee1.github.io/storyboard-review-kit/) · [Workflow](WORKFLOW.md) · [Changelog](CHANGELOG.md) · License: MIT
+
+## The workflow in one look
+The kit tidies the whole path of an AI video, and your AI coding assistant (such as Claude Code) learns from the guide inside the project how to work with it:
+
+**script → picture prompts → pictures in Flow → review → voices → subtitles and editor hand-over**
+
+1. Give your script to the AI to tidy and enrich.
+2. Make an empty folder, tell the AI to create the kit there and rewrite the script in the kit's format.
+3. Read and edit the story on the review page; feed the prompts to Flow; the pictures file themselves.
+4. Stop on the best version, flag problems, and build the voices.
+
+The full guide, with a ready-made prompt for the AI, is in [WORKFLOW.md](WORKFLOW.md).
 
 ## What it does
 - **One scrolling review page** (`review.html`): every picture is a "page" of a long list (picture on one side, its dialogue on the other). Scroll through the story, or use the ‹ › buttons and the ← → keys. A gallery of all pictures lets you drag to reorder. On phones it is one picture per screen with a bottom action bar.
@@ -43,8 +55,8 @@ Replaced files are copied to `.engine-backup/` first. If the project is in the o
 ## Working with an AI assistant
 Every project carries a short guide for AI coding assistants: `skills/how-to-write-prompts-for-flow.md` (the rules, the `story.txt` format, file naming, the review loop) plus a `CLAUDE.md` that points to it and holds your project's own rules (style, narrator tone, characters). The guide is an engine file, so `update.py` keeps it current. Tell your assistant to read `CLAUDE.md` first.
 
-## Voice-over setup (optional)
-Create a `.env` file next to `review.html` with one line `OPENROUTER_API_KEY=...` (it is git-ignored). Open the menu (top right) → **Voices & speakers** → refresh the voice list, pick a voice per speaker, then build the voices of a line or scene. Nothing is generated (and nothing is charged) until you press a button. Tones (the Persian word after a speaker's name, e.g. `علی (مرموز)`) map to English audio tags in `voices/voice-config.json`; `python tools/voice_test.py` shows which models, voices and tones work (it shows the cost first; add `--yes` to generate).
+## Settings and voice-over (optional)
+Open the menu (top right) → **Settings** and paste your OpenRouter key (it is saved to `.env` next to the project, git-ignored and never shown again; a "test key" button checks it). The same panel switches the Downloads watcher on or off and changes its folder. Then open **Voices & speakers**, pick a voice per speaker, and build the voices of a line or scene. Nothing is generated (and nothing is charged) until you press a button. Tones (the Persian word after a speaker's name, e.g. `علی (مرموز)`) map to English audio tags in `voices/voice-config.json`; `python tools/voice_test.py` shows which models, voices and tones work (it shows the cost first; add `--yes` to generate).
 
 ## Folder layout
 | Path | What |

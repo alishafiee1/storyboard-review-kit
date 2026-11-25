@@ -454,7 +454,7 @@ def format_issue_flag(proj, page):
 def drawer_panels_filter_search_jump(proj, page):
     """The drawer replaces the old tabs: references, scene list (jump), filter, search, speed, voices; ‹ goes back, Esc and the dimmed page close it."""
     drawer(page)
-    assert page.locator("#dmenu .drow").count() == 10 and page.is_hidden("#dback")
+    assert page.locator("#dmenu .drow").count() == 11 and page.is_hidden("#dback")
     labels = page.locator("#dmenu .rt").all_inner_texts()
     assert labels[:3] == ["فهرست صحنه‌ها", "فیلتر و جست‌وجو", "سرعت پخش"] and "کپی پرامپت‌های دسته" in labels
     drawer(page, "refs")
@@ -1534,6 +1534,29 @@ def keys_do_not_steal_typing(proj, page):
     page.keyboard.press("ArrowLeft")
     assert page.get_attribute(".blk.on", "data-bid") == "IMG001"
     page.keyboard.press("Escape")
+
+
+@test
+def settings_panel_writes_the_key_and_the_watcher_switch(proj, page):
+    """Settings in the drawer: the key goes to .env (never shown again), the Downloads folder and the watcher switch go to kit-config.json, a foreign origin is refused."""
+    drawer(page, "settings")
+    page.wait_for_selector("#skey")
+    page.fill("#skey", "sk-or-v1-testtesttest1234")
+    page.click('[data-sset="key"]')
+    page.wait_for_function("document.querySelector('#skey') && document.querySelector('#skey').value === ''")
+    assert "OPENROUTER_API_KEY=sk-or-v1-testtesttest1234" in open(os.path.join(proj.root, ".env"), encoding="utf-8").read()
+    assert "testtesttest1234" not in page.content() and "testtesttest1234" not in json.dumps(proj.api("/api/settings")[1])
+    page.wait_for_selector("#swatch")
+    page.uncheck("#swatch")
+    page.click('[data-sset="dl"]')
+    proj.wait("kit-config.json", '"watch_downloads": false')
+    assert proj.api("/api/settings")[1]["watch"] is False
+    req = urllib.request.Request(proj.url + "/api/settings", data=b"{}", headers={"Origin": "http://evil.example"})
+    try:
+        urllib.request.urlopen(req, timeout=5)
+        raise AssertionError("a foreign origin was accepted")
+    except urllib.error.HTTPError as e:
+        assert e.code == 403
 
 
 @test

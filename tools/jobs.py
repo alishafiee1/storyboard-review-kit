@@ -145,7 +145,7 @@ def api_subtitles(d):
     return subtitles.make_all()
 
 
-SLOW = {"/api/subtitles": api_subtitles, "/api/voices/refresh": api_refresh, "/api/sample": api_sample, "/api/regen": api_regen, "/api/linevoice": api_linevoice}
+SLOW = {"/api/settings/testkey": lambda d: __import__("settings").test_key(), "/api/subtitles": api_subtitles, "/api/voices/refresh": api_refresh, "/api/sample": api_sample, "/api/regen": api_regen, "/api/linevoice": api_linevoice}
 
 
 SAMPLE_TEXT = "سلام، این یه نمونهٔ صداست. امروز می‌خوام یه چیز جالب بهت نشون بدم."

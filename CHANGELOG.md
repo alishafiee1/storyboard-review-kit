@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.5.0
+- Settings panel (menu → **Settings**): paste the OpenRouter key (saved to `.env`, git-ignored, never sent back to the page; a «test key» button asks OpenRouter), switch the Downloads watcher on or off and change its folder (`kit-config.json`, other keys stay), see the kit version. New engine file `tools/settings.py`; `GET /api/settings`, `POST /api/settings`, `POST /api/settings/testkey`. The watcher thread now looks at the switch on every pass, so the page can turn it on and off without a restart.
+- Safety: every POST with a foreign `Origin` header is refused (403), so a web page of another site cannot write the key or the folders.
+- `python tools/update.py --new .` works in a folder where an AI assistant already made `.git` or `.claude`.
+- New guides `WORKFLOW.md` and `WORKFLOW.fa.md` (script → AI → empty folder → kit → review → images → voices → hand-over, with a ready-made prompt for the AI assistant); README (EN, FA) and the web page open with the workflow.
+- Tests: 7 new unit tests (`test_settings.py`) and 1 new browser test.
+
 ## 2.4.0
 - The review page is one scrolling list: every picture is a page (picture + its lines), scroll to move on; the counter, progress bar and the icons follow the page in the middle. ‹ › / ← → scroll smoothly to the next page; auto-play scrolls with the voice. Desktop and phone (on the phone the thin playback line is gone; the bottom action bar stays).
 - The four picture icons (flag, note, image prompt, video prompt) sit under the picture they act on, at its bottom-left. A phone-only footer bar that showed on the desktop is hidden again. The unknown-tone banner no longer breaks the phone layout (hidden on the phone).
