@@ -109,6 +109,8 @@
   #bVprompt,
   #bPrompt,
   #bNote,
+  #bArch,
+  #bArchList,
   #bFlag {
     display:none;
   }

@@ -131,7 +131,7 @@ Both run on every push (`.github/workflows/tests.yml`).
 
 ## Versions and file names (v1.18)
 - A picture version is `(base, rid)` (random 8-hex id from Flow), else `(base, slug)`, else `(base, "")`. `_1K/_2K/_4K` files of one version are one version; the best (4K, 2K, 1K, plain) is shown and exported; a browser copy ` (1)` is ignored while the original exists. `pick:` stores the rid, so a better file arriving later keeps the pick. No image file is ever renamed.
-- Scans (`images/scenes`, `images/refs`, `audio/<lang>`) are recursive and skip `archive/`, `_rejected/`, `inbox/`. Voice files `<id>_<rid>.mp3`, `<id>.<model>.mp3` and `<id>.mp3` are variants of one line.
+- Scans (`images/scenes`, `images/refs`, `audio/<lang>`) are recursive and skip `archive/`, `_rejected/`, `inbox/`; the files of a `_rejected/` folder are listed as the picture's archive (`media.archived_images`), the same as `images/archive/`. Voice files `<id>_<rid>.mp3`, `<id>.<model>.mp3` and `<id>.mp3` are variants of one line.
 - Per project, `kit-config.json` may hold `name_pattern` (regex with the named groups `base`, `slug`, `rid`, `q`) and `quality` (best first).
 
 

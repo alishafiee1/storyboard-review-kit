@@ -25,6 +25,7 @@ The full guide, with a ready-made prompt for the AI, is in [WORKFLOW.md](WORKFLO
 - **Voice-over**: choose a text-to-speech model and voice per speaker and per line (ElevenLabs, Gemini, Qwen, ... through one [OpenRouter](https://openrouter.ai) key); several takes per line, you keep the one you stop on; only changed lines are rebuilt.
 - **Versions**: several pictures for one shot sit side by side (Flow's random ids, 2K/4K). The version you stop on is the approved one.
 - **Automatic downloads**: when the review server runs it watches your `Downloads` folder and moves Flow files that belong to this project into `images/scenes/bNN/` or `images/refs/` by itself (turn off with `"watch_downloads": false` in `kit-config.json`). Odd files go to `inbox/`.
+- **Archive**: the archive icon under a picture sends the shown version to `images/archive/` (nothing is deleted); the archive icon next to it opens a popup of the archived versions to browse and bring back.
 - **Undo**: structural changes (add, delete, move) are snapshotted in `.kit/history`; press **Ctrl+Z** or the undo icon in the top bar.
 - **Video prompts and clips**, **edit advice** (`fx:`), **subtitles** (`fa.srt` / `en.srt`, timed by the voice files), **batch prompts** for Flow (`python tools/batch.py b05`).
 - **Premiere hand-over**: `python tools/premiere_export.py` writes a timeline; `python tools/pack.py` zips the project for your editor.

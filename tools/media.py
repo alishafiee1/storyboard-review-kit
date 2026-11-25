@@ -200,9 +200,13 @@ def archive_move(src, dest_dir):
 
 
 def archived_images(id_):
+    """The archive of one picture: images/archive/ and, from older projects, the files of a `_rejected/` folder under images/scenes/
+    («rejected» and «archived» are one idea now: out of the versions, nothing deleted, brought back from the page)."""
     cfg = settings()
+    files = list(walk(archive_dir("image"), skip=()))
+    files += [f for f in walk(os.path.join(ROOT, "images", "scenes"), skip=("archive", "inbox")) if "_rejected" in rel(f)[len("images/scenes/"):]]
     out = []
-    for f in sorted(walk(archive_dir("image"), skip=()), key=os.path.getmtime):
+    for f in sorted(files, key=os.path.getmtime):
         name = os.path.basename(f)
         p = parse(name, cfg) or _legacy(name)
         if f.lower().endswith(IMG_EXT) and p and p["base"] == id_:

@@ -159,7 +159,7 @@ function figHtml(m, sc) {
   const n = (m.versions || []).length;
   const pic = m.src ? `<img src="${ m.src }" alt="" draggable="false">` : `<div class="ph"><b>${ m.id }</b><span>هنوز ساخته نشده</span></div>`;
   const arrows = n > 1 ? `<button class="va l" data-vn="-1" aria-label="نسخهٔ قبلی" title="نسخهٔ قبلی (↑)">${ ic('chevL') }</button><button class="va r" data-vn="1" aria-label="نسخهٔ بعدی" title="نسخهٔ بعدی (↓)">${ ic('chevR') }</button>` : '';
-  const rj = m.rejected.length ? `<span class="rj">ردشده‌ها: ${ m.rejected.map((r, i) => `<a href="${ r }" target="_blank">${ fa(i + 1) }</a>`).join(' ') }</span>` : '';
+  const rj = '';
   return `<figure class="shot${ m.off ? ' off' : '' }" data-id="${ m.id }" data-m="${ m.status }"><div class="mount"><i class="tape a"></i><i class="tape b"></i><div class="frame">${ pic }${ arrows }<span class="vmeta">${ vmetaHtml(m) }</span></div></div>
    <div class="idrow"><bdi class="iid" dir="ltr">${ m.id }</bdi>${ m.off ? '<span class="offl">کنار گذاشته شده</span>' : '' }${ m.video ? `<button class="quiet sm vid" data-vid="${ esc(m.video) }" data-name="${ m.id }" title="پخش ویدیوی این تصویر">${ ic('play') }ویدیو</button>` : '' }${ rj }</div>
    ${ m.stale ? `<div class="stalebox">پرامپت عوض شده؛ تصویر کهنه است <button class="quiet sm" data-clrimg="1">تصویر به‌روز شد</button></div>` : '' }${ issHtml(m.issues) }

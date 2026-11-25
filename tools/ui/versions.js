@@ -1,9 +1,12 @@
 import {
   $,
   api,
+  esc,
   fa,
-  fail
+  fail,
+  toast
 } from './core.js';
+import { ic } from './icons.js';
 import {
   filt,
   reload,
@@ -78,13 +81,105 @@ export async function archiveShown() {
   const c = curImg();
   if (!c || !c.m.versions[c.m.vi])
     return;
+  const id = c.m.id, name = c.m.versions[c.m.vi].name;
   await api('/api/archive', {
     kind: 'image',
-    id: c.m.id,
-    name: c.m.versions[c.m.vi].name
+    id,
+    name
   });
   await reload();
+  toastAct('رفت توی آرشیو', 'بازگردانی', async () => {
+    try {
+      await api('/api/restore', {
+        kind: 'image',
+        id,
+        name
+      });
+      await reload();
+    } catch (e) {
+      fail(e);
+    }
+  });
 }
+/* a toast with one button (the archive says «back» for a few seconds; the popup of the archive is always one click away) */
+let TOAST_ACT = 0;
+function toastAct(msg, label, fn) {
+  const t = $('#toast'), b = document.createElement('button');
+  t.textContent = msg + ' ';
+  b.type = 'button';
+  b.className = 'quiet';
+  b.textContent = label;
+  b.onclick = () => {
+    t.hidden = true;
+    fn();
+  };
+  t.append(b);
+  t.hidden = false;
+  clearTimeout(TOAST_ACT);
+  TOAST_ACT = setTimeout(() => t.hidden = true, 7000);
+}
+/* ---------- the archive of the shown picture: a grid like the gallery picker; a click opens one with ‹ › and «bring back» */
+export function openArchive() {
+  const c = curImg();
+  if (!c)
+    return;
+  const id = c.m.id, dlg = document.createElement('dialog');
+  let at = -1;
+  const list = () => (curImgById(id) || { archived: [] }).archived;
+  const draw = () => {
+    const a = list();
+    if (at >= a.length)
+      at = a.length - 1;
+    if (!a.length) {
+      dlg.innerHTML = `<h3>آرشیو <bdi dir="ltr">${ id }</bdi></h3><p class="muted">آرشیو این تصویر خالیه. با دکمهٔ «آرشیو» زیر تصویر، نسخهٔ جاری می‌ره اینجا و هیچ فایلی پاک نمی‌شه.</p><div class="btns"><button type="button" class="outline" data-ar="close">بستن</button></div>`;
+      return;
+    }
+    if (at < 0) {
+      dlg.innerHTML = `<h3>آرشیو <bdi dir="ltr">${ id }</bdi> <small class="muted">${ fa(a.length) } مورد</small></h3><div class="agrid">${ a.map((x, i) => `<button type="button" class="atile" data-ar="open" data-i="${ i }" aria-label="نسخهٔ آرشیو ${ fa(i + 1) }"><img src="${ esc(x.src) }" alt="" loading="lazy"></button>`).join('') }</div><p class="muted">روی یکی کلیک کن تا بزرگ ببینیش و برش‌گردونی.</p><div class="btns"><button type="button" class="outline" data-ar="close">بستن</button></div>`;
+      return;
+    }
+    const x = a[at];
+    dlg.innerHTML = `<h3>آرشیو <bdi dir="ltr">${ id }</bdi> <small class="muted">${ fa(at + 1) } / ${ fa(a.length) }</small></h3><div class="aview">${ a.length > 1 ? `<button type="button" class="va l" data-ar="step" data-d="-1" aria-label="قبلی">${ ic('chevL') }</button><button type="button" class="va r" data-ar="step" data-d="1" aria-label="بعدی">${ ic('chevR') }</button>` : '' }<img src="${ esc(x.src) }" alt=""></div><p class="muted"><bdi dir="ltr">${ esc(x.name) }</bdi></p><div class="btns"><button type="button" class="quiet" data-ar="list">برگشت به فهرست</button><button type="button" class="outline" data-ar="restore">بازگردانی به نسخه‌ها</button></div>`;
+  };
+  dlg.className = 'dlg archdlg';
+  document.body.appendChild(dlg);
+  dlg.addEventListener('close', () => dlg.remove());
+  dlg.addEventListener('click', async e => {
+    const b = e.target.closest('[data-ar]');
+    if (!b)
+      return;
+    const k = b.dataset.ar, a = list();
+    if (k === 'close')
+      dlg.close();
+    else if (k === 'open') {
+      at = +b.dataset.i;
+      draw();
+    } else if (k === 'list') {
+      at = -1;
+      draw();
+    } else if (k === 'step') {
+      at = (at + +b.dataset.d + a.length) % a.length;
+      draw();
+    } else if (k === 'restore' && a[at]) {
+      try {
+        await api('/api/restore', {
+          kind: 'image',
+          id,
+          name: a[at].name
+        });
+        await reload();
+        at = -1;
+        draw();
+        toast('برگشت به نسخه‌ها');
+      } catch (er) {
+        fail(er);
+      }
+    }
+  });
+  draw();
+  dlg.showModal();
+}
+const curImgById = id => S.BL.flatMap(b => b.images).find(x => x.id === id);
 /* ---------- the image «⋯» popover */
 const closeMore = () => {
   $('#morePop').hidden = true;
@@ -187,7 +282,7 @@ async function onItem(b) {
   if (d.iarch)
     return run(archiveShown);
   if (d.irest)
-    return openDrawer('vers');
+    return openArchive();
   if (d.smv)
     return run(async () => {
       await api('/api/scenemove', {
@@ -239,6 +334,8 @@ export const bringBack = sid => run(async () => {
   goScene(sid);
 });
 export function boot_versions() {
+  $('#bArch').onclick = () => run(archiveShown);
+  $('#bArchList').onclick = openArchive;
   document.addEventListener('click', e => {
     const b = e.target.closest('[data-vn]');
     if (b)

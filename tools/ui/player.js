@@ -81,6 +81,10 @@ export function chrome() {
     '#bFlag',
     '#more'
   ].forEach(s => $(s).disabled = !m);
+  $('#bArch').disabled = !(m && m.versions && m.versions.length);
+  $('#bArchList').disabled = !m;
+  $('#bArchList').classList.toggle('has', !!(m && m.archived && m.archived.length));
+  $('#bArchList').title = m && m.archived && m.archived.length ? `آرشیو این تصویر (${ m.archived.length } مورد): بازگردانی` : 'آرشیو این تصویر: هنوز چیزی توش نیست';
   $('#bNote').classList.toggle('has', !!(m && (m.note || m.fx)));
   $('#bVprompt').classList.toggle('has', !!(m && m.vprompt));
   $('#bPrompt').classList.toggle('has', !!(m && m.stale));

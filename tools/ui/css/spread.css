@@ -933,3 +933,81 @@ figure.shot > .pacts {
   padding-top:10px;
   border-top:1px solid var(--line);
 }
+
+/* version arrows: a soft paper circle with a faint halo, so they show on a white picture too */
+.va {
+  width:44px;
+  height:44px;
+  border-radius:50%;
+  background:rgba(243,238,228,.74);
+  color:var(--ink);
+  border:1px solid rgba(42,39,35,.2);
+  box-shadow:0 0 0 6px rgba(243,238,228,.22);
+  opacity:.9;
+  filter:none;
+}
+
+.va.l {
+  left:14px;
+}
+
+.va.r {
+  right:14px;
+}
+
+.va .ic {
+  width:22px;
+  height:22px;
+}
+
+.frame:hover .va,
+.va:focus-visible {
+  opacity:1;
+  background:rgba(243,238,228,.94);
+}
+
+/* the archive popup */
+dialog.archdlg {
+  width:min(720px,94vw);
+}
+
+.agrid {
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+  gap:8px;
+  margin:10px 0;
+}
+
+.atile {
+  padding:0;
+  border:1px solid var(--line);
+  background:var(--paper-shade);
+  aspect-ratio:16/9;
+  overflow:hidden;
+  cursor:pointer;
+}
+
+.atile img {
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+}
+
+.aview {
+  position:relative;
+  margin:10px 0;
+  background:var(--paper-shade);
+}
+
+.aview img {
+  width:100%;
+  display:block;
+}
+
+dialog.archdlg .btns {
+  display:flex;
+  gap:8px;
+  justify-content:flex-end;
+  margin-top:10px;
+}

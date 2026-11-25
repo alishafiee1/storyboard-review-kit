@@ -910,12 +910,16 @@ def picture_archive_and_back(proj, page):
     assert os.path.exists(os.path.join(proj.root, "images", "archive", "IMG001_start_a1b2c3.png"))
     assert not os.path.exists(os.path.join(proj.root, "images", "scenes", "IMG001_start_a1b2c3.png"))
     more(page)
-    page.click("#morePop [data-irest]")  # «archive (1)» opens the versions panel
-    page.wait_for_selector("#pVers [data-irestore]")
-    assert page.locator("#pVers .vrow2").count() == 2
-    page.click("#pVers [data-irestore='IMG001_start_a1b2c3.png']")
+    page.click("#morePop [data-irest]")  # «archive (1)» opens the archive popup: a grid, then one picture with «bring back»
+    page.wait_for_selector("dialog.archdlg .atile")
+    assert page.locator("dialog.archdlg .atile").count() == 1
+    page.click("dialog.archdlg .atile")
+    page.wait_for_selector("dialog.archdlg .aview img")
+    page.click("dialog.archdlg [data-ar=restore]")
     page.wait_for_selector(f + " [data-vn]")
     assert os.path.exists(os.path.join(proj.root, "images", "scenes", "IMG001_start_a1b2c3.png"))
+    page.click("dialog.archdlg [data-ar=close]")
+    drawer(page, "vers")  # the drawer's versions panel can still show and approve a version
     page.wait_for_selector("#pVers [data-vpick]")
     assert page.locator("#pVers [data-irestore]").count() == 0
     page.click("#pVers [data-vpick='0']")  # the panel can also show and approve a version
@@ -1534,6 +1538,42 @@ def keys_do_not_steal_typing(proj, page):
     page.keyboard.press("ArrowLeft")
     assert page.get_attribute(".blk.on", "data-bid") == "IMG001"
     page.keyboard.press("Escape")
+
+
+@test
+def archive_buttons_under_the_picture_and_the_old_rejected_folder(proj, page):
+    """Two icons under the picture: «archive» sends the shown version to the archive (a toast brings it back), «the archive» opens a popup grid with
+    ‹ › and «bring back»; files of an old `_rejected/` folder show up there too, and the «rejected» link under the picture is gone."""
+    at(page, "IMG001")
+    f = "figure.shot[data-id=IMG001]"
+    rej = os.path.join(proj.root, "images", "scenes", "_rejected")
+    os.makedirs(rej, exist_ok=True)
+    shutil.copy2(os.path.join(proj.root, "images", "scenes", "IMG001_start.png"), os.path.join(rej, "IMG001_old_deadbeef.png"))
+    page.reload()
+    page.wait_for_selector(f)
+    assert page.locator(f + " .rj").count() == 0  # no more «ردشده‌ها» link
+    assert page.locator("#picActs #bArch").is_visible() and page.locator("#picActs #bArchList").is_visible()
+    assert page.evaluate("document.querySelector('#picActs').parentElement.matches('figure.shot')")  # the icons sit under the picture they act on
+    page.click("#bArch")
+    page.wait_for_selector("#toast button")
+    assert os.path.exists(os.path.join(proj.root, "images", "archive", "IMG001_start_a1b2c3.png")) or os.path.exists(os.path.join(proj.root, "images", "archive", "IMG001_start.png"))
+    page.click("#toast button")  # «بازگردانی» puts it back
+    page.wait_for_function("document.querySelectorAll('figure.shot[data-id=IMG001] [data-vn]').length > 0")
+    assert not os.path.exists(os.path.join(proj.root, "images", "archive", "IMG001_start_a1b2c3.png"))
+    page.click("#bArchList")
+    page.wait_for_selector("dialog.archdlg .atile")
+    assert page.locator("dialog.archdlg .atile").count() == 1  # the file of the old _rejected folder
+    page.click("dialog.archdlg .atile")
+    page.wait_for_selector("dialog.archdlg .aview img")
+    page.click("dialog.archdlg [data-ar=list]")
+    page.wait_for_selector("dialog.archdlg .agrid")
+    page.click("dialog.archdlg [data-ar=close]")
+    page.click("#bArchList")
+    page.click("dialog.archdlg .atile")
+    page.click("dialog.archdlg [data-ar=restore]")  # an old rejected file comes back as a version
+    page.wait_for_function("document.querySelectorAll('figure.shot[data-id=IMG001] [data-vn]').length > 0")
+    assert not os.path.exists(os.path.join(rej, "IMG001_old_deadbeef.png"))
+    assert os.path.exists(os.path.join(proj.root, "images", "scenes", "IMG001_old_deadbeef.png"))
 
 
 @test
