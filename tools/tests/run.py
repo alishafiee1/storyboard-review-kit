@@ -454,7 +454,7 @@ def format_issue_flag(proj, page):
 def drawer_panels_filter_search_jump(proj, page):
     """The drawer replaces the old tabs: references, scene list (jump), filter, search, speed, voices; ‹ goes back, Esc and the dimmed page close it."""
     drawer(page)
-    assert page.locator("#dmenu .drow").count() == 12 and page.is_hidden("#dback")
+    assert page.locator("#dmenu .drow").count() == 13 and page.is_hidden("#dback")
     labels = page.locator("#dmenu .rt").all_inner_texts()
     assert labels[:3] == ["فهرست صحنه‌ها", "فیلتر و جست‌وجو", "سرعت پخش"] and "کپی پرامپت‌های دسته" in labels
     drawer(page, "refs")
@@ -992,7 +992,7 @@ def premiere_check_and_pack(proj, page):
                 "audio/fa/archive/q.mp3", "videos/clips/c.mp4", "audio/_tests/t.mp3"):
         touch(rel)
     zp = os.path.join(proj.tmp, "handoff.zip")
-    code, out = run("-c", "import sys; sys.path.insert(0, 'tools'); import pack; print(pack.problems()); print(pack.pack(out=sys.argv[1])[1])", zp)
+    code, out = run("-c", "import sys; sys.path.insert(0, 'tools'); import pack; print(pack.problems()); print(pack.pack(out=sys.argv[1], selected=False)[1])", zp)
     assert code == 0 and out.startswith("[]"), out
     import zipfile
     names = [n.split("/", 1)[1] for n in zipfile.ZipFile(zp).namelist()]
@@ -1572,6 +1572,7 @@ def archive_buttons_under_the_picture_and_the_old_rejected_folder(proj, page):
     page.click("dialog.archdlg .atile")
     page.click("dialog.archdlg [data-ar=restore]")  # an old rejected file comes back as a version
     page.wait_for_function("document.querySelectorAll('figure.shot[data-id=IMG001] [data-vn]').length > 0")
+    page.wait_for_function("document.querySelector('figure.shot[data-id=IMG001] img').src.includes('IMG001_old_deadbeef')")  # and it is the one on show
     assert not os.path.exists(os.path.join(rej, "IMG001_old_deadbeef.png"))
     assert os.path.exists(os.path.join(proj.root, "images", "scenes", "IMG001_old_deadbeef.png"))
 
@@ -1601,6 +1602,28 @@ def voices_panel_has_three_sections_and_tones_can_be_added_marked_and_removed(pr
     page.click('#spk .tnrow:has-text("غمگین") [data-tdel]')
     page.wait_for_function("!document.querySelector('#spk').innerText.includes('غمگین')")
     assert '"[sad]"' not in proj.read("voices/voice-config.json")
+
+
+@test
+def export_for_the_editor_holds_only_the_chosen_files(proj, page):
+    """Menu «خروجی برای ادیتور»: one zip with the review page, the scenario and ONLY the chosen picture versions and voice takes, plus a README for the editor."""
+    import zipfile
+    on_disk = [n for n in os.listdir(os.path.join(proj.root, "images", "scenes")) if n.startswith("IMG001")]
+    assert len(on_disk) == 2  # two versions of IMG001 on disk
+    drawer(page, "export")
+    page.wait_for_selector("[data-ex=go]")
+    page.click("[data-ex=go]")
+    page.wait_for_function("document.querySelector('#exres') && document.querySelector('#exres').innerText.includes('آماده شد')", timeout=90000)
+    z = os.path.join(os.path.dirname(proj.root), os.path.basename(proj.root) + "-for-editor.zip")
+    names = zipfile.ZipFile(z).namelist()
+    base = os.path.basename(proj.root) + "/"
+    for want in ("README-FOR-EDITOR.txt", "review.html", "click-for-review.bat", "scenario/story.txt", "prompts/prompts.txt", "tools/serve.py"):
+        assert base + want in names, want
+    assert len([n for n in names if "/images/scenes/IMG001" in n]) == 1  # one of the two versions
+    assert base + ".env" not in names and not any("/archive/" in n for n in names)
+    if shutil.which("ffmpeg"):
+        disk = [n for n in os.listdir(os.path.join(proj.root, "audio", "fa")) if n.endswith(".mp3")]
+        assert len([n for n in names if "/audio/fa/" in n and n.endswith(".mp3")]) < len(disk)  # the other takes stay out
 
 
 @test

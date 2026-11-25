@@ -172,7 +172,16 @@ def api_tonesample(d):
     return {"ok": True, "url": "audio/_samples/" + name}
 
 
-SLOW = {"/api/tonesample": api_tonesample, "/api/settings/testkey": lambda d: __import__("settings").test_key(), "/api/subtitles": api_subtitles, "/api/voices/refresh": api_refresh, "/api/sample": api_sample, "/api/regen": api_regen, "/api/linevoice": api_linevoice}
+def api_pack(d):
+    """The zip for the editor (chosen pictures and voices, the review page, the Premiere package): written next to the project folder."""
+    import pack
+    pkg = pack.pick_package(None)
+    miss = pack.problems(bool(d.get("clips")), pkg)
+    path, n = pack.pack(bool(d.get("clips")), None, pkg, selected=True)
+    return {"ok": True, "path": path, "files": n, "mb": round(os.path.getsize(path) / 1e6, 1), "package": pkg or "", "missing": miss[:20]}
+
+
+SLOW = {"/api/pack": api_pack, "/api/tonesample": api_tonesample, "/api/settings/testkey": lambda d: __import__("settings").test_key(), "/api/subtitles": api_subtitles, "/api/voices/refresh": api_refresh, "/api/sample": api_sample, "/api/regen": api_regen, "/api/linevoice": api_linevoice}
 
 
 SAMPLE_TEXT = "سلام، این یه نمونهٔ صداست. امروز می‌خوام یه چیز جالب بهت نشون بدم."

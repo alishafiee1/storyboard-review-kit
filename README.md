@@ -28,7 +28,7 @@ The full guide, with a ready-made prompt for the AI, is in [WORKFLOW.md](WORKFLO
 - **Archive**: the archive icon under a picture sends the shown version to `images/archive/` (nothing is deleted); the archive icon next to it opens a popup of the archived versions to browse and bring back.
 - **Undo**: structural changes (add, delete, move) are snapshotted in `.kit/history`; press **Ctrl+Z** or the undo icon in the top bar.
 - **Video prompts and clips**, **edit advice** (`fx:`), **subtitles** (`fa.srt` / `en.srt`, timed by the voice files), **batch prompts** for Flow (`python tools/batch.py b05`).
-- **Premiere hand-over**: `python tools/premiere_export.py` writes a timeline; `python tools/pack.py` zips the project for your editor.
+- **Premiere hand-over**: `python tools/premiere_export.py` writes a timeline. Menu → **Export for the editor** (or `python tools/pack.py`) zips the review page, the scenario and only the chosen pictures and voices, plus the Premiere package and a README; the editor installs Python and opens the page.
 - **Safe updates**: `python tools/update.py` replaces only the tool files (and the AI guide); your scenario, prompts, images and audio are never touched.
 
 ## Quick start (Windows, macOS, Linux)

@@ -2,6 +2,7 @@
 """Pack the project for someone else (an editor, a friend): one zip with the kit, the scenario, pictures, voices and the Premiere package,
 but without the heavy or private things: output videos / previews / renders, archived files, test audio, .env, git data.
   python tools/pack.py [--clips]         -> ../<project>-for-editor.zip   (--clips also puts videos/clips/ in)
+  python tools/pack.py --all             every picture version and every voice take (default: only the ones the project uses)
   python tools/pack.py --list            only print what would go in (nothing is written)
   python tools/pack.py --package DIR     the Premiere package folder (default: the newest `premiere/` or `videos/final/*_premiere_package`)
   python tools/pack.py --help
@@ -62,13 +63,37 @@ def skip(rel, clips=False, pkg=None):
     return False
 
 
-def files(clips=False, pkg=None):
+def selected_media():
+    """The picture files and voice files the project really uses (rel paths with /): the picked version of every picture that is not set aside, and the
+    chosen voice of every dialogue line in every language. Other versions and takes stay out."""
+    from project import project
+    out = set()
+    for sc in project()["scenes"]:
+        if sc.get("off"):
+            continue
+        for b in sc["blocks"]:
+            for m in b["images"]:
+                if m.get("src") and not m.get("off"):
+                    out.add(m["src"])
+            for it in b["items"]:
+                for u in (it.get("audio") or {}).values():
+                    if u:
+                        out.add(u.split("?")[0])
+    return out
+
+
+def files(clips=False, pkg=None, selected=False):
+    """Every file for the zip. With `selected` the pictures of images/scenes/ and the voices of audio/ are only those the project uses."""
+    keep = selected_media() if selected else None
     for d, ds, fs in os.walk(ROOT):
         ds[:] = [x for x in ds if x not in SKIP_DIRS and not x.endswith("_renders")]
         for f in fs:
             rel = os.path.relpath(os.path.join(d, f), ROOT).replace("\\", "/")
-            if not skip(rel, clips, pkg):
-                yield rel
+            if skip(rel, clips, pkg):
+                continue
+            if keep is not None and (rel.startswith("images/scenes/") or (rel.startswith("audio/") and rel.lower().endswith((".mp3", ".wav", ".m4a", ".ogg", ".flac")))) and rel not in keep:
+                continue
+            yield rel
 
 
 def xmls_of(pkg=None):
@@ -108,11 +133,35 @@ def outdated_pictures(pkg=None):
     return out
 
 
-def pack(clips=False, out=None, pkg=None):
+EDITOR_README = """STORYBOARD REVIEW KIT - package for the editor
+=================================================
+This folder is a whole project: scenario, pictures, voices and the review page.
+
+1. Install Python 3.9 or newer from https://www.python.org/downloads/ (tick "Add python.exe to PATH").
+2. Windows: double-click click-for-review.bat. Other systems: python tools/serve.py
+3. Open http://127.0.0.1:8765/review.html in your browser (it opens by itself on Windows).
+   You can read the story picture by picture, listen to every line, see the notes and edit advice (fx:).
+4. The pictures and voices in this package are the chosen versions only. The Premiere project (if any) is in the folder named
+   premiere/ or videos/final/*_premiere_package/ and points to the same files with relative paths.
+
+Nothing here needs an internet connection or an account. The server stops by itself about 90 seconds after the page is closed.
+
+---
+
+بسته برای ادیتور
+1. Python نسخهٔ ۳٫۹ به بالا رو از python.org نصب کن (تیک Add to PATH رو بزن).
+2. ویندوز: دابل‌کلیک روی click-for-review.bat. بقیه: python tools/serve.py
+3. آدرس http://127.0.0.1:8765/review.html رو باز کن؛ داستان رو تصویر به تصویر می‌بینی، صدای هر خط رو می‌شنوی و یادداشت‌ها و توصیهٔ ادیت (fx:) رو می‌خونی.
+4. عکس‌ها و صداهای این بسته فقط نسخه‌های انتخاب‌شده‌ان. پروژهٔ پریمیر (اگه باشه) توی premiere/ یا videos/final/*_premiere_package/ هست و با مسیر نسبی به همین فایل‌ها اشاره می‌کنه.
+"""
+
+
+def pack(clips=False, out=None, pkg=None, selected=True):
     out = out or os.path.join(os.path.dirname(ROOT), os.path.basename(ROOT) + "-for-editor.zip")
     n = 0
     with zipfile.ZipFile(out + ".tmp", "w") as z:
-        for rel in files(clips, pkg):
+        z.writestr(os.path.basename(ROOT) + "/README-FOR-EDITOR.txt", EDITOR_README)
+        for rel in files(clips, pkg, selected):
             z.write(os.path.join(ROOT, rel), os.path.basename(ROOT) + "/" + rel,
                     zipfile.ZIP_STORED if rel.lower().endswith(STORED) else zipfile.ZIP_DEFLATED)
             n += 1
@@ -125,6 +174,7 @@ if __name__ == "__main__":
         sys.stdout.reconfigure(encoding="utf-8")
     ap = argparse.ArgumentParser(description="Pack the project into one zip for an editor.", epilog=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--clips", action="store_true", help="also put videos/clips/ in")
+    ap.add_argument("--all", action="store_true", help="every picture version and voice take, not only the ones the project uses")
     ap.add_argument("--list", action="store_true", help="only print the files that would go in; write nothing")
     ap.add_argument("--package", metavar="DIR", help="the Premiere package folder (default: the newest one found)")
     ap.add_argument("-o", "--output", metavar="ZIP", help="the zip to write (default: next to the project folder)")
@@ -132,7 +182,7 @@ if __name__ == "__main__":
     pkg = pick_package(a.package)
     print("Premiere package folder:", pkg or "(none found; every XML stays in)")
     if a.list:
-        lst = sorted(files(a.clips, pkg))
+        lst = sorted(files(a.clips, pkg, not a.all))
         print(chr(10).join(lst))
         print("%d files (nothing written)" % len(lst))
         sys.exit(0)
@@ -141,6 +191,6 @@ if __name__ == "__main__":
         print("⚠", p)
     for p in outdated_pictures(pkg):
         print("ℹ", p)
-    path, n = pack(a.clips, a.output, pkg)
+    path, n = pack(a.clips, a.output, pkg, not a.all)
     print("%d files, %.1f MB -> %s" % (n, os.path.getsize(path) / 1e6, path))
     sys.exit(1 if pr else 0)

@@ -21,7 +21,8 @@ import {
 } from './player.js';
 import {
   bringBack,
-  pickVersion
+  pickVersion,
+  showRestored
 } from './versions.js';
 import { sceneNo } from './render.js';
 /* The paper drawer (menu): scene list, filter and search, speed, subtitles, voices, references, versions and archive, undo, batch prompts, inbox.
@@ -38,6 +39,7 @@ const PANELS = {
   batch: '#pBatch',
   inbox: '#pInbox',
   settings: '#pSettings',
+  export: '#pExport',
   help: '#pHelp'
 };
 const ROWS = [
@@ -90,6 +92,11 @@ const ROWS = [
     'inbox',
     'inbox',
     'ورودی‌ها و inbox'
+  ],
+  [
+    'export',
+    'batch',
+    'خروجی برای ادیتور'
   ],
   [
     'settings',
@@ -340,6 +347,33 @@ async function settingsClick(act, on) {
     fail(e);
   }
 }
+/* ---- export for the editor: one zip with the chosen pictures and voices, the review page and the Premiere package */
+function buildExport() {
+  const P = $('#pExport');
+  if (P.querySelector('#exres') && P.querySelector('#exres').dataset.busy === '1')
+    return;
+  P.innerHTML = `<p class="muted">یه زیپ کنار پوشهٔ پروژه ساخته می‌شه برای ادیتور:</p>
+    <ul class="muted"><li>سناریو، پرامپت‌ها و صفحهٔ بازبینی (ادیتور با نصب Python می‌تونه داستان رو ببینه و صداها رو بشنوه)</li><li>فقط عکس و صدای <b>انتخاب‌شده</b> (نسخه‌های اضافه و آرشیو نمی‌ره)</li><li>پوشهٔ بستهٔ پریمیر، اگه ساخته باشی</li><li>یه راهنمای کوتاه برای ادیتور</li></ul>
+    <label class="srow"><input type="checkbox" id="exclips"> <span>کلیپ‌های ویدیویی (<bdi dir="ltr">videos/clips</bdi>) هم باشه</span></label>
+    <div class="srow"><button type="button" class="outline" data-ex="go">ساخت زیپ</button></div>
+    <p id="exres" class="muted" role="status"></p>`;
+}
+async function exportGo(btn) {
+  const res = $('#exres');
+  btn.disabled = true;
+  res.dataset.busy = '1';
+  res.textContent = 'در حال ساخت زیپ… ممکنه چند دقیقه طول بکشه؛ صفحه رو نبند.';
+  try {
+    const r = await api('/api/pack', { clips: $('#exclips').checked });
+    res.innerHTML = `آماده شد: <bdi dir="ltr">${ esc(r.path) }</bdi><br>${ fa(r.files) } فایل · ${ fa(r.mb) } مگابایت${ r.package ? ' · بستهٔ پریمیر: <bdi dir="ltr">' + esc(r.package) + '</bdi>' : ' · بستهٔ پریمیر پیدا نشد' }${ r.missing.length ? '<br>هشدار: ' + r.missing.map(esc).join('، ') : '' }`;
+  } catch (e) {
+    res.textContent = '';
+    fail(e);
+  } finally {
+    btn.disabled = false;
+    delete res.dataset.busy;
+  }
+}
 /* ---- help: the cards of skills/how-to-write-prompts-for-flow.md (the same guide the AI reads), short, with «more» under each; the project's own scripts; the version */
 const HELP = { cards: null };
 const plain = t => t.replace(/^```.*$/gm, '').replace(/\*\*/g, '').replace(/`/g, '').replace(/\n{3,}/g, '\n\n').trim();
@@ -398,6 +432,7 @@ function build(name) {
     batch: buildBatch,
     inbox: buildInbox,
     settings: buildSettings,
+    export: buildExport,
     help: buildHelp
   })[name]?.();
 }
@@ -473,8 +508,10 @@ export function boot_drawer() {
           kind: 'image',
           id: c.m.id,
           name: d.irestore
-        }).then(reload, fail);
-    } else if (d.sset)
+        }).then(reload).then(() => showRestored(c.m.id, d.irestore)).catch(fail);
+    } else if (d.ex === 'go')
+      exportGo(t);
+    else if (d.sset)
       settingsClick(d.sset);
     else if (d.hmore != null) {
       const body = t.closest('.hcard').querySelector('.hbody'), open = body.hidden;

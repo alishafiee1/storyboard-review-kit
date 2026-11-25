@@ -118,7 +118,7 @@ images/refs/{STYLE,CH,LOC,PROP,GRP}/    inbox/    audio/fa  audio/en    videos/c
 ## ۷) پریمیر و تحویل به ادیتور
 > خلاصه: خروجی پریمیر با مسیر نسبی؛ فقط پوشهٔ بستهٔ همین خروجی در زیپ تحویل می‌رود.
 - **کی:** وقتی ادیتور باید پروژه را بگیرد.
-- **دستور:** ۱) اگر `skills/project-scripts.md` اسکریپت پریمیر پروژه را معرفی کرده، همان را بزن؛ وگرنه `python tools/premiere_export.py --lang fa|en` (اختیاری `--absolute`، `--fps`، `-o`). ۲) `python tools/premiere_check.py` (XML قدیمی: `--fix`). ۳) `python tools/pack.py --list` و بعد `python tools/pack.py` (`--package DIR` برای پوشهٔ بسته، `--clips` برای کلیپ‌ها).
+- **دستور:** ۱) اگر `skills/project-scripts.md` اسکریپت پریمیر پروژه را معرفی کرده، همان را بزن؛ وگرنه `python tools/premiere_export.py --lang fa|en` (اختیاری `--absolute`، `--fps`، `-o`). ۲) `python tools/premiere_check.py` (XML قدیمی: `--fix`). ۳) `python tools/pack.py --list` و بعد `python tools/pack.py` (فقط عکس و صدای انتخاب‌شده؛ `--all` همهٔ نسخه‌ها؛ `--package DIR` برای پوشهٔ بسته، `--clips` برای کلیپ‌ها). کاربر همین را از منو ← «خروجی برای ادیتور» هم می‌گیرد.
 - **ورودی ← خروجی:** تصویرهای `off`نشده و صداهای انتخابی ← XML و یادداشت ادیت در پوشهٔ بسته (`premiere/` یا `videos/final/EP01_<زبان>_premiere_package/`) ← یک zip کنار پوشهٔ پروژه.
 - **چک نهایی:** `premiere_check` «OK»؛ هیچ مسیر مطلق (`D:\...`)؛ در `--list` فقط یک بستهٔ پریمیر و فقط XML همان بسته هست؛ رندر و پیش‌نمایش و `.env` در زیپ نیست.
 

@@ -96,10 +96,20 @@ export async function archiveShown() {
         name
       });
       await reload();
+      await showRestored(id, name);
     } catch (e) {
       fail(e);
     }
   });
+}
+/* a brought-back version is shown at once (and, as always, the version you stop on is the chosen one); before, the old pick stayed on screen and it looked as if nothing came back */
+export async function showRestored(id, name) {
+  const m = S.BL.flatMap(b => b.images).find(x => x.id === id), f = document.querySelector(`figure.shot[data-id="${ id }"]`);
+  if (!m || !f)
+    return;
+  const i = m.versions.findIndex(v => v.name === name || (v.files || []).some(x => x.split('/').pop() === name));
+  if (i >= 0)
+    await pickVersion(f, m, i);
 }
 /* a toast with one button (the archive says «back» for a few seconds; the popup of the archive is always one click away) */
 let TOAST_ACT = 0;
@@ -168,9 +178,10 @@ export function openArchive() {
           name: a[at].name
         });
         await reload();
+        await showRestored(id, a[at].name);
         at = -1;
         draw();
-        toast('برگشت به نسخه‌ها');
+        toast('برگشت به نسخه‌ها و نشونش داده شد');
       } catch (er) {
         fail(er);
       }

@@ -788,7 +788,7 @@ figure.shot {
 }
 
 figure.shot > .pacts {
-  justify-content:flex-end;
+  justify-content:flex-start;
   margin-top:4px;
 }
 
@@ -1010,4 +1010,9 @@ dialog.archdlg .btns {
   gap:8px;
   justify-content:flex-end;
   margin-top:10px;
+}
+
+/* the archive pair sits at the right end of the row under the picture; the other icons stay at the left end */
+#bArchList {
+  margin-inline-end:auto;
 }
