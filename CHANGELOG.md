@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.4.0
+- The review page is one scrolling list: every picture is a page (picture + its lines), scroll to move on; the counter, progress bar and the icons follow the page in the middle. ‹ › / ← → scroll smoothly to the next page; auto-play scrolls with the voice. Desktop and phone (on the phone the thin playback line is gone; the bottom action bar stays).
+- The four picture icons (flag, note, image prompt, video prompt) sit under the picture they act on, at its bottom-left. A phone-only footer bar that showed on the desktop is hidden again. The unknown-tone banner no longer breaks the phone layout (hidden on the phone).
+- Undo: **Ctrl+Z** (also on the Persian keyboard; inside a text box it stays the browser's text undo) and an undo icon in the top bar; both undo the last structural change.
+- The Downloads watcher is on by default (`"watch_downloads": false` in `kit-config.json` turns it off). The tests set `STORYBOARD_NO_WATCH=1` so a throw-away project never touches the real Downloads folder.
+- The AI guide is shorter and is now an engine file (`skills/how-to-write-prompts-for-flow.md`, listed in `ENGINE.txt`), so `update.py` keeps it current; `starter/CLAUDE.md` is a short map. README (EN, FA) and the public web page (`docs/index.html`) are rewritten.
+
 ## 2.3.0
 - Cleanup: the page no longer writes a scene-level `model:` (`set_scene_model` and the scene branch of `/api/ttsmodel` are gone; old `model:` lines are still read).
 - `python tools/update.py` prints a `python tools/migrate.py` (dry run) hint when `story.txt` or the audio names are in the old format (`update.old_format_reasons`, with tests).

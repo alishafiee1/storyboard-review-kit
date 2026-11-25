@@ -24,9 +24,10 @@ import { startMode } from './gallery.js';
 import { stepVersion } from './versions.js';
 import {
   drawerOpen,
-  drawerRefresh
+  drawerRefresh,
+  undo
 } from './drawer.js';
-/* One picture at a time: navigation, the top bar's numbers, the transport under the picture, auto-play, keyboard and start-up. */
+/* The scrolling list of pictures: navigation, the top bar's numbers, the transport under the picture, auto-play, keyboard and start-up. */
 /* ---------- which block is shown */
 export const vis = () => S.BL.map((_, i) => i).filter(i => {
   const el = $('#b' + i);
@@ -69,6 +70,10 @@ export function chrome() {
   $('#navNext').disabled = $('#next').disabled = p < 0 || p >= n - 1;
   $('#apr').innerHTML = m && m.status === 'ok' ? ic('check') + 'تأیید شده' : '';
   $('#apr').classList.toggle('show', !!(m && m.status === 'ok'));
+  const acts = $('#picActs');
+  const home = c ? c.f : $('.be');
+  if (acts.parentElement !== home)
+    home.appendChild(acts);
   [
     '#bNote',
     '#bPrompt',
@@ -86,7 +91,52 @@ export function chrome() {
   $('#lang').setAttribute('aria-pressed', en ? 'true' : 'false');
   $('#lang').classList.toggle('en', en);
 }
-export function show(i, keepJ) {
+/* the list scrolls: a jump from a button moves the list to that page (smooth when near); while it moves, the scroll watcher stays quiet */
+let SCROLLING = 0, FIRST = true;
+function scrollToBlock(el, tries = 0) {
+  const list = $('#list');
+  SCROLLING = Date.now() + 700;
+  if (list && !list.clientHeight && tries < 25) {
+    /* the list is still hidden (the gallery is closing): look again in a moment */
+    setTimeout(() => S.cur === +el.id.slice(1) && scrollToBlock(el, tries + 1), 40);
+    return;
+  }
+  if (!list || list.scrollHeight <= list.clientHeight)
+    return;
+  const lr = list.getBoundingClientRect(), top = el.getBoundingClientRect().top - lr.top + list.scrollTop;
+  if (Math.abs(top - list.scrollTop) < 2)
+    return;
+  const near = !FIRST && Math.abs(top - list.scrollTop) < list.clientHeight * 3;
+  FIRST = false;
+  SCROLLING = Date.now() + (near ? 700 : 150);
+  list.scrollTo({
+    top,
+    behavior: near ? 'smooth' : 'auto'
+  });
+}
+/* the page nearest the middle of the list is the one on show (a manual scroll) */
+function onListScroll() {
+  if (Date.now() < SCROLLING) {
+    SCROLLING = Date.now() + 160;
+    return;
+  }
+  if (S.playing)
+    return;
+  const list = $('#list'), lr = list.getBoundingClientRect(), mid = lr.top + lr.height * 0.4;
+  let best = null, bd = 1e9;
+  for (const i of vis()) {
+    const r = $('#b' + i).getBoundingClientRect(), d = r.top <= mid && r.bottom >= mid ? 0 : Math.min(Math.abs(r.top - mid), Math.abs(r.bottom - mid));
+    if (d < bd) {
+      bd = d;
+      best = i;
+    }
+  }
+  if (best != null && best !== S.cur) {
+    stopLine();
+    show(best, null, true);
+  }
+}
+export function show(i, keepJ, fromScroll) {
   const el = $('#b' + i);
   if (!el)
     return;
@@ -105,6 +155,8 @@ export function show(i, keepJ) {
   chrome();
   preTime(i);
   drawerRefresh();
+  if (!fromScroll)
+    scrollToBlock(el);
   if (!document.body.classList.contains('gal'))
     history.replaceState(null, '', '#' + el.dataset.bid);
 }
@@ -258,6 +310,15 @@ export function stopPlayback() {
   stop();
 }
 export function boot_player() {
+  let tick = 0;
+  $('#list').addEventListener('scroll', () => {
+    if (tick)
+      return;
+    tick = requestAnimationFrame(() => {
+      tick = 0;
+      onListScroll();
+    });
+  }, { passive: true });
   document.addEventListener('click', e => {
     const f = e.target.closest('[data-fwd]');
     if (f)
@@ -303,6 +364,21 @@ export function boot_player() {
       e.preventDefault();
       e.target.blur();
     }
+  });
+  $('#bUndo').onclick = () => undo(false);
+  /* Ctrl+Z = undo the last structural change (code KeyZ, so it also works on the Persian keyboard); inside a text box it stays the browser's own text undo */
+  document.addEventListener('keydown', e => {
+    if (e.defaultPrevented || !(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey || e.code !== 'KeyZ')
+      return;
+    const t = e.target;
+    if ([
+        'SELECT',
+        'TEXTAREA',
+        'INPUT'
+      ].includes(t.tagName) || t.isContentEditable || document.querySelector('dialog[open]'))
+      return;
+    e.preventDefault();
+    undo(false);
   });
   document.addEventListener('keydown', e => {
     if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey)

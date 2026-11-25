@@ -57,7 +57,7 @@ act: ...   say: speaker (tone) | text   id: IMG045-1   en: translation   voice: 
 id: = the stable name of the dialogue line above; its voice files are audio/<lang>/IMG045-1_<rid>.mp3 (new takes), IMG045-1.<model>.mp3 / IMG045-1.mp3 (older). New lines are named IMGnnn-k (nnn = the picture the line sits under, k = next free number, never reused); L007 and positional names are only read. Old files have no id: and
 read as IMG001_2 (picture id + position in the block); the page writes that id explicitly before the first add / delete.)
 ```
-The full writing rules for AI assistants are in `starter/skills/how-to-write-prompts-for-flow.md`.
+The full writing rules for AI assistants are in `skills/how-to-write-prompts-for-flow.md` (an engine file: `update.py` keeps it current in every project).
 
 ## Write API (`api.py`; all `POST`, JSON in, JSON out)
 

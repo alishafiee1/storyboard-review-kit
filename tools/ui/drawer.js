@@ -206,7 +206,7 @@ function buildUndo() {
   const h = [...S.P.history || []].reverse().slice(0, 10), t = x => `${ x.slice(9, 11) }:${ x.slice(11, 13) }:${ x.slice(13, 15) }`;
   $('#pUndo').innerHTML = h.length ? `<p class="muted">آخرین تغییرهای ساختاری (افزودن، حذف، جابه‌جایی). «برگردان» فایل را بایت‌به‌بایت به حالت پیش از آخرین تغییر برمی‌گردونه.</p><ol class="hist">${ h.map((x, i) => `<li${ i ? '' : ' class="sel"' }><span>${ esc(HLABEL[x.label] || x.label) }</span><bdi dir="ltr" class="c">${ fa(t(x.time)) }</bdi></li>`).join('') }</ol><button type="button" class="outline" data-undo="1">${ ic('undo') }برگردان آخرین تغییر</button>` : '<p class="muted">چیزی برای برگرداندن نیست.</p>';
 }
-async function undo(force) {
+export async function undo(force) {
   const h = S.P.history || [];
   if (!h.length)
     return;
@@ -279,6 +279,9 @@ export function drawerRefresh() {
       undo: (P.history || []).length ? fa(P.history.length) : '',
       inbox: ((P.inbox || []).length + (P.triage || []).length) ? fa((P.inbox || []).length + (P.triage || []).length) : ''
     };
+  const bu = $('#bUndo');
+  bu.disabled = !(P.history || []).length;
+  bu.title = bu.disabled ? 'چیزی برای برگرداندن نیست' : 'برگردان آخرین تغییر ساختاری (Ctrl+Z)';
   $('#dmenu').innerHTML = ROWS.map(([k, i, t]) => `<button type="button" class="drow${ k === PANEL ? ' sel' : '' }" data-panel="${ k }">${ ic(i) }<span class="rt">${ t }</span><span class="trail">${ trail[k] || '' }</span></button>`).join('');
   if (drawerOpen() && PANEL)
     build(PANEL);

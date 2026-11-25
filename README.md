@@ -1,26 +1,22 @@
 # Storyboard Review Kit
 
-**A free, single-page storyboard and review tool for AI-made videos and animations.** Keep your scenario, picture prompts, generated images and narration in plain text files, review everything on one page, edit it in the browser, and generate voice-over per speaker and scene. No database, no build step, no account: just Python and a browser.
+**A free, single-page storyboard and review tool for AI-made videos and animations.** Keep your scenario, picture prompts, generated images and narration in plain text files, review everything on one page, edit it in the browser, and generate voice-over per speaker. No database, no build step, no account: just Python and a browser.
 
-[فارسی](README.fa.md) · [Website](https://alishafiee1.github.io/storyboard-review-kit/) · License: MIT
+[فارسی](README.fa.md) · [Website](https://alishafiee1.github.io/storyboard-review-kit/) · [Changelog](CHANGELOG.md) · License: MIT
 
 ## What it does
-- **One review page** (`review.html`): a spread per picture (image, its dialogue lines, prompt) plus a gallery of all pictures you can drag to reorder; a drawer menu holds the rest. On phones it is one picture per screen with a bottom bar. Mark for redo, add notes.
+- **One scrolling review page** (`review.html`): every picture is a "page" of a long list (picture on one side, its dialogue on the other). Scroll through the story, or use the ‹ › buttons and the ← → keys. A gallery of all pictures lets you drag to reorder. On phones it is one picture per screen with a bottom action bar.
+- **Everything about a picture sits under it**: flag, note and edit advice, image prompt, video prompt.
 - **Plain-text project**: `scenario/story.txt` and `prompts/prompts.txt` are the only sources of truth. Edit them in the page or in any editor; git-friendly.
-- **Bilingual lines** (Persian + English, right-to-left friendly), speakers with colours and voices, tone per line.
-- **In-browser editing**: click a text, edit, press Enter. Clicking elsewhere saves it.
-- **Voice-over**: pick a text-to-speech model and voice per speaker and per line (ElevenLabs, Gemini, Qwen, ... through one [OpenRouter](https://openrouter.ai) key), listen to a sample, rebuild only the lines whose text changed.
-- **Video prompts and clips**: every picture also has an image-to-video prompt (`prompts/video-prompts.txt`); pictures and references that already have a video get a ▶ play button.
-- **Playback**: play on from the active line in FA or EN from the bar.
-- **Per-line listening**: every dialogue line with a generated voice file gets small 🔊 FA / 🔊 EN buttons to hear just that line.
-- **Edit suggestions** (`fx:`): short notes per scene and per picture (zoom, fade, shake, particles, light, sound) that the AI editor follows on top of its defaults.
-- **Subtitles**: one click writes `subtitles/fa.srt` and `subtitles/en.srt` from the scenario, timed by the voice files (ready to upload to YouTube).
-- **Versions and final choice**: several pictures (or voices) for the same shot are kept side by side; ◀ ▶ browse them and the one you stop on is the chosen, final one (`pick:` / `voice:` under the line in the scenario). No file is renamed or deleted.
-- **Image-based model**: a scene is only a marker line; every picture (`[IMG045]`) owns its dialogue lines (`IMG045-1`, `IMG045-2`, ...). Move pictures or scene markers and nothing is renamed. Flow versions (random id, 2K/4K) sit side by side; `pick:` is the final one.
-- **Inbox and batches**: `tools/watch.py` files Flow downloads from `Downloads`, `tools/batch.py b05` prints a batch's prompts, `inbox/` takes loose files.
-- **Undo**: every change is snapshotted in `.kit/history`; undo from the drawer.
-- **Stale flags**: when you change a text or a voice, the page marks that line's voice or picture as out of date.
-- **Updates without losing your work**: `python tools/update.py` replaces only the tool files; your scenario, prompts, images and audio stay untouched.
+- **Picture-based model**: a scene is only a marker line; every picture (`[IMG045]`) owns its dialogue lines (`IMG045-1`, `IMG045-2`, ...). Move pictures or scene markers and no file is renamed.
+- **Bilingual lines** (Persian + English, right-to-left friendly), coloured speakers, a tone per line.
+- **Voice-over**: choose a text-to-speech model and voice per speaker and per line (ElevenLabs, Gemini, Qwen, ... through one [OpenRouter](https://openrouter.ai) key); several takes per line, you keep the one you stop on; only changed lines are rebuilt.
+- **Versions**: several pictures for one shot sit side by side (Flow's random ids, 2K/4K). The version you stop on is the approved one.
+- **Automatic downloads**: when the review server runs it watches your `Downloads` folder and moves Flow files that belong to this project into `images/scenes/bNN/` or `images/refs/` by itself (turn off with `"watch_downloads": false` in `kit-config.json`). Odd files go to `inbox/`.
+- **Undo**: structural changes (add, delete, move) are snapshotted in `.kit/history`; press **Ctrl+Z** or the undo icon in the top bar.
+- **Video prompts and clips**, **edit advice** (`fx:`), **subtitles** (`fa.srt` / `en.srt`, timed by the voice files), **batch prompts** for Flow (`python tools/batch.py b05`).
+- **Premiere hand-over**: `python tools/premiere_export.py` writes a timeline; `python tools/pack.py` zips the project for your editor.
+- **Safe updates**: `python tools/update.py` replaces only the tool files (and the AI guide); your scenario, prompts, images and audio are never touched.
 
 ## Quick start (Windows, macOS, Linux)
 Needs Python 3.9+ (no packages to install). `ffmpeg` is needed only for a few voice models that answer raw audio.
@@ -35,41 +31,35 @@ python tools/serve.py        # Windows: double-click click-for-review.bat
 ```
 Then open http://127.0.0.1:8765/review.html. The server stops by itself about 90 seconds after you close the page.
 
-## Update an existing project
+## Add it to an existing project
+Copy `tools/update.py` from this repository into the project's `tools/` folder once, then run it there:
 ```bash
 cd my-video
-python tools/update.py          # replaces only review.html, click-for-review.bat and tools/*.py
+python tools/update.py          # replaces review.html, click-for-review.bat, tools/ and the AI guide in skills/
 python tools/update.py --check  # only tells you if a newer version exists
 ```
-Replaced files are copied to `.engine-backup/` first. To add the updater to a project that does not have it yet, copy `tools/update.py` from this repository into the project's `tools/` folder once.
+Replaced files are copied to `.engine-backup/` first. If the project is in the old format, the updater says so: run `python tools/migrate.py` (a dry run, nothing changes), then `python tools/migrate.py --apply` if the report looks right (it makes a backup and can be undone with `--undo`).
+
+## Working with an AI assistant
+Every project carries a short guide for AI coding assistants: `skills/how-to-write-prompts-for-flow.md` (the rules, the `story.txt` format, file naming, the review loop) plus a `CLAUDE.md` that points to it and holds your project's own rules (style, narrator tone, characters). The guide is an engine file, so `update.py` keeps it current. Tell your assistant to read `CLAUDE.md` first.
 
 ## Voice-over setup (optional)
-Create a `.env` file next to `review.html` with one line `OPENROUTER_API_KEY=...` (it is git-ignored), then open the menu (hamburger, top right) → **Voices & speakers** and press "Refresh voice list", or run `python tools/voices.py`. Pick a voice per speaker and a model per scene; press "Rebuild voice" on a scene to generate it. Nothing is generated (and nothing is charged) until you press a button. Tones (the Persian word after a speaker's name, e.g. `علی (مرموز)`) are mapped to English audio tags in `voices/voice-config.json`; to hear which models, voices and tones work, run `python tools/voice_test.py` (it shows the cost first; add `--yes` to generate).
-
-## Old projects
-
-After `python tools/update.py` the updater tells you if `story.txt` or the audio names are in the old format. Run `python tools/migrate.py` first (a dry run, nothing changes), then `python tools/migrate.py --apply` if the report looks right.
+Create a `.env` file next to `review.html` with one line `OPENROUTER_API_KEY=...` (it is git-ignored). Open the menu (top right) → **Voices & speakers** → refresh the voice list, pick a voice per speaker, then build the voices of a line or scene. Nothing is generated (and nothing is charged) until you press a button. Tones (the Persian word after a speaker's name, e.g. `علی (مرموز)`) map to English audio tags in `voices/voice-config.json`; `python tools/voice_test.py` shows which models, voices and tones work (it shows the cost first; add `--yes` to generate).
 
 ## Folder layout
 | Path | What |
 |---|---|
-| `review.html`, `click-for-review.bat`, `tools/` | the tool (updated by `update.py`) |
+| `review.html`, `click-for-review.bat`, `tools/`, `skills/how-to-write-prompts-for-flow.md` | the tool (updated by `update.py`) |
 | `scenario/story.txt` | scenes, dialogue, speakers, notes, flags |
-| `prompts/prompts.txt` | one complete image prompt per picture or reference |
-| `images/refs/`, `images/scenes/` | reference images and generated pictures (`IMG001_....jpg`) |
-| `prompts/video-prompts.txt` | one image-to-video prompt per picture (the picture is the first frame) |
-| `videos/` | generated clips, named after the picture (`videos/clips/IMG008_race.mp4`) |
-| `voices/voice-config.json` | models, voices per model and tones (English tags); built from `catalog.txt`, your notes survive a refresh |
-| `voices/catalog.txt` | raw list of voices and models your key can use |
-| `audio/fa`, `audio/en` | generated narration |
-| `subtitles/` | `fa.srt` and `en.srt` made from the scenario |
-| `skills/` | writing rules for image prompts (used by AI coding assistants) |
-
-## Handing the project to an editor
-`python tools/pack.py` makes one zip (kit, scenario, pictures, voices and the Premiere package) without output videos, previews, renders, archived files and `.env`; add `--clips` to include `videos/clips/`. `python tools/premiere_check.py` checks that every file a Premiere XML points to exists (paths should be relative). `python tools/migrate.py` shows (and, with `--apply`, does, reversibly) the move of an old project to picture-based voice names; `python tools/premiere_export.py` writes a simple Premiere timeline. New projects get a `.gitignore` that keeps videos and renders out of git.
+| `prompts/prompts.txt`, `prompts/video-prompts.txt` | one complete image / image-to-video prompt per picture |
+| `images/scenes/bNN/`, `images/refs/<KIND>/` | pictures (10 per batch folder) and references |
+| `inbox/` | loose files for the AI to sort |
+| `audio/fa`, `audio/en`, `voices/` | narration, voice models and tones |
+| `videos/clips/`, `subtitles/`, `premiere/` | clips, subtitles, editor hand-over |
+| `.kit/` | undo history and import logs (do not edit) |
 
 ## Development
-The code map, the file format, the API and a checklist for new features are in [ARCHITECTURE.md](ARCHITECTURE.md). The page is `review.html` (shell) + `tools/ui/` (style and scripts) + `tools/*.py` (server, voices, subtitles). Unit tests: `python -m unittest discover -s tools/tests -p "test_*.py"`. Browser tests: `pip install playwright`, then `python tools/tests/run.py` (35 browser tests on a temporary copy of a small project; nothing is generated or charged). After changing the page on purpose, refresh the recorded page with `python tools/tests/run.py --update-baseline` and read the diff in `tools/tests/baseline/`.
+The code map, the file format, the API and a checklist for new features are in [ARCHITECTURE.md](ARCHITECTURE.md). The page is `review.html` (shell) + `tools/ui/` (style and scripts) + `tools/*.py` (server, voices, subtitles). Unit tests: `python -m unittest discover -s tools/tests -p "test_*.py"`. Browser tests: `pip install playwright`, then `python tools/tests/run.py` (they run on a temporary copy of a small project; nothing is generated or charged). After changing the page on purpose, refresh the recorded page with `python tools/tests/run.py --update-baseline` and read the diff in `tools/tests/baseline/`.
 
 ## Keywords
 storyboard tool, AI video production, text-to-speech voice-over, scenario editor, image prompt manager, animation pipeline, Persian / Farsi RTL, OpenRouter, ElevenLabs, Google Flow, review page, YouTube video planning.

@@ -50,3 +50,4 @@ tools/watch.py
 tools/batch.py
 tools/update.py
 VERSION
+skills/how-to-write-prompts-for-flow.md

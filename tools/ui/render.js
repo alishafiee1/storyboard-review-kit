@@ -191,6 +191,8 @@ const nameParts = () => {
 };
 export function render() {
   const list = $('#list');
+  if ($('#picActs').closest('#list'))
+    $('.be').appendChild($('#picActs'));
   list.innerHTML = '';
   S.BL = [];
   NUM = {};

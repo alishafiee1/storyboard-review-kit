@@ -5,7 +5,7 @@
 Run:  python tools/serve.py   (or double-click click-for-review.bat)  ->  http://127.0.0.1:8765/review.html
 Listens on 127.0.0.1 only and stops by itself ~90 s after the page is closed.
 This file is only the HTTP layer; the logic lives in kitcore / story / media / edits / jobs / project (see docs/ARCHITECTURE.md)."""
-import functools, http.server, json, sys, threading, time, urllib.parse
+import functools, http.server, json, os, sys, threading, time, urllib.parse
 from kitcore import Conflict, HIDDEN, IDLE, LOCK, PORT, ROOT
 from api import handle
 from jobs import JOB, SLOW
@@ -22,7 +22,7 @@ from lineedits import *  # noqa: F401,F403,E402
 from promptedits import *  # noqa: F401,F403,E402
 
 last_ping, seen_ping = [time.time()], [False]
-WATCHING = [False]  # True while the Downloads watcher thread runs (kit-config.json "watch_downloads": true)
+WATCHING = [False]  # True while the Downloads watcher thread runs (on by default; kit-config.json "watch_downloads": false turns it off)
 
 
 class H(http.server.SimpleHTTPRequestHandler):
@@ -105,7 +105,9 @@ if __name__ == "__main__":
                 return
 
     threading.Thread(target=watchdog, daemon=True).start()
-    if config().get("watch_downloads") is True:
+    wd = config().get("watch_downloads")
+    # on by default; "watch_downloads": false turns it off; the tests set STORYBOARD_NO_WATCH=1 so a throw-away project never touches the real Downloads folder
+    if wd is True or (wd is not False and not os.environ.get("STORYBOARD_NO_WATCH")):
         WATCHING[0] = True
         threading.Thread(target=watch.watch_loop, daemon=True).start()
         print("watching " + watch.downloads_dir(), flush=True)

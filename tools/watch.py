@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """Moves the pictures Flow (or the browser) downloaded from the Downloads folder into this project.
-  python tools/watch.py              watch the folder every few seconds (serve.py does this by itself when kit-config.json has "watch_downloads": true)
+  python tools/watch.py              watch the folder every few seconds (serve.py does this by itself, always, unless kit-config.json has "watch_downloads": false)
   python tools/watch.py --once       one pass, then stop
   python tools/watch.py --dry-run    only say what would be moved (nothing moves, nothing is logged)
   python tools/watch.py --downloads DIR   another folder (default: kit-config.json "downloads", else ~/Downloads)

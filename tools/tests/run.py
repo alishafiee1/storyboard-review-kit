@@ -65,7 +65,7 @@ class Proj:
             s.bind(("127.0.0.1", 0))
             self.port = s.getsockname()[1]
         self.url = "http://127.0.0.1:%d" % self.port
-        env = dict(os.environ, PORT=str(self.port), IDLE_SECONDS="3600", PYTHONIOENCODING="utf-8")
+        env = dict(os.environ, PORT=str(self.port), IDLE_SECONDS="3600", PYTHONIOENCODING="utf-8", STORYBOARD_NO_WATCH="1")
         self.proc = subprocess.Popen([sys.executable, os.path.join(self.root, "tools", "serve.py")], cwd=self.root, env=env,
                                      stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
         for _ in range(50):
@@ -247,7 +247,7 @@ def load_and_snapshot(proj, page):
     assert page.locator("section[data-scene]").count() == 3
     assert page.locator("figure.shot").count() == 4
     assert page.locator(".it.sp").count() == 4
-    assert page.locator(".blk").count() == 4 and page.locator(".blk.on").count() == 1 and page.locator(".blk:visible").count() == 1
+    assert page.locator(".blk").count() == 4 and page.locator(".blk.on").count() == 1 and page.locator(".blk:visible").count() == 4  # v2.4: every picture is a page of one scrolling list
     assert page.inner_text("#pos").strip() == "۱ / ۴" and page.evaluate("document.fonts.check('16px Vazirmatn')")
     en(page)
     page.wait_for_selector(".blk .en", state="attached")
@@ -1698,7 +1698,7 @@ def gallery_open_tiles_drag_picker_batch(proj, page):
     assert page.locator('#ggrid .tile[data-id="IMG001"] .gvc').count() == 1 and page.locator('#ggrid .tile[data-id="IMG002"] .gvc').count() == 0  # versions count only when > 1
     assert page.locator('#ggrid .tile[data-id="IMG003"].sb').count() == 1  # first picture of scene 2 carries the boundary tick
     page.click('#ggrid .tile[data-id="IMG002"]')  # a tile opens the spread on that picture
-    page.wait_for_selector(".blk.on")
+    page.wait_for_function("document.querySelector('.blk.on') && document.querySelector('.blk.on').dataset.bid === 'IMG002'")
     assert page.evaluate("location.hash") == "#IMG002" and page.locator("#gallery").is_hidden() and page.locator(".blk.on").get_attribute("data-bid") == "IMG002"
     page.click("#galBtn")
     page.wait_for_selector("#ggrid .tile[data-id]")

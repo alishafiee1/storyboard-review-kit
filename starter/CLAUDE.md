@@ -1,18 +1,18 @@
 # CLAUDE.md — نام پروژه را اینجا بنویس
 
-قبل از هر کاری روی تصویرها، پرامپت‌ها یا سناریو این‌ها را بخوان:
-1. `skills/how-to-write-prompts-for-flow.md` — استاندارد پرامپت‌نویسی برای Flow و قالب `story.txt`.
-2. `skills/image-style-skill.txt` — متن سبک نقاشی این پروژه.
+قبل از هر کاری روی تصویر، پرامپت یا سناریو این‌ها را بخوان:
+1. `skills/how-to-write-prompts-for-flow.md` — قانون‌ها، قالب `story.txt`، اسم‌گذاری و حلقهٔ بازبینی (جزو موتور است؛ با `update.py` به‌روز می‌شود).
+2. `skills/image-style-skill.txt` — سبک نقاشی این پروژه (مخصوص همین پروژه؛ خودت بنویس).
 
+## نقشهٔ کوتاه
 | مسیر | چیست |
 |---|---|
-| `review.html` + `click-for-review.bat` | بازبینی و ویرایش (موتور؛ با `python tools/update.py` به‌روز می‌شود، دستی ویرایشش نکن) |
-| `scenario/story.txt` | سناریوی دوزبانه، گوینده‌ها، یادداشت‌ها و پرچم‌ها |
-| `prompts/prompts.txt` | همهٔ پرامپت‌ها |
-| `images/` | `refs/` رفرنس‌ها و `scenes/` تصویرهای ساخته‌شده (`IMG001_...jpg`) |
-| `inbox/` | منابع متفرقه؛ وقتی کاربر خواست، طبق بخش «ورود فایل‌ها» در `skills/how-to-write-prompts-for-flow.md` مرتبشان کن (جابه‌جایی به پوشهٔ درست، ثبت در `.kit/imports.tsv`، هرگز حذف) |
-| `tools/watch.py`, `tools/batch.py` | نگهبان `Downloads` به `images/scenes/bNN/` و متن پرامپت‌های یک دسته (`python tools/batch.py b05`) |
-| `tools/tts.py`, `tools/voices.py` | ساخت صدا و فهرست صداها (کلید `OPENROUTER_API_KEY` در `.env`) |
-| `.kit/history` | عکس‌های لحظه‌ای برای برگشت (undo) از منو؛ دست نزن |
-| `tools/migrate.py` | بردن پروژهٔ قدیمی به شناسه‌های تصویرمحور؛ همیشه اول بدون `--apply` (فقط گزارش) |
-| `tools/update.py` | به‌روزرسانی موتور از GitHub بدون دست زدن به داده‌های پروژه |
+| `scenario/story.txt`، `prompts/prompts.txt` | تنها منبع سناریو و پرامپت‌ها |
+| `images/scenes/bNN/`، `images/refs/<KIND>/` | تصویرها و رفرنس‌ها (نگهبان `Downloads` خودکار پر می‌کند) |
+| `inbox/` | منابع متفرقه؛ وقتی کاربر خواست، طبق بخش ۵ راهنما مرتب کن (جابه‌جایی، هرگز حذف) |
+| `audio/`، `videos/`، `premiere/` | صدا، کلیپ و خروجی ادیتور |
+| `review.html`، `click-for-review.bat`، `tools/` | موتور؛ دستی ویرایش نکن (`python tools/update.py`) |
+| `.kit/` | تاریخچه و لاگ‌ها؛ دست نزن |
+
+## قانون‌های این پروژه
+- (اینجا چیزهای مخصوص پروژه را بنویس: لحن راوی، شخصیت‌ها، سبک، زبان خروجی.)

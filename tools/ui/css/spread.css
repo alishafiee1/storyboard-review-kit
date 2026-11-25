@@ -1,9 +1,14 @@
 /* The two-page spread: the picture mounted on the right page, the script on the left page */
+/* v2.4: every picture is one "page" of a long list; scrolling the list moves through the story, and the prev/next buttons scroll to the next page */
 #list {
   flex:1;
   min-height:0;
   display:flex;
   flex-direction:column;
+  position:relative;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  scroll-snap-type:y proximity;
 }
 
 .scn,
@@ -11,19 +16,16 @@
   display:contents;
 }
 
-.scn:not(.cur),
 .blk {
-  display:none;
-}
-
-.blk.on {
   display:grid;
   grid-template-columns:3fr 2fr;
-  flex:1;
+  flex:none;
+  height:100%;
   min-height:0;
+  scroll-snap-align:start;
 }
 
-.blk.on.hide {
+.blk.hide {
   display:none;
 }
 
@@ -777,4 +779,15 @@ figure.shot {
 
 .nbox textarea {
   font-size:15px;
+}
+
+/* the four picture icons sit under the picture they act on, at its bottom-left (end side in RTL) */
+.pacts {
+  display:flex;
+  gap:4px;
+}
+
+figure.shot > .pacts {
+  justify-content:flex-end;
+  margin-top:4px;
 }

@@ -150,11 +150,13 @@
   justify-self:end;
 }
 
-.be .ib.has {
+.be .ib.has,
+.pacts .ib.has {
   color:var(--accent);
 }
 
-.be .ib.open {
+.be .ib.open,
+.pacts .ib.open {
   background:var(--paper-shade);
 }
 
@@ -999,5 +1001,10 @@ dialog.gpick .btns {
 }
 
 .monly {
+  display:none;
+}
+
+/* the phone-only action bar must stay hidden on the desktop footer (the rule above loses to "#foot > div") */
+#foot > .monly {
   display:none;
 }
