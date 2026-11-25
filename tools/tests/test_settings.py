@@ -122,6 +122,18 @@ class ToneTests(unittest.TestCase):
             v.remove_tone(tid)
 
 
+class StarterFolders(unittest.TestCase):
+    """The starter project (what `update.py --new` copies) already holds the folders the user will fill, but NOT premiere/ (an empty one could be taken for the package)."""
+
+    def test_the_starter_has_the_working_folders_and_no_premiere_folder(self):
+        starter = os.path.join(os.path.dirname(os.path.dirname(HERE)), "starter")
+        for d in ("images/scenes", "images/refs/CH", "inbox", "prompts", "scenario", "skills", "audio/fa", "audio/en", "subtitles", "voices", "videos/clips"):
+            self.assertTrue(os.path.isdir(os.path.join(starter, *d.split("/"))), d)
+        for d in ("audio/fa", "audio/en", "subtitles", "voices"):
+            self.assertTrue(os.path.exists(os.path.join(starter, *d.split("/"), ".gitkeep")), d)  # git keeps an empty folder only with a file in it
+        self.assertFalse(os.path.exists(os.path.join(starter, "premiere")))
+
+
 if __name__ == "__main__":
     unittest.main()
 
