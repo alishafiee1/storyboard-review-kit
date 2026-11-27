@@ -344,7 +344,7 @@ export async function reload(localOnly) {
     ]);
   const open = $$('[data-key^="panel:"]:not(.hide)').map(e => e.dataset.key);
   if (localOnly !== true)
-    S.P = await (await fetch('/api/project')).json();
+    S.P = await (await fetch('/api/project?book=' + (S.book || 'story'))).json();
   render();
   const at = blockByBid(abid);
   if (at >= 0 && !$('#b' + at).classList.contains('hide'))

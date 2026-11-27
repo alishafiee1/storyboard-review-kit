@@ -7,6 +7,7 @@ The timing is provisional until the final edit exists: run it again after the ed
 import os, re, shutil, subprocess, sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import kitcore
 from kitcore import ROOT  # noqa: E402
 from media import audio_index, resolve  # noqa: E402
 from story import clean_spoken, story_scenes  # noqa: E402
@@ -93,8 +94,9 @@ def build(lang):
                     s += dd
                 t += d + LINE_GAP
             t += BLOCK_GAP
-    os.makedirs(OUT, exist_ok=True)
-    path = os.path.join(OUT, lang + ".srt")
+    out_dir = os.path.join(ROOT, "subtitles") if OUT == os.path.join(kitcore.ROOT, "subtitles") else OUT
+    os.makedirs(out_dir, exist_ok=True)
+    path = os.path.join(out_dir, lang + ".srt")
     with open(path, "w", encoding="utf-8", newline="\n") as fh:
         for n, (a, b, x) in enumerate(cues, 1):
             fh.write(f"{n}\n{stamp(a)} --> {stamp(b)}\n{x}\n\n")

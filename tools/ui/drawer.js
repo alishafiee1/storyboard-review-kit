@@ -238,12 +238,14 @@ export async function undo(force) {
 }
 /* ---- batch prompts */
 function buildBatch() {
+  const isRefs = S.book === 'refs';
+  const notice = isRefs ? `<p class="muted" style="color:var(--accent,#b55a42);margin-bottom:8px">توجه: دسته‌ها مربوط به تصویرهای داستان (story.txt) هستند.</p>` : '';
   const by = new Map();
   imgs().forEach(m => {
     if (m.batch)
       by.set(m.batch, (by.get(m.batch) || 0) + 1);
   });
-  $('#pBatch').innerHTML = by.size ? `<p class="muted">پرامپت‌های یک دسته (۱۰ تصویر) با خط رفرنس و اسم خروجی، یک‌جا کپی می‌شن.</p>` + [...by].sort().map(([b, n]) => `<button type="button" class="opt" data-batch="${ b }"><span>دستهٔ <bdi dir="ltr">${ b }</bdi></span><span class="c">${ fa(n) } تصویر</span></button>`).join('') + '<div id="bmsg" class="muted" role="status"></div>' : '<p class="muted">تصویری توی پروژه نیست.</p>';
+  $('#pBatch').innerHTML = notice + (by.size ? `<p class="muted">پرامپت‌های یک دسته (۱۰ تصویر) با خط رفرنس و اسم خروجی، یک‌جا کپی می‌شن.</p>` + [...by].sort().map(([b, n]) => `<button type="button" class="opt" data-batch="${ b }"><span>دستهٔ <bdi dir="ltr">${ b }</bdi></span><span class="c">${ fa(n) } تصویر</span></button>`).join('') + '<div id="bmsg" class="muted" role="status"></div>' : '<p class="muted">تصویری توی پروژه نیست.</p>');
 }
 export async function copyBatch(b) {
   try {
@@ -342,7 +344,9 @@ function buildExport() {
   const P = $('#pExport');
   if (P.querySelector('#exres') && P.querySelector('#exres').dataset.busy === '1')
     return;
-  P.innerHTML = `<h4>تایم‌لاین پریمیر (XML)</h4>
+  const isRefs = S.book === 'refs';
+  const notice = isRefs ? `<p class="muted" style="color:var(--accent,#b55a42);margin-bottom:12px">توجه: ابزارهای خروجی فقط از روی داستان اصلی (story.txt) ساخته می‌شوند.</p>` : '';
+  P.innerHTML = notice + `<h4>تایم‌لاین پریمیر (XML)</h4>
     <p class="muted">خروجی ساده با مسیر نسبی در پوشهٔ <bdi dir="ltr">premiere/</bdi> از روی ترتیب داستان و نسخه‌های تأییدشده.</p>
     <div class="srow act"><button type="button" class="outline" data-ex="px-fa">ساخت XML فارسی</button><button type="button" class="outline" data-ex="px-en">ساخت XML انگلیسی</button><button type="button" class="quiet" data-ex="pchk">بررسی فایل‌های XML</button></div>
     <p id="pxres" class="muted" role="status"></p>

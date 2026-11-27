@@ -38,7 +38,11 @@ class H(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
         p = self.path.split("?")[0]
         if p == "/api/project":
-            return self._json(200, project())
+            q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            book = (q.get("book") or ["story"])[0]
+            if book not in ("story", "refs"):
+                book = "story"
+            return self._json(200, project(book=book))
         if p == "/api/imports":
             return self._json(200, dict(imports=watch.recent_imports(), watching=WATCHING[0], downloads=watch.downloads_dir()))
         if p == "/api/batch":

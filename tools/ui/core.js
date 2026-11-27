@@ -18,10 +18,13 @@ export function fmt(t) {
   return t.replace(/`(.+?)`/g, '<code>$1</code>');
 }
 export async function api(path, body) {
+  const payload = body && typeof body === 'object' && !Array.isArray(body)
+    ? { book: S.book || 'story', ...body }
+    : body;
   const r = await fetch(path, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
+    body: JSON.stringify(payload)
   });
   const j = await r.json().catch(() => ({}));
   if (!r.ok)

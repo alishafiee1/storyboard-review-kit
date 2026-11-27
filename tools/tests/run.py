@@ -2259,6 +2259,36 @@ def scene_actions_on_no_picture_block(proj, page):
     assert not page.evaluate("document.querySelector('.blk.on').classList.contains('noimg')")
 
 
+@test
+def refs_mode_browser(proj, page):
+    """Toggle between story and refs mode via #bookPill; unplaced ref discovery; no-say footer; add/undo in refs."""
+    assert page.evaluate("window.__kit.S.book") == "story"
+    assert page.locator("#bookPill:not(.refs)").count() == 1
+    page.click("#bookPill")
+    page.wait_for_function("window.__kit.S.book === 'refs' && window.__kit.S.P && window.__kit.S.P.unplaced && window.__kit.S.P.unplaced.length > 0")
+    assert page.locator("#bookPill.refs").count() == 1
+    assert "refs" in page.evaluate("location.hash")
+    unplaced = page.evaluate("[...(window.__kit.S.P ? window.__kit.S.P.unplaced : [])].map(x => x.id)")
+    assert "CH_ALI" in unplaced
+    assert proj.api("/api/addscene", {"book": "refs", "title": "کاراکترها"})[0] == 200
+    assert proj.api("/api/addimage", {"book": "refs", "scene": "ref-01", "id": "CH_ALI"})[0] == 200
+    page.goto(page.url.split("#")[0] + "#refs/CH_ALI")
+    page.reload()
+    page.wait_for_selector(".blk.on")
+    assert page.locator("#foot.no-say").count() == 1
+    assert proj.api("/api/add", {"book": "refs", "image": "CH_ALI", "after": 0, "kind": "say", "speaker": "سارا", "text": "تست صدا"})[0] == 200
+    page.reload()
+    page.wait_for_selector(".blk.on")
+    assert page.locator("#foot:not(.no-say)").count() == 1
+    orig_story = proj.story()
+    page.click("#bUndo")
+    page.wait_for_timeout(300)
+    assert proj.story() == orig_story
+    page.click("#bookPill")
+    page.wait_for_function("window.__kit.S.book === 'story'")
+    assert page.locator("#bookPill:not(.refs)").count() == 1
+
+
 def main():
     global UPDATE
     ap = argparse.ArgumentParser()

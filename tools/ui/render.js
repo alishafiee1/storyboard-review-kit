@@ -29,8 +29,8 @@ import { galleryRefresh } from './gallery.js';
 /* ---------- render */
 let NUM = {};
 /* scene number shown = its place among the scenes that are on (so moving or setting aside never needs renaming) */
-export const sceneNo = s => s.id === 'scene-00' ? 0 : NUM[s.id] || 0;
-export const sceneLabel = s => s.id === 'scene-00' ? 'تامبنیل' : `صحنه ${ fa(NUM[s.id] || '–') } · ${ s.title }`;
+export const sceneNo = s => (S.book === 'story' && s.id === 'scene-00') ? 0 : NUM[s.id] || 0;
+export const sceneLabel = s => (S.book === 'story' && s.id === 'scene-00') ? 'تامبنیل' : S.book === 'refs' ? `بخش ${ fa(NUM[s.id] || '–') } · ${ s.title }` : `صحنه ${ fa(NUM[s.id] || '–') } · ${ s.title }`;
 const issHtml = a => (a || []).map(x => `<div class="issue">فرمت: ${ esc(x.msg) } <button class="b" data-clr="${ x.ln }">حل شد</button></div>`).join('');
 const flagBtn = ln => `<button class="lt-b flag" data-fl="${ ln }" aria-label="ثبت مشکل فرمت" title="ثبت مشکل فرمت این قسمت برای هوش مصنوعی">${ ic('flag') }</button>`;
 const val = (txt, ln, key, x = '') => `<span class="v" data-ln="${ ln }" data-k="${ key }" data-old="${ esc(txt) }" ${ x } title="کلیک برای ویرایش">${ fmt(txt) }</span>`;
@@ -137,14 +137,14 @@ export function wireFx(t, save) {
 export function moveTarget(id, step) {
   const vis = S.P.scenes.filter(s => !s.off), imgs = sc => sc.blocks.flatMap(b => b.images.map(i => i.id));
   const si = vis.findIndex(s => imgs(s).includes(id));
-  if (si < 0 || vis[si].id === 'scene-00')
+  if (si < 0 || (S.book === 'story' && vis[si].id === 'scene-00'))
     return null;
   const list = imgs(vis[si]), k = list.indexOf(id);
   if (step < 0) {
     if (k > 0)
       return { ids: [id], before: list[k - 1] };
     const prev = vis[si - 1];
-    return prev && prev.id !== 'scene-00' ? { ids: [id], to_end_of_scene: prev.id } : null;
+    return prev && (S.book !== 'story' || prev.id !== 'scene-00') ? { ids: [id], to_end_of_scene: prev.id } : null;
   }
   if (k < list.length - 1)
     return { ids: [id], after: list[k + 1] };
@@ -197,7 +197,7 @@ export function render() {
   NUM = {};
   let nn = 0;
   S.P.scenes.forEach(sc => {
-    if (sc.id !== 'scene-00' && !sc.off)
+    if ((S.book !== 'story' || sc.id !== 'scene-00') && !sc.off)
       NUM[sc.id] = ++nn;
   });
   S.P.scenes.forEach(sc => {

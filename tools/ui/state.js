@@ -9,5 +9,6 @@ export const S = {
   cur: 0,
   speed: 1,
   filter: 'all',
-  q: ''
+  q: '',
+  book: 'story'
 };

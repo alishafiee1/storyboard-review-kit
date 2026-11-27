@@ -32,7 +32,9 @@ const gal = () => document.body.classList.contains('gal');
 const rtl = () => getComputedStyle($('#gallery')).direction === 'rtl';
 const modeOf = h => {
   h = decodeURIComponent(String(h).replace(/^#/, ''));
-  return h === 'review' ? false : !h || h === 'gallery' || blockByBid(h) < 0;
+  if (h.startsWith('refs/'))
+    h = h.slice(5);
+  return h === 'review' ? false : !h || h === 'gallery' || h === 'refs' || blockByBid(h) < 0;
 };
 export function setMode(on) {
   document.body.classList.toggle('gal', on);
@@ -47,7 +49,7 @@ export function startMode(hash) {
   const on = modeOf(hash);
   setMode(on);
   if (on)
-    history.replaceState(null, '', '#gallery');
+    history.replaceState(null, '', S.book === 'refs' ? '#refs/gallery' : '#gallery');
 }
 /* the pictures of the scenes that are on, in file order, with their scene's number */
 const tiles = () => S.P.scenes.filter(s => !s.off).flatMap(sc => sc.blocks.flatMap(b => b.images.map(m => ({
@@ -313,14 +315,14 @@ export function openPicker(pos, open) {
       dlg.close();
       await reload();
       if (open)
-        location.hash = id;
+        location.hash = S.book === 'refs' ? 'refs/' + id : id;
     } catch (er) {
       fail(er);
     }
   });
   dlg.showModal();
 }
-const lastScene = () => [...S.P.scenes].reverse().find(s => !s.off && s.id !== 'scene-00')?.id;
+const lastScene = () => [...S.P.scenes].reverse().find(s => !s.off && (S.book !== 'story' || s.id !== 'scene-00'))?.id;
 const endPos = () => {
   const l = tiles().pop();
   return l ? { after: l.m.id } : { scene: lastScene() };
@@ -328,7 +330,7 @@ const endPos = () => {
 export function boot_gallery() {
   window.addEventListener('hashchange', () => setMode(modeOf(location.hash)));
   $('#galBtn').addEventListener('click', () => {
-    location.hash = 'gallery';
+    location.hash = S.book === 'refs' ? 'refs/gallery' : 'gallery';
   });
   const g = $('#gallery'), q = $('#gq');
   $('#gSearch').addEventListener('click', () => {
@@ -456,7 +458,7 @@ export function boot_gallery() {
       else
         SEL.add(id);
     } else {
-      location.hash = id;
+      location.hash = S.book === 'refs' ? 'refs/' + id : id;
       return;
     }
     LAST = id;
@@ -468,7 +470,7 @@ export function boot_gallery() {
       e.preventDefault();
       const focused = document.activeElement?.closest('#ggrid .tile[data-id]');
       const id = focused?.dataset.id || (SEL.size === 1 ? [...SEL][0] : null);
-      if (!id || id === 'IMG000')
+      if (!id || (S.book === 'story' && id === 'IMG000'))
         return;
       const step = rtl() ? (e.key === 'ArrowLeft' ? 1 : -1) : (e.key === 'ArrowLeft' ? -1 : 1);
       const body = moveTarget(id, step);
@@ -487,7 +489,7 @@ export function boot_gallery() {
     const t = e.target.closest('.tile[data-id]');
     if (t && (e.key === 'Enter' || e.key === ' ')) {
       e.preventDefault();
-      location.hash = t.dataset.id;
+      location.hash = S.book === 'refs' ? 'refs/' + t.dataset.id : t.dataset.id;
     }
   });
 }

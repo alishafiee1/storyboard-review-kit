@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Every change the page can make, as small raw-line edits of story.txt / prompts.txt. Nothing else in a file is ever touched."""
 import re
-from kitcore import HEADER, KEYLINE, LANGS, LOCK, MARKER, SAY_KEYS, STORY, read_lines, write_lines
+from kitcore import BOOK_RULES, HEADER, KEYLINE, LANGS, LOCK, MARKER, SAY_KEYS, STORY, book_path, read_lines, write_lines
 from story import parse_prompts, parse_scene, scene_ranges, scene_span, story_scenes
 from media import scan_images, variant_tag
 
@@ -12,7 +12,7 @@ TOP_KEYS = ("env", "voice-stale", "model", "voice-pick", "off")  # scene-level l
 IMG_KEYS = ("status", "note", "image-stale", "fx", "pick", "off")
 
 
-def patch_image(lines, img_id, status=None, note=None, stale=None, fx=None, pick=None, off=None):
+def patch_image(lines, img_id, status=None, note=None, stale=None, fx=None, pick=None, off=None, book="story"):
     idx = next((i for i, l in enumerate(lines) if l.strip() == f"[{img_id}]"), None)
     if idx is None:
         raise ValueError("image not in story")
@@ -48,12 +48,13 @@ def patch_image(lines, img_id, status=None, note=None, stale=None, fx=None, pick
     lines[idx + 1:j] = new
 
 
-def image_range(lines, img_id):
+def image_range(lines, img_id, book="story"):
     """(scene id, scene start, marker line, end) of a picture: the lines marker+1 .. end-1 belong to it (up to the next marker or the scene's end)."""
-    for sid, s, e in scene_ranges(lines):
+    mr = BOOK_RULES.get(book, BOOK_RULES["story"])["marker_re"]
+    for sid, s, e in scene_ranges(lines, book=book):
         for i in range(s + 1, e):
             if lines[i].strip() == f"[{img_id}]":
-                return sid, s, i, next((j for j in range(i + 1, e) if MARKER.match(lines[j].strip())), e)
+                return sid, s, i, next((j for j in range(i + 1, e) if mr.match(lines[j].strip())), e)
     raise ValueError("image not in story")
 
 
@@ -81,10 +82,10 @@ def set_say_attr(lines, a, key, text):
         lines[at:at] = new
 
 
-def find_say(lines, line_id):
+def find_say(lines, line_id, book="story"):
     """(scene id, absolute line index) of the dialogue line with this id (its own id: or the old position name)."""
-    for sid, s, e in scene_ranges(lines):
-        for b in parse_scene(lines[s:e])["blocks"]:
+    for sid, s, e in scene_ranges(lines, book=book):
+        for b in parse_scene(lines[s:e], book=book)["blocks"]:
             for it in b["items"]:
                 if it["k"] == "say" and it.get("id") == line_id:
                     return sid, s + it["ln"]
@@ -95,10 +96,10 @@ def langs_text(langs):
     return ", ".join(x for x in LANGS if x in langs)
 
 
-def migrate_scene_key(lines, scene_id, key, keep):
+def migrate_scene_key(lines, scene_id, key, keep, book="story"):
     """Rewrite the old scene-level «voice-pick:» / «voice-stale:» line(s) of a scene so that only `keep` stays (a dict / set; empty = the line goes)."""
-    s, e = scene_span(lines, scene_id)
-    pos = parse_scene(lines[s:e])["legacy_ln"][key]
+    s, e = scene_span(lines, scene_id, book=book)
+    pos = parse_scene(lines[s:e], book=book)["legacy_ln"][key]
     if not pos:
         return
     text = ""
@@ -108,22 +109,22 @@ def migrate_scene_key(lines, scene_id, key, keep):
         lines[s + j:s + j + 1] = [text] if (k == len(pos) - 1 and text) else []
 
 
-def stale_lines(lines, scene_id, want, langs, value):
+def stale_lines(lines, scene_id, want, langs, value, book="story"):
     """Mark (value True) or clear the out-of-date flag of `langs` on the dialogue lines of a scene that `want(item)` accepts. The flag lives under
     each line («voice-stale: fa»). An old scene-level flag for a language is first moved onto every dialogue line of the scene, so only the
     asked lines change and nothing else loses its flag."""
     langs = {x for x in langs if x in LANGS}
     for lg in sorted(langs):
-        s, e = scene_span(lines, scene_id)
-        sc = parse_scene(lines[s:e])
+        s, e = scene_span(lines, scene_id, book=book)
+        sc = parse_scene(lines[s:e], book=book)
         if lg not in sc["legacy_stale"]:
             continue
-        migrate_scene_key(lines, scene_id, "voice-stale", sc["legacy_stale"] - {lg})
-        s, e = scene_span(lines, scene_id)
-        for it in sorted([it for b in parse_scene(lines[s:e])["blocks"] for it in b["items"] if it["k"] == "say"], key=lambda x: -x["ln"]):
+        migrate_scene_key(lines, scene_id, "voice-stale", sc["legacy_stale"] - {lg}, book=book)
+        s, e = scene_span(lines, scene_id, book=book)
+        for it in sorted([it for b in parse_scene(lines[s:e], book=book)["blocks"] for it in b["items"] if it["k"] == "say"], key=lambda x: -x["ln"]):
             set_say_attr(lines, s + it["ln"], "voice-stale", langs_text(set(it["stale_own"]) | {lg}))
-    s, e = scene_span(lines, scene_id)
-    items = [it for b in parse_scene(lines[s:e])["blocks"] for it in b["items"] if it["k"] == "say" and want(it)]
+    s, e = scene_span(lines, scene_id, book=book)
+    items = [it for b in parse_scene(lines[s:e], book=book)["blocks"] for it in b["items"] if it["k"] == "say" and want(it)]
     for it in sorted(items, key=lambda x: -x["ln"]):
         cur = set(it["stale_own"])
         new = cur | langs if value else cur - langs
@@ -131,32 +132,32 @@ def stale_lines(lines, scene_id, want, langs, value):
             set_say_attr(lines, s + it["ln"], "voice-stale", langs_text(new))
 
 
-def set_stale(lines, line_id, langs, value=True):
+def set_stale(lines, line_id, langs, value=True, book="story"):
     """The out-of-date flag of one dialogue line (by its id)."""
-    sid, _ = find_say(lines, line_id)
-    stale_lines(lines, sid, lambda it: it["id"] == line_id, langs, value)
+    sid, _ = find_say(lines, line_id, book=book)
+    stale_lines(lines, sid, lambda it: it["id"] == line_id, langs, value, book=book)
 
 
-def set_flag(lines, scene_id, lang, value):
+def set_flag(lines, scene_id, lang, value, book="story"):
     """Old name: flag every dialogue line of a scene (kept for old callers; new code flags single lines)."""
-    stale_lines(lines, scene_id, lambda it: True, [lang], value)
+    stale_lines(lines, scene_id, lambda it: True, [lang], value, book=book)
 
 
-def set_line_pick(lines, line_id, lang, variant):
+def set_line_pick(lines, line_id, lang, variant, book="story"):
     """The voice variant the user chose for one line: «voice: fa=<variant>, en=<variant>» under the line (empty variant = no choice).
     An old scene-level «voice-pick:» entry for the same line and language is removed (it is the one that was just replaced). False when
     there is no such line."""
     try:
-        sid, _ = find_say(lines, line_id)
+        sid, _ = find_say(lines, line_id, book=book)
     except ValueError:
         return False
-    s, e = scene_span(lines, sid)
-    legacy = dict(parse_scene(lines[s:e])["legacy_pick"])
+    s, e = scene_span(lines, sid, book=book)
+    legacy = dict(parse_scene(lines[s:e], book=book)["legacy_pick"])
     if legacy.pop(f"{line_id}.{lang}", None) is not None:
-        migrate_scene_key(lines, sid, "voice-pick", legacy)
-    sid, a = find_say(lines, line_id)
-    s, e = scene_span(lines, sid)
-    it = next(it for b in parse_scene(lines[s:e])["blocks"] for it in b["items"] if it["k"] == "say" and it["id"] == line_id)
+        migrate_scene_key(lines, sid, "voice-pick", legacy, book=book)
+    sid, a = find_say(lines, line_id, book=book)
+    s, e = scene_span(lines, sid, book=book)
+    it = next(it for b in parse_scene(lines[s:e], book=book)["blocks"] for it in b["items"] if it["k"] == "say" and it["id"] == line_id)
     cur = dict(it["voice"])
     if variant:
         cur[lang] = variant
@@ -185,10 +186,11 @@ def pick_made(items, res, lang):
             write_lines(STORY, lines)
 
 
-def set_scene_fx(lines, scene_id, text):
+def set_scene_fx(lines, scene_id, text, book="story"):
     """Write (or remove, when empty) the scene's own «fx:» line, right under the scene header lines (before the first picture)."""
-    s, e = scene_span(lines, scene_id)
-    first_img = next((i for i in range(s + 1, e) if MARKER.match(lines[i].strip())), e)
+    s, e = scene_span(lines, scene_id, book=book)
+    mr = BOOK_RULES.get(book, BOOK_RULES["story"])["marker_re"]
+    first_img = next((i for i in range(s + 1, e) if mr.match(lines[i].strip())), e)
     pos = next((i for i in range(s + 1, first_img) if lines[i].strip().startswith("fx:")), None)
     text = text.strip().replace("\r\n", "\n").replace("\n", "\\n")
     new = [f"fx: {text}"] if text else []
@@ -210,10 +212,11 @@ def set_default_model(lines, model):
     lines[h:h] = ["# مدل پیش‌فرض تولید صدا؛ هر صحنه با یک خط «model:» می‌تواند مدل خودش را داشته باشد", f"tts-model: {model}", ""]
 
 
-def set_scene_off(lines, scene_id, off):
+def set_scene_off(lines, scene_id, off, book="story"):
     """Set a scene aside (or bring it back): one «off: yes» line under the header. Text, pictures and audio stay where they are."""
-    s_, e = scene_span(lines, scene_id)
-    first_img = next((i for i in range(s_ + 1, e) if MARKER.match(lines[i].strip())), e)
+    s_, e = scene_span(lines, scene_id, book=book)
+    mr = BOOK_RULES.get(book, BOOK_RULES["story"])["marker_re"]
+    first_img = next((i for i in range(s_ + 1, e) if mr.match(lines[i].strip())), e)
     pos = next((i for i in range(s_ + 1, first_img) if lines[i].strip().startswith("off:")), None)
     new = ["off: yes"] if off else []
     if pos is not None:
@@ -225,15 +228,15 @@ def set_scene_off(lines, scene_id, off):
         lines[k:k] = new
 
 
-def move_scene(lines, scene_id, step):
+def move_scene(lines, scene_id, step, book="story"):
     """Swap a scene with its neighbour (step -1 = up, +1 = down). Only the order of the blocks changes; ids and file names stay.
     The thumbnail scene-00 stays first."""
-    rs = scene_ranges(lines)
+    rs = scene_ranges(lines, book=book)
     i = next((k for k, r in enumerate(rs) if r[0] == scene_id), None)
     j = None if i is None else i + (-1 if step < 0 else 1)
     if i is None or j < 0 or j >= len(rs):
         raise ValueError("can't move there")
-    if "scene-00" in (rs[i][0], rs[j][0]):
+    if book == "story" and "scene-00" in (rs[i][0], rs[j][0]):
         raise ValueError("scene-00 (thumbnail) stays first")
     a, b = sorted((i, j))
     first, last = rs[a][1], rs[b][2]
@@ -253,24 +256,27 @@ def next_image_id(lines):
     return max(used or [0]) + 1
 
 
-def add_scene(lines, after, title, images):
+def add_scene(lines, after, title, images, book="story"):
     """A new scene with `images` empty picture slots, put after the scene `after` (or at the end). Returns the new scene id."""
-    title = re.sub(r"\s+", " ", str(title or "")).strip() or "صحنهٔ جدید"
+    title = re.sub(r"\s+", " ", str(title or "")).strip() or ("رفرنس‌های جدید" if book == "refs" else "صحنهٔ جدید")
     if "|" in title or len(title) > 60:
         raise ValueError("عنوان صحنه باید تا ۶۰ حرف باشد و | نداشته باشد")
     images = int(images)
     if not 0 <= images <= 12:
         raise ValueError("تعداد تصویر بین ۰ تا ۱۲")
-    rs = scene_ranges(lines)
-    nums = [int(r[0][6:]) for r in rs]
+    rs = scene_ranges(lines, book=book)
+    nums = [int(re.search(r"\d+", r[0]).group()) for r in rs if re.search(r"\d+", r[0])]
     num = max(nums or [0]) + 1
     if num > 999:
         raise ValueError("too many scenes")
-    sid = "scene-%02d" % num
-    first = next_image_id(lines)
-    if first + images - 1 > 9999:
-        raise ValueError("too many pictures")
-    block = [f"=== {sid} | {title} | - ==="] + [f"[IMG{first + k:03d}]" for k in range(images)]
+    pfx = BOOK_RULES.get(book, BOOK_RULES["story"])["section_prefix"]
+    sid = f"{pfx}-%02d" % num
+    block = [f"=== {sid} | {title} | - ==="]
+    if book == "story":
+        first = next_image_id(lines)
+        if first + images - 1 > 9999:
+            raise ValueError("too many pictures")
+        block += [f"[IMG{first + k:03d}]" for k in range(images)]
     if after:
         at = next((r[2] for r in rs if r[0] == after), None)
         if at is None:
@@ -284,9 +290,9 @@ def add_scene(lines, after, title, images):
     return sid
 
 
-def add_image(lines, scene_id):
+def add_image(lines, scene_id, book="story"):
     """One more empty picture slot at the end of an existing scene. Returns the new id (e.g. IMG007)."""
-    s_, e = scene_span(lines, scene_id)
+    s_, e = scene_span(lines, scene_id, book=book)
     n = next_image_id(lines)
     if n > 9999:
         raise ValueError("too many pictures")
@@ -296,17 +302,17 @@ def add_image(lines, scene_id):
     return f"IMG{n:03d}"
 
 
-def mark_stale(lines, scene_ids=None, speaker=None):
+def mark_stale(lines, scene_ids=None, speaker=None, book="story"):
     """Both voices out of date, on the dialogue lines of these scenes (all scenes when none are given), only the speaker's when one is given."""
-    for sc in story_scenes(lines):
+    for sc in story_scenes(lines, book=book):
         if scene_ids is None or sc["id"] in scene_ids:
-            stale_lines(lines, sc["id"], lambda it: speaker is None or it["sp"] == speaker, LANGS, True)
+            stale_lines(lines, sc["id"], lambda it: speaker is None or it["sp"] == speaker, LANGS, True, book=book)
 
 
-def speech_scenes(lines, speaker=None, own_model=None):
+def speech_scenes(lines, speaker=None, own_model=None, book="story"):
     """Scene ids that have dialogue (of this speaker; only scenes with / without their own model when own_model is given)."""
     out = []
-    for sc in story_scenes(lines):
+    for sc in story_scenes(lines, book=book):
         if own_model is not None and bool(sc["model"]) != own_model:
             continue
         if any(it["k"] == "say" and (speaker is None or it["sp"] == speaker) for b in sc["blocks"] for it in b["items"]):

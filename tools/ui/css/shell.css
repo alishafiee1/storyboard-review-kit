@@ -229,6 +229,29 @@
   font-weight:500;
 }
 
+.pill [data-b=story] {
+  color:var(--ink);
+  font-weight:500;
+}
+
+.pill.refs [data-b=story] {
+  color:var(--ink-muted);
+  font-weight:400;
+}
+
+.pill.refs [data-b=refs] {
+  color:var(--ink);
+  font-weight:500;
+}
+
+#foot.no-say #play,
+#foot.no-say #playS,
+#foot.no-say #ttime,
+#foot.no-say .spdc,
+#foot.no-say #tbar {
+  display:none !important;
+}
+
 /* the image «⋯» menu */
 .mw {
   position:relative;
@@ -705,7 +728,7 @@
 
 body.gal #list,
 body.gal #foot,
-body.gal .be > :not(#lang):not(.gonly):not(#gq):not(#fltChip):not(#jobPill),
+body.gal .be > :not(#lang):not(#bookPill):not(.gonly):not(#gq):not(#fltChip):not(#jobPill),
 body.gal #galBtn {
   display:none;
 }

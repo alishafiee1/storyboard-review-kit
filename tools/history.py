@@ -4,20 +4,63 @@ the whole file is copied, byte for byte, to .kit/history/ (the last 30 are kept)
 The file name tells what is needed to judge a restore: <time>_<what was done>_<first 8 hex of the sha1 of story.txt right after that edit>.txt.
 The folder starts with a dot, so the server never serves it, and it carries its own .gitignore (projects updated from older versions need nothing)."""
 import datetime, hashlib, os, re
-from kitcore import Conflict, ROOT, STORY, replace_file
+from kitcore import Conflict, REFS_FILE, ROOT, STORY, book_path, replace_file
 
 DIR = os.path.join(ROOT, ".kit", "history")
+DIR_REFS = os.path.join(ROOT, ".kit", "history-refs")
 UNDONE = os.path.join(ROOT, ".kit", "undone")  # what the file looked like just before an undo (so an undo can itself be taken back by hand)
+UNDONE_REFS = os.path.join(ROOT, ".kit", "undone-refs")
 KEEP = 30
 NAME = re.compile(r"^(\d{8}-\d{6}-\d{6})_([a-z]+)_([0-9a-f]{8})\.txt$")
 
 
-def read_story():
-    """The raw bytes of story.txt, or None when the project has none."""
+def history_dir(book="story"):
+    import kitcore
+    if book == "refs":
+        if DIR_REFS != os.path.join(ROOT, ".kit", "history-refs"):
+            return DIR_REFS
+        root = getattr(kitcore, "ROOT", ROOT)
+        return os.path.join(root, ".kit", "history-refs")
+    if DIR != os.path.join(ROOT, ".kit", "history"):
+        return DIR
+    root = getattr(kitcore, "ROOT", ROOT)
+    return os.path.join(root, ".kit", "history")
+
+
+def undone_dir(book="story"):
+    import kitcore
+    if book == "refs":
+        if UNDONE_REFS != os.path.join(ROOT, ".kit", "undone-refs"):
+            return UNDONE_REFS
+        root = getattr(kitcore, "ROOT", ROOT)
+        return os.path.join(root, ".kit", "undone-refs")
+    if UNDONE != os.path.join(ROOT, ".kit", "undone"):
+        return UNDONE
+    root = getattr(kitcore, "ROOT", ROOT)
+    return os.path.join(root, ".kit", "undone")
+
+
+def book_file(book="story"):
+    import kitcore
+    if book == "refs":
+        if REFS_FILE != os.path.join(ROOT, "scenario", "reference.txt"):
+            return REFS_FILE
+        return kitcore.book_path("refs")
+    if STORY != os.path.join(ROOT, "scenario", "story.txt"):
+        return STORY
+    return kitcore.book_path("story")
+
+
+def read_bytes(book="story"):
+    """The raw bytes of story.txt / reference.txt, or None when missing."""
     try:
-        return open(STORY, "rb").read()
+        return open(book_file(book), "rb").read()
     except OSError:
         return None
+
+
+def read_story(book="story"):
+    return read_bytes(book)
 
 
 def digest(data):
@@ -38,10 +81,11 @@ def keep_out_of_git(folder):
         open(mark, "w", encoding="utf-8", newline="\n").write("# snapshots are a safety net on this computer, not part of the project\n*\n")
 
 
-def entries():
+def entries(book="story"):
     """[{id, label, time, after}] oldest first (id = file name without .txt)."""
+    d = history_dir(book)
     out = []
-    for f in sorted(os.listdir(DIR)) if os.path.isdir(DIR) else []:
+    for f in sorted(os.listdir(d)) if os.path.isdir(d) else []:
         m = NAME.match(f)
         if m:
             out.append(dict(id=f[:-4], label=m.group(2), time=m.group(1), after=m.group(3)))
@@ -58,40 +102,50 @@ def stamp():
     return datetime.datetime.now().strftime("%Y%m%d-%H%M%S-%f")
 
 
-def record(label, before):
+def record(label, before, book="story"):
     """Call after an edit that started from the bytes `before`: when the file really changed, keep `before` as a snapshot."""
-    after = read_story()
-    if before is None or after is None or after == before:
+    if before is None:
+        before = b""
+    after = read_bytes(book)
+    if after is None or after == before:
         return None
+    d = history_dir(book)
     name = "%s_%s_%s.txt" % (stamp(), re.sub(r"[^a-z]", "", label.lower()) or "edit", digest(after))
     try:
-        keep_out_of_git(DIR)
-        write_bytes(os.path.join(DIR, name), before)
-        trim(DIR)
+        keep_out_of_git(d)
+        write_bytes(os.path.join(d, name), before)
+        trim(d)
     except OSError:  # the edit itself is already saved: a full disk or a locked folder must not turn it into an error
         return None
     return name[:-4]
 
 
-def undo(expect=None, force=False):
+def undo(expect=None, force=False, book="story"):
     """Restore the newest snapshot byte for byte and remove it from the history. Returns what was undone.
-    409 (Conflict) when the page's idea of «the newest» differs (`expect` = the snapshot id it knows), or when story.txt is no longer the file
+    409 (Conflict) when the page's idea of «the newest» differs (`expect` = the snapshot id it knows), or when story.txt / reference.txt is no longer the file
     that edit produced (it was edited since, in the page or outside it) and `force` is not set; the file as it was is kept in .kit/undone/."""
-    ents = entries()
+    ents = entries(book)
     if not ents:
         raise ValueError("چیزی برای برگرداندن نیست")
     last = ents[-1]
     if expect and expect != last["id"]:
         raise Conflict("آخرین تغییر عوض شده؛ صفحه را دوباره بارگذاری کن.")
-    now = read_story()
+    now = read_bytes(book)
     if now is not None and digest(now) != last["after"] and not force:
         raise Conflict("فایل بعد از آن تغییر دوباره عوض شده (در صفحه یا بیرون از آن)؛ اگه می‌خوای باز هم برگردد، با force بفرست.")
-    path = os.path.join(DIR, last["id"] + ".txt")
+    d = history_dir(book)
+    path = os.path.join(d, last["id"] + ".txt")
     data = open(path, "rb").read()
     if now is not None:
-        keep_out_of_git(UNDONE)
-        write_bytes(os.path.join(UNDONE, "%s_%s.txt" % (stamp(), digest(now))), now)
-        trim(UNDONE)
-    write_bytes(STORY, data)
+        u = undone_dir(book)
+        keep_out_of_git(u)
+        write_bytes(os.path.join(u, "%s_%s.txt" % (stamp(), digest(now))), now)
+        trim(u)
+    bf = book_file(book)
+    if not data and book == "refs":
+        if os.path.exists(bf):
+            os.remove(bf)
+    else:
+        write_bytes(bf, data)
     os.remove(path)
     return dict(id=last["id"], label=last["label"], time=last["time"])

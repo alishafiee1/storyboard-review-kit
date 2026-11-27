@@ -128,6 +128,15 @@ export function chrome() {
   const en = $('#showEN').checked;
   $('#lang').setAttribute('aria-pressed', en ? 'true' : 'false');
   $('#lang').classList.toggle('en', en);
+  const b = S.BL[S.cur];
+  const isRefs = S.book === 'refs';
+  const hasSay = b && b.items && b.items.some(it => it.k === 'say');
+  $('#foot').classList.toggle('no-say', isRefs && !hasSay);
+  const bp = $('#bookPill');
+  if (bp) {
+    bp.classList.toggle('refs', isRefs);
+    bp.setAttribute('aria-pressed', isRefs ? 'true' : 'false');
+  }
   speedUI();
 }
 /* the list scrolls: a jump from a button moves the list to that page (smooth when near); while it moves, the scroll watcher stays quiet */
@@ -197,11 +206,14 @@ export function show(i, keepJ, fromScroll) {
   if (!fromScroll)
     scrollToBlock(el);
   if (!document.body.classList.contains('gal'))
-    history.replaceState(null, '', '#' + el.dataset.bid);
+    history.replaceState(null, '', '#' + (S.book === 'refs' ? 'refs/' : '') + el.dataset.bid);
 }
 /* the block of a picture / the block the page was showing (after a reload the numbers may have moved) */
 export const blockOf = id => S.BL.findIndex(b => b.images.some(m => m.id === id));
-export const blockByBid = bid => $$('.blk').findIndex(el => el.dataset.bid === bid);
+export const blockByBid = bid => {
+  const id = String(bid || '').replace(/^refs\//, '');
+  return $$('.blk').findIndex(el => el.dataset.bid === id);
+};
 export function showNear(i) {
   const v = vis();
   if (!v.length)
@@ -477,15 +489,47 @@ export function boot_player() {
       stepVersion(e.key === 'ArrowUp' ? -1 : 1);
     }
   });
+  const bp = $('#bookPill');
+  if (bp) {
+    bp.addEventListener('click', () => {
+      const next = S.book === 'refs' ? 'story' : 'refs';
+      const isGal = document.body.classList.contains('gal');
+      location.hash = next === 'refs' ? (isGal ? 'refs/gallery' : 'refs') : (isGal ? 'gallery' : '');
+    });
+  }
   /* a link like review.html#IMG045 (or a change of the address) shows that picture */
-  window.addEventListener('hashchange', () => {
-    const at = blockByBid(decodeURIComponent(location.hash.slice(1)));
+  window.addEventListener('hashchange', async () => {
+    const raw = decodeURIComponent(location.hash.slice(1));
+    const isRefs = raw.startsWith('refs/') || raw === 'refs';
+    const newBook = isRefs ? 'refs' : 'story';
+    if (newBook !== S.book) {
+      S.book = newBook;
+      const p = $('#bookPill');
+      if (p) {
+        p.classList.toggle('refs', isRefs);
+        p.setAttribute('aria-pressed', isRefs ? 'true' : 'false');
+      }
+      await reload();
+      startMode(location.hash);
+      const at = blockByBid(raw);
+      show(at >= 0 ? at : 0);
+      return;
+    }
+    const at = blockByBid(raw);
     if (at >= 0 && at !== S.cur)
       go(at, S.playing);
   });
   (async () => {
+    const raw0 = decodeURIComponent(location.hash.slice(1));
+    if (raw0.startsWith('refs/') || raw0 === 'refs')
+      S.book = 'refs';
+    const p = $('#bookPill');
+    if (p) {
+      p.classList.toggle('refs', S.book === 'refs');
+      p.setAttribute('aria-pressed', S.book === 'refs' ? 'true' : 'false');
+    }
     try {
-      const r = await fetch('/api/project');
+      const r = await fetch(`/api/project?book=${ S.book || 'story' }`);
       if (!r.ok)
         throw 0;
       S.P = await r.json();
