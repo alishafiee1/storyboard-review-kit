@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.7.0
+- Replaced all native browser `alert` / `confirm` / `prompt` dialogs with paper modals (`askAlert`, `askConfirm`, `askPrompt`, `askNewScene`), added live `#jobPill` TTS progress badge in the top bar, and hid disabled `#bUndo` on narrow mobile screens.
+- Grouped the drawer menu into Review / Tools / Settings, consolidated Premiere XML export + check + subtitles + editor zip in **Export for editor**, added footer speed pill (`#spdBtn`), seekable progress bar (`#tbar`), instant client-side `فا / EN` switching, anchored note popover with Save, sectioned `#morePop`, and gallery bulk actions + tile IDs.
+- Added `#bRedo` ("needs rebuild"), synchronized `S.filter` / `S.q` across drawer and gallery with `#fltChip`, `inbox/` image previews + lightbox zoom, and "generate all stale voices" (`regen-all`) in Voices & Speakers.
+- Fixed audio variant playback URLs (`_<rid>.mp3`), isolated migration test fixtures, and cleaned redundant legacy CSS.
+
 ## 2.6.0
 - Help in the page (menu → **Help**, the last row, after Settings): one card per job taken from `skills/how-to-write-prompts-for-flow.md` (the same guide the AI reads): a one-line summary and a «more» button that opens the rest under it; the project's own scripts card (when `skills/project-scripts.md` has one); the kit version under «About» (it moved out of Settings).
 - Settings is service-based: one row per service with its state («تنظیم شده») and a «change» / «add key» button; the key field opens only on that button. The Downloads switch saves by itself; the folder opens with «change».
