@@ -143,7 +143,9 @@ const HLABEL = {
   move: 'جابه‌جایی تصویر',
   add: 'افزودن خط',
   delete: 'حذف خط',
-  moveline: 'جابه‌جایی خط'
+  moveline: 'جابه‌جایی خط',
+  image: 'کنار گذاشتن یا برگرداندن تصویر',
+  imagebulk: 'تغییر گروهی تصویرها'
 };
 let PANEL = null;
 export const drawerOpen = () => document.body.classList.contains('dopen');

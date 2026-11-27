@@ -834,7 +834,19 @@ def picture_set_aside(proj, page):
     page.wait_for_selector(f + ".off")
     assert os.path.exists(os.path.join(proj.root, "images", "scenes", "IMG003_sea.png"))
     assert "برگردان" in page.inner_text("#aside")
+    # Ctrl+Z brings the picture back
+    page.keyboard.press("Control+z")
+    proj.wait_in("[IMG003]", "off: yes", absent=True)
+    page.wait_for_selector(f + ":not(.off)")
+    assert "کنار بگذار" in page.inner_text("#aside")
+    # Setting aside again and using drawer undo brings it back too
     page.click("#aside")
+    proj.wait_in("[IMG003]", "off: yes")
+    settle(page)
+    drawer(page, "undo")
+    assert page.locator("#pUndo .hist li").count() >= 1 and "تصویر" in page.inner_text("#pUndo .hist")
+    page.click("#pUndo [data-undo]")
+    undrawer(page)
     proj.wait_in("[IMG003]", "off: yes", absent=True)
     settle(page)
     more(page)  # the image menu has it too
@@ -2062,6 +2074,50 @@ def workspace_speed_premiere_export_and_bulk_gallery(proj, page):
     page.click('[data-gbulk="redo"]')
     proj.wait_in("[IMG001]", "status: redo")
     proj.wait_in("[IMG002]", "status: redo")
+    settle(page)
+    # Both are redo: button offers clear redo (لغو بازسازی)
+    page.click('#ggrid .tile[data-id="IMG001"]')
+    page.click('#ggrid .tile[data-id="IMG002"]')
+    assert page.inner_text('[data-gbulk="unredo"]').strip() == "لغو بازسازی"
+    page.click('[data-gbulk="unredo"]')
+    proj.wait_in("[IMG001]", "status: redo", absent=True)
+    proj.wait_in("[IMG002]", "status: redo", absent=True)
+    settle(page)
+    # Ctrl+Z undo restores redo status
+    page.keyboard.press("Control+z")
+    proj.wait_in("[IMG001]", "status: redo")
+    proj.wait_in("[IMG002]", "status: redo")
+    settle(page)
+    # Next Ctrl+Z undo restores state before the bulk redo
+    page.keyboard.press("Control+z")
+    proj.wait_in("[IMG001]", "status: redo", absent=True)
+    proj.wait_in("[IMG002]", "status: redo", absent=True)
+    settle(page)
+    # Bulk set-aside in gallery and bring back
+    page.click('#ggrid .tile[data-id="IMG001"]')
+    page.click('#ggrid .tile[data-id="IMG002"]')
+    page.click('[data-gbulk="off"]')
+    proj.wait_in("[IMG001]", "off: yes")
+    proj.wait_in("[IMG002]", "off: yes")
+    settle(page)
+    # Both are off: button offers bring back (برگردان)
+    page.click('#ggrid .tile[data-id="IMG001"]')
+    page.click('#ggrid .tile[data-id="IMG002"]')
+    assert page.inner_text('[data-gbulk="on"]').strip() == "برگردان"
+    page.click('[data-gbulk="on"]')
+    proj.wait_in("[IMG001]", "off: yes", absent=True)
+    proj.wait_in("[IMG002]", "off: yes", absent=True)
+    settle(page)
+    # Ctrl+Z undo restores set-aside
+    page.keyboard.press("Control+z")
+    proj.wait_in("[IMG001]", "off: yes")
+    proj.wait_in("[IMG002]", "off: yes")
+    settle(page)
+    # Next Ctrl+Z undo restores original non-off state
+    page.keyboard.press("Control+z")
+    proj.wait_in("[IMG001]", "off: yes", absent=True)
+    proj.wait_in("[IMG002]", "off: yes", absent=True)
+    settle(page)
 
 
 @test

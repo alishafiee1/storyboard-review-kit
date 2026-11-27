@@ -87,8 +87,24 @@ const stat = () => {
 const count = () => {
   stat();
   const c = $('#gCount'), b = $('#gBulk');
-  if (b)
+  if (b) {
     b.hidden = !SEL.size;
+    if (SEL.size) {
+      const all = tiles(), sel = all.filter(t => SEL.has(t.m.id));
+      const allOff = sel.length > 0 && sel.every(t => t.m.off);
+      const allRedo = sel.length > 0 && sel.every(t => t.m.status === 'redo');
+      const bOff = b.querySelector('[data-gbulk="off"], [data-gbulk="on"]');
+      if (bOff) {
+        bOff.dataset.gbulk = allOff ? 'on' : 'off';
+        bOff.textContent = allOff ? 'برگردان' : 'کنار بگذار';
+      }
+      const bRedo = b.querySelector('[data-gbulk="redo"], [data-gbulk="unredo"]');
+      if (bRedo) {
+        bRedo.dataset.gbulk = allRedo ? 'unredo' : 'redo';
+        bRedo.textContent = allRedo ? 'لغو بازسازی' : 'بازسازی';
+      }
+    }
+  }
   if (c) {
     const shown = $$('#ggrid .tile[data-id]:not([hidden])').length, total = tiles().length;
     c.textContent = SEL.size ? `${ fa(SEL.size) } انتخاب‌شده` : shown < total ? `${ fa(shown) } از ${ fa(total) } تصویر` : `${ fa(total) } تصویر`;
@@ -356,8 +372,15 @@ export function boot_gallery() {
         return paint();
       }
       try {
-        for (const id of SEL)
-          await api('/api/image', k === 'redo' ? { id, status: 'redo' } : { id, off: true });
+        const ids = [...SEL];
+        if (k === 'redo')
+          await api('/api/imagebulk', { ids, status: 'redo' });
+        else if (k === 'unredo' || k === 'clear_redo')
+          await api('/api/imagebulk', { ids, status: '' });
+        else if (k === 'on' || k === 'back')
+          await api('/api/imagebulk', { ids, off: false });
+        else if (k === 'off')
+          await api('/api/imagebulk', { ids, off: true });
         SEL.clear();
         toast('تغییر گروهی انجام شد');
       } catch (er) {

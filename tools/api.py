@@ -30,9 +30,10 @@ def handle(path, d):
     fn = ROUTES.get(path)
     if fn is None:
         raise ValueError("unknown endpoint")
-    before = history.read_story() if path in STRUCTURAL else None
+    structural = path in STRUCTURAL or (path == "/api/image" and isinstance(d, dict) and d.get("off") is not None)
+    before = history.read_story() if structural else None
     res = fn(d)
-    if path in STRUCTURAL:
+    if structural:
         history.record(path.rsplit("/", 1)[-1], before)  # only when the edit succeeded and really changed the file
     return {"ok": True} if res is None else res
 
@@ -68,6 +69,41 @@ def image(d):
     patch_image(lines, id_, status, None if d.get("note") is None else str(d["note"])[:4000], d.get("stale"),
                 None if d.get("fx") is None else str(d["fx"])[:2000], pick, None if d.get("off") is None else bool(d["off"]))
     write_lines(STORY, lines)
+
+
+@route("/api/imagebulk", snapshot=True)
+def imagebulk(d):
+    """bulk edit for gallery: set aside (off: True), bring back (off: False), redo (status: 'redo'), clear redo (status: '')"""
+    ids = d.get("ids")
+    if not isinstance(ids, list) or not ids:
+        raise ValueError("ids must be a non-empty list")
+    for id_ in ids:
+        if not isinstance(id_, str) or not re.fullmatch(r"IMG\d{3,4}", id_):
+            raise ValueError("bad id")
+    action = d.get("action")
+    off = d.get("off")
+    status = d.get("status")
+    if action == "off":
+        off = True
+    elif action in ("on", "back", "bring_back"):
+        off = False
+    elif action == "redo":
+        status = "redo"
+    elif action in ("clear_redo", "unredo", "clear"):
+        status = ""
+    if off is None and status is None:
+        raise ValueError("no action specified")
+    if status is not None and str(status) not in MARKS:
+        raise ValueError("bad status")
+    if off is not None:
+        off = bool(off)
+    if status is not None:
+        status = str(status)
+    lines = read_lines(STORY)
+    for id_ in ids:
+        patch_image(lines, id_, status=status, off=off)
+    write_lines(STORY, lines)
+    return {"ok": True, "count": len(ids)}
 
 
 @route("/api/voicepick")
