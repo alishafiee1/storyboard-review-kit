@@ -412,10 +412,19 @@ class SketchbookShell(unittest.TestCase):
 
     def test_the_shell_has_no_text_tabs_and_has_the_drawer(self):
         html = self.text("review.html")
-        for gone in ("tabR", "tabF", "tabS", 'id="filter"', 'id="speed"', 'id="jump"', 'id="fab"'):
+        for gone in ("tabR", "tabF", "tabS", 'id="filter"', 'id="speed"', 'id="jump"', 'id="fab"', 'id="pSpeed"'):
             self.assertNotIn(gone, html)
         for need in ('id="menuBtn"', 'id="drawer"', 'id="nav"', 'id="lang"', 'id="more"', 'id="bPrompt"', 'id="bVprompt"', 'id="bNote"', 'id="bFlag"', 'dir="rtl"'):
             self.assertIn(need, html)
+
+    def test_speeds_list_shared_and_no_drawer_speed_panel(self):
+        js = self.text("tools", "ui", "player.js")
+        self.assertIn("export const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];", js)
+        drawer_js = self.text("tools", "ui", "drawer.js")
+        self.assertNotIn("paintSpeed", drawer_js)
+        self.assertNotIn("data-speed", drawer_js)
+        self.assertNotIn("#pSpeed", drawer_js)
+        self.assertNotIn("SPEEDS", drawer_js)
 
 
 if __name__ == "__main__":

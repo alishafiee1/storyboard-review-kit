@@ -188,7 +188,7 @@
   #tbar,
   #ttime,
   #playS,
-  #spdBtn {
+  .ftp .spdc {
     display:none;
   }
 
@@ -241,6 +241,45 @@
 
   .monly {
     display:inline-grid;
+  }
+
+  .mact .spdc {
+    position:fixed;
+    bottom:62px;
+    left:8px;
+    z-index:2;
+    display:inline-flex;
+    align-items:center;
+    background:var(--paper);
+    border:1px solid var(--line);
+    border-radius:999px;
+    padding:2px 4px;
+    box-shadow:0 2px 8px rgba(0,0,0,.1);
+  }
+
+  .mact .spdc button {
+    background:transparent;
+    border:0;
+    color:var(--ink);
+    font:inherit;
+    cursor:pointer;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+  }
+
+  .mact .spdc .spdb {
+    width:44px;
+    height:44px;
+    font-size:18px;
+    border-radius:50%;
+  }
+
+  .mact .spdc .spdl {
+    min-width:44px;
+    height:44px;
+    font-size:14px;
+    padding:0 4px;
   }
 
   #foot > .ftt,

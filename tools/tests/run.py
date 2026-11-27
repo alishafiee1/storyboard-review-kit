@@ -467,9 +467,9 @@ def format_issue_flag(proj, page):
 def drawer_panels_filter_search_jump(proj, page):
     """The drawer replaces the old tabs: references, scene list (jump), filter, search, speed, voices; ‹ goes back, Esc and the dimmed page close it."""
     drawer(page)
-    assert page.locator("#dmenu .drow").count() == 12 and page.is_hidden("#dback")
+    assert page.locator("#dmenu .drow").count() == 11 and page.is_hidden("#dback")
     labels = page.locator("#dmenu .rt").all_inner_texts()
-    assert labels[:3] == ["فهرست صحنه‌ها", "فیلتر و جست‌وجو", "نسخه‌ها و آرشیو"] and "سرعت پخش" in labels and "کپی پرامپت‌های دسته" in labels
+    assert labels[:3] == ["فهرست صحنه‌ها", "فیلتر و جست‌وجو", "نسخه‌ها و آرشیو"] and "کپی پرامپت‌های دسته" in labels
     drawer(page, "refs")
     assert page.locator("#refs .card").count() == 1 and page.is_visible("#dback") and page.is_hidden("#dmenu")
     page.click("#refs [data-img] >> nth=0")  # jump to a picture that uses the reference: the drawer closes
@@ -492,11 +492,6 @@ def drawer_panels_filter_search_jump(proj, page):
     page.fill("#q", "")
     assert page.locator(".blk:not(.hide)").count() == 4
     page.click("#dback")
-    page.click("[data-panel=speed]")
-    page.click("[data-speed='1.3']")
-    assert page.evaluate("window.__kit.S.speed") == 1.3
-    page.click("#dback")
-    assert "۱٫۳" in page.inner_text("[data-panel=speed] .trail")
     page.click("[data-panel=spk]")
     assert page.locator("#spk .spcard").count() == 3
     page.click("#dback")
@@ -1929,6 +1924,7 @@ def voice_rid_takes_play_from_srcs(proj, page):
     btn = "#b1 .vv[data-vv=fa] >> nth=0"
     for _ in range(4):
         page.click(btn)
+        page.wait_for_timeout(200)
         if "a1b2c3d4" in proj.story():
             break
     proj.wait("scenario/story.txt", "voice: fa=a1b2c3d4")
@@ -1973,12 +1969,15 @@ def redo_gallery_filter_inbox_preview_and_regen_all(proj, page):
 
 @test
 def workspace_speed_premiere_export_and_bulk_gallery(proj, page):
-    """Footer #spdBtn cycles playback speed; #pExport builds & checks Premiere XML; #morePop has section headers; gallery bulk redo works."""
+    """Footer speed control [−] label [+]; #pExport builds & checks Premiere XML; #morePop has section headers; gallery bulk redo works."""
     at(page, "IMG001")
-    assert page.inner_text("#spdBtn").strip() == "۱×"
-    page.click("#spdBtn")
-    assert page.inner_text("#spdBtn").strip() == "۱٫۱۵×"
-    assert page.evaluate("window.__kit.S.speed") == 1.15
+    assert page.inner_text(".ftp .spdl").strip() == "۱×"
+    page.click(".ftp [data-spd='inc']")
+    assert page.inner_text(".ftp .spdl").strip() == "۱٫۲۵×"
+    assert page.evaluate("window.__kit.S.speed") == 1.25
+    page.click(".ftp [data-spd='dec']")
+    assert page.inner_text(".ftp .spdl").strip() == "۱×"
+    assert page.evaluate("window.__kit.S.speed") == 1.0
     more(page)
     assert page.locator("#morePop .mhead").count() == 2
     page.keyboard.press("Escape")
@@ -1997,6 +1996,72 @@ def workspace_speed_premiere_export_and_bulk_gallery(proj, page):
     page.click('[data-gbulk="redo"]')
     proj.wait_in("[IMG001]", "status: redo")
     proj.wait_in("[IMG002]", "status: redo")
+
+
+@test
+def speed_control_stepper_clamp_reset_persistence_and_audio_rates(proj, page):
+    """Speed control next to footer: + and − steps of 0.25, clamps at 0.5 and 2.0, label click resets to 1, localStorage persistence, and audio/LA playbackRate sync."""
+    at(page, "IMG001")
+    assert page.inner_text(".ftp .spdl").strip() == "۱×"
+    assert page.evaluate("window.__kit.S.speed") == 1.0
+
+    # Start a line audio clip so LA is active
+    page.click(".blk.on .ab[data-lg=fa] >> nth=0")
+    page.wait_for_function("window.__kit.LA !== null")
+
+    # + increment by 0.25: 1.0 -> 1.25
+    page.click(".ftp [data-spd='inc']")
+    assert page.inner_text(".ftp .spdl").strip() == "۱٫۲۵×"
+    assert page.evaluate("window.__kit.S.speed") == 1.25
+    assert page.evaluate("window.__kit.audio.playbackRate") == 1.25
+    assert page.evaluate("window.__kit.LA.playbackRate") == 1.25
+
+    # - decrement by 0.25: 1.25 -> 1.0
+    page.click(".ftp [data-spd='dec']")
+    assert page.inner_text(".ftp .spdl").strip() == "۱×"
+    assert page.evaluate("window.__kit.S.speed") == 1.0
+    assert page.evaluate("window.__kit.audio.playbackRate") == 1.0
+    assert page.evaluate("window.__kit.LA.playbackRate") == 1.0
+
+    # Step down to 0.75 then 0.5 (bound clamp at 0.5)
+    page.click(".ftp [data-spd='dec']")
+    assert page.evaluate("window.__kit.S.speed") == 0.75
+    page.click(".ftp [data-spd='dec']")
+    assert page.evaluate("window.__kit.S.speed") == 0.5
+    assert page.inner_text(".ftp .spdl").strip() == "۰٫۵×"
+    assert page.is_disabled(".ftp [data-spd='dec']")
+    page.click(".ftp [data-spd='dec']", force=True)
+    assert page.evaluate("window.__kit.S.speed") == 0.5
+
+    # Step up to 2.0 (bound clamp at 2.0)
+    for _ in range(6):
+        page.click(".ftp [data-spd='inc']")
+    assert page.evaluate("window.__kit.S.speed") == 2.0
+    assert page.inner_text(".ftp .spdl").strip() == "۲×"
+    assert page.is_disabled(".ftp [data-spd='inc']")
+    page.click(".ftp [data-spd='inc']", force=True)
+    assert page.evaluate("window.__kit.S.speed") == 2.0
+
+    # Clicking label resets to 1x
+    page.click(".ftp .spdl")
+    assert page.evaluate("window.__kit.S.speed") == 1.0
+    assert page.inner_text(".ftp .spdl").strip() == "۱×"
+    assert page.evaluate("window.__kit.audio.playbackRate") == 1.0
+    assert page.evaluate("window.__kit.LA.playbackRate") == 1.0
+
+    # Persistence across reload via localStorage
+    page.click(".ftp [data-spd='inc']")
+    assert page.evaluate("window.__kit.S.speed") == 1.25
+    assert page.evaluate("localStorage.getItem('speed')") == "1.25"
+    page.reload()
+    page.wait_for_selector(".blk.on")
+    assert page.evaluate("window.__kit.S.speed") == 1.25
+    assert page.inner_text(".ftp .spdl").strip() == "۱٫۲۵×"
+    assert page.evaluate("window.__kit.audio.playbackRate") == 1.25
+
+    # Reset back to 1.0
+    page.click(".ftp .spdl")
+    assert page.evaluate("window.__kit.S.speed") == 1.0
 
 
 @test

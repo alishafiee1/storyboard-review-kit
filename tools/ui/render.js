@@ -76,7 +76,8 @@ const lineBtns = (it, sc) => [
   const vv = v.names.length > 1 ? `<button class="vv" data-vv="${ lg }" data-sc="${ sc.id }" data-iid="${ it.id }" aria-label="صدای بعدی" title="${ lg === 'fa' ? 'صدای فارسی' : 'English voice' }: ${ esc(v.chosen) } · کلیک = صدای بعدی (همونی که آخر می‌ذاری، صدای نهایی می‌شه)">‹${ fa(v.names.indexOf(v.chosen) + 1) }/${ fa(v.names.length) }›</button>` : '';
   return `<button class="ab" data-lg="${ lg }" data-src="${ esc(it.audio[lg]) }" title="${ lg === 'fa' ? 'پخش صدای فارسی این دیالوگ' : 'Play the English voice of this line' }">${ ic('speaker') }<small>${ lg.toUpperCase() }</small></button>${ vv }`;
 }).join('');
-let LA = null, LB = null;
+export let LA = null;
+let LB = null;
 export function stopLine() {
   if (LA) {
     LA.pause();

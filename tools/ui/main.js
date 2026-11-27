@@ -1,5 +1,7 @@
 /* Entry point of the page: every file is a module; the code that used to run while the scripts loaded now runs here, in the same order, once all modules exist. */
 import { S } from './state.js';
+import { audio } from './core.js';
+import { LA } from './render.js';
 import { boot_core } from './core.js';
 import { boot_drawer } from './drawer.js';
 import { boot_render } from './render.js';
@@ -19,4 +21,13 @@ boot_panels();
 boot_player();
 boot_gallery();
 /* a read-only handle for the browser tests (they wait for the page to finish a reload) */
-window.__kit = { S };
+window.__kit = {
+  S,
+  audio,
+  get LA() { return LA; }
+};
+window.audio = audio;
+Object.defineProperty(window, 'LA', {
+  get: () => LA,
+  configurable: true
+});

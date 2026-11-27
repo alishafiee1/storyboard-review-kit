@@ -4,7 +4,6 @@ import {
   $$,
   api,
   askConfirm,
-  audio,
   copyText,
   esc,
   fa,
@@ -31,7 +30,6 @@ import { sceneNo } from './render.js';
 const PANELS = {
   scenes: '#pScenes',
   filter: '#pFilter',
-  speed: '#pSpeed',
   spk: '#spk',
   refs: '#refs',
   vers: '#pVers',
@@ -52,11 +50,6 @@ const ROWS = [
     'filter',
     'sliders',
     'فیلتر و جست‌وجو'
-  ],
-  [
-    'speed',
-    'speed',
-    'سرعت پخش'
   ],
   [
     'spk',
@@ -107,7 +100,7 @@ const ROWS = [
 const GROUPS = [
   ['ناوبری و مرور', ['scenes', 'filter', 'vers']],
   ['تولید و رسانه', ['spk', 'refs', 'batch', 'inbox']],
-  ['خروجی و تحویل', ['export', 'speed']],
+  ['خروجی و تحویل', ['export']],
   ['سیستم و راهنما', ['undo', 'settings', 'help']]
 ];
 const FILTERS = [
@@ -141,12 +134,6 @@ const FILTERS = [
   ]
 ];
 export const filterLabel = k => (FILTERS.find(([x]) => x === k) || ['', ''])[1];
-const SPEEDS = [
-  0.9,
-  1,
-  1.15,
-  1.3
-];
 const HLABEL = {
   addimage: 'افزودن تصویر',
   addscene: 'افزودن صحنه',
@@ -157,7 +144,6 @@ const HLABEL = {
   add: 'افزودن خط',
   delete: 'حذف خط'
 };
-const speedText = v => fa(String(v).replace('.', '٫')) + '×';
 let PANEL = null;
 export const drawerOpen = () => document.body.classList.contains('dopen');
 export function openDrawer(panel) {
@@ -209,10 +195,6 @@ function paintFilter() {
     $('#q').value = S.q;
   const all = imgs(), count = k => k === 'all' ? all.length : all.filter(m => k === 'missing' ? !m.src : k === 'none' ? !m.status : k === 'note' ? !!m.note : k === 'stale' ? m.stale : m.status === k).length;
   $('#fopts').innerHTML = FILTERS.map(([k, t]) => `<button type="button" class="opt${ S.filter === k ? ' sel' : '' }" data-filter="${ k }" aria-pressed="${ S.filter === k }"><span>${ t }</span><span class="c">${ fa(count(k)) }</span></button>`).join('');
-}
-/* ---- speed */
-function paintSpeed() {
-  $('#pSpeed').innerHTML = SPEEDS.map(v => `<button type="button" class="opt${ S.speed === v ? ' sel' : '' }" data-speed="${ v }" aria-pressed="${ S.speed === v }"><span>${ speedText(v) }</span></button>`).join('');
 }
 /* ---- versions and archive of the picture on show */
 function buildVers() {
@@ -467,7 +449,6 @@ function build(name) {
   ({
     scenes: buildScenes,
     filter: paintFilter,
-    speed: paintSpeed,
     vers: buildVers,
     undo: buildUndo,
     batch: buildBatch,
@@ -481,7 +462,6 @@ function build(name) {
 export function drawerRefresh() {
   const P = S.P, trail = {
       filter: S.filter !== 'all' || S.q ? 'فعال' : '',
-      speed: `<bdi dir="ltr">${ speedText(S.speed) }</bdi>`,
       refs: P.refs.length ? fa(P.refs.length) : '',
       undo: (P.history || []).length ? fa(P.history.length) : '',
       inbox: ((P.inbox || []).length + (P.triage || []).length) ? fa((P.inbox || []).length + (P.triage || []).length) : ''
@@ -526,13 +506,6 @@ export function boot_drawer() {
       S.filter = d.filter;
       filt(true);
       paintFilter();
-      drawerRefresh();
-    } else if (d.speed) {
-      S.speed = +d.speed;
-      audio.playbackRate = S.speed;
-      if ($('#spdBtn'))
-        $('#spdBtn').textContent = speedText(S.speed);
-      paintSpeed();
       drawerRefresh();
     } else if (d.vpick !== undefined) {
       const c = curImg();

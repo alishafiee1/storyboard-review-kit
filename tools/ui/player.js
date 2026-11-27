@@ -14,7 +14,8 @@ import {
   defaultActive,
   render,
   setActive,
-  stopLine
+  stopLine,
+  LA
 } from './render.js';
 import {
   filt,
@@ -31,6 +32,26 @@ import {
   undo
 } from './drawer.js';
 /* The scrolling list of pictures: navigation, the top bar's numbers, the transport under the picture, auto-play, keyboard and start-up. */
+export const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
+export const spdFmt = v => fa(String(v).replace('.', '٫')) + '×';
+export function setSpeed(v) {
+  const s = Math.max(0.5, Math.min(2, Math.round(v * 100) / 100));
+  S.speed = s;
+  try {
+    localStorage.setItem('speed', String(s));
+  } catch (e) {}
+  audio.playbackRate = s;
+  if (LA)
+    LA.playbackRate = s;
+  speedUI();
+  preTime(S.cur);
+}
+export function speedUI() {
+  const txt = spdFmt(S.speed);
+  $$('.spdl').forEach(el => el.textContent = txt);
+  $$('[data-spd="dec"]').forEach(el => el.disabled = S.speed <= 0.5);
+  $$('[data-spd="inc"]').forEach(el => el.disabled = S.speed >= 2);
+}
 /* ---------- which block is shown */
 export const vis = () => S.BL.map((_, i) => i).filter(i => {
   const el = $('#b' + i);
@@ -107,9 +128,7 @@ export function chrome() {
   const en = $('#showEN').checked;
   $('#lang').setAttribute('aria-pressed', en ? 'true' : 'false');
   $('#lang').classList.toggle('en', en);
-  const sb = $('#spdBtn');
-  if (sb)
-    sb.textContent = fa(String(S.speed).replace('.', '٫')) + '×';
+  speedUI();
 }
 /* the list scrolls: a jump from a button moves the list to that page (smooth when near); while it moves, the scroll watcher stays quiet */
 let SCROLLING = 0, FIRST = true;
@@ -364,16 +383,28 @@ export function boot_player() {
     S.START = null;
     reload(true);
   };
-  const SPDS = [0.9, 1, 1.15, 1.3], spdFmt = v => fa(String(v).replace('.', '٫')) + '×';
-  if ($('#spdBtn'))
-    $('#spdBtn').onclick = () => {
-      const i = (SPDS.indexOf(S.speed) + 1) % SPDS.length;
-      S.speed = SPDS[i];
-      audio.playbackRate = S.speed;
-      $('#spdBtn').textContent = spdFmt(S.speed);
-      preTime(S.cur);
-      drawerRefresh();
-    };
+  try {
+    const saved = parseFloat(localStorage.getItem('speed'));
+    if (SPEEDS.includes(saved))
+      S.speed = saved;
+  } catch (e) {}
+  audio.playbackRate = S.speed;
+  speedUI();
+  $('#foot').addEventListener('click', e => {
+    const btn = e.target.closest('[data-spd]');
+    if (!btn)
+      return;
+    const act = btn.dataset.spd;
+    if (act === 'dec') {
+      if (S.speed > 0.5)
+        setSpeed(S.speed - 0.25);
+    } else if (act === 'inc') {
+      if (S.speed < 2)
+        setSpeed(S.speed + 0.25);
+    } else if (act === 'reset') {
+      setSpeed(1);
+    }
+  });
   $('#tbar').onclick = e => {
     if (!S.playing || !isFinite(audio.duration) || audio.duration <= 0)
       return;

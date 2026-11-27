@@ -33,8 +33,8 @@
 <main id="list"></main>
 <footer id="foot">
  <div class="ftp" dir="ltr"><button id="prev" class="ib" type="button" aria-label="تصویر قبلی" data-ic="skipPrev"></button><button id="play" class="playb" type="button" aria-label="پخش خودکار" title="پخش خودکار (Space)"><span class="pi" data-ic="play"></span><span class="pp" data-ic="pause"></span></button><button id="next" class="ib" type="button" aria-label="تصویر بعدی" data-ic="skipNext"></button><button id="playS" class="ib monly" type="button" data-fwd="play" aria-label="پخش خودکار" data-ic="play"></button>
-  <span id="ttime" dir="ltr">۰:۰۰ / ۰:۰۰</span><button id="spdBtn" class="quiet sm" type="button" dir="ltr" title="سرعت پخش (کلیک برای تغییر)">۱×</button><span id="tbar" aria-label="نوار پیشرفت صدا"><i style="width:0%"></i></span></div>
- <div class="mact monly"><button class="ib" type="button" data-fwd="bNote" aria-label="یادداشت و ادیت" data-ic="pencil"></button><button class="ib" type="button" data-fwd="bPrompt" aria-label="پرامپت تصویر" data-ic="image"></button><button class="ib" type="button" data-fwd="bVprompt" aria-label="پرامپت ویدیو" data-ic="clapper"></button><button class="ib" type="button" data-fwd="bFlag" aria-label="نشانه‌گذاری مشکل" data-ic="flag"></button></div>
+  <span id="ttime" dir="ltr">۰:۰۰ / ۰:۰۰</span><span class="spdc" dir="ltr"><button class="spdb spdm" type="button" data-spd="dec" aria-label="کاهش سرعت پخش" title="کاهش سرعت پخش">−</button><button class="spdl" type="button" data-spd="reset" aria-label="تنظیم سرعت پخش به ۱" title="سرعت پخش (کلیک برای بازنشانی به ۱)">۱×</button><button class="spdb spdp" type="button" data-spd="inc" aria-label="افزایش سرعت پخش" title="افزایش سرعت پخش">+</button></span><span id="tbar" aria-label="نوار پیشرفت صدا"><i style="width:0%"></i></span></div>
+ <div class="mact monly"><button class="ib" type="button" data-fwd="bNote" aria-label="یادداشت و ادیت" data-ic="pencil"></button><button class="ib" type="button" data-fwd="bPrompt" aria-label="پرامپت تصویر" data-ic="image"></button><button class="ib" type="button" data-fwd="bVprompt" aria-label="پرامپت ویدیو" data-ic="clapper"></button><button class="ib" type="button" data-fwd="bFlag" aria-label="نشانه‌گذاری مشکل" data-ic="flag"></button><span class="spdc" dir="ltr"><button class="spdb spdm" type="button" data-spd="dec" aria-label="کاهش سرعت پخش" title="کاهش سرعت پخش">−</button><button class="spdl" type="button" data-spd="reset" aria-label="تنظیم سرعت پخش به ۱" title="سرعت پخش (کلیک برای بازنشانی به ۱)">۱×</button><button class="spdb spdp" type="button" data-spd="inc" aria-label="افزایش سرعت پخش" title="افزایش سرعت پخش">+</button></span></div>
  <div class="ftt"><button id="aside" class="quiet" type="button" data-ioff="1"></button></div>
 </footer>
 <div id="scrim" hidden></div>
@@ -44,7 +44,6 @@
   <nav id="dmenu"></nav>
   <section class="dpanel" id="pScenes" data-title="فهرست صحنه‌ها" hidden></section>
   <section class="dpanel" id="pFilter" data-title="فیلتر و جست‌وجو" hidden></section>
-  <section class="dpanel" id="pSpeed" data-title="سرعت پخش" hidden></section>
     <section class="dpanel wide" id="spk" data-title="صداها و گوینده‌ها" hidden></section>
   <section class="dpanel wide" id="refs" data-title="رفرنس‌ها" hidden></section>
   <section class="dpanel" id="pVers" data-title="نسخه‌ها و آرشیو" hidden></section>
