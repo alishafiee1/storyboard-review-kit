@@ -36,7 +36,7 @@
   --overlay:rgba(42,39,35,.28);
   --tape-olive:#B7C19D;
   --tape-sand:#E0CFB1;
-  --bar-h:56px;
+  --bar-h:64px;
 }
 
 * {
@@ -123,12 +123,18 @@ code {
 
 /* an icon button: no fill, no border; a pale wash on hover */
 .ib {
-  width:36px;
-  height:36px;
+  width:42px;
+  height:42px;
   display:inline-grid;
   place-items:center;
   border-radius:2px;
   color:var(--ink);
+}
+
+.ib .ic {
+  width:24px;
+  height:24px;
+  stroke-width:1.6;
 }
 
 .ib:hover {
@@ -223,7 +229,8 @@ code {
   display:inline-flex;
   align-items:center;
   gap:6px;
-  padding:5px 18px;
+  padding:7px 22px;
+  font-size:18px;
   color:var(--approve);
   border:1px solid var(--approve);
   border-radius:2px;
@@ -233,8 +240,8 @@ code {
 }
 
 .stamp .ic {
-  width:18px;
-  height:18px;
+  width:22px;
+  height:22px;
 }
 
 .stamp:hover:not(:disabled),

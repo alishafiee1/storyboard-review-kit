@@ -6,16 +6,19 @@ import {
   esc,
   fa,
   fail,
+  matchItem,
   toast
 } from './core.js';
 import { ic } from './icons.js';
 import {
   filt,
   lightbox,
-  matchFilter,
   reload
 } from './panels.js';
-import { sceneNo } from './render.js';
+import {
+  moveTarget,
+  sceneNo
+} from './render.js';
 import { blockByBid } from './player.js';
 import {
   copyBatch,
@@ -53,7 +56,7 @@ const tiles = () => S.P.scenes.filter(s => !s.off).flatMap(sc => sc.blocks.flatM
   b
 }))));
 /* the search and filter of the gallery: status filter + id, scene title, note or any line of the picture's block */
-const hit = ({m, sc, b}, q = S.q.trim().toLowerCase()) => matchFilter(m, S.filter) && (!q || [m.id, sc.title, m.note, ...b.items.flatMap(i => [i.sp, i.fa, i.en])].some(t => t && String(t).toLowerCase().includes(q)));
+const hit = ({m, sc, b}, q = S.q) => matchItem({m, sc, b}, S.filter, q);
 const tileHtml = (t, first) => {
   const {m, sc} = t;
   const st = m.off ? 'off' : m.status === 'redo' ? 'redo' : m.status === 'ok' ? 'ok' : 'pend', n = m.versions.length;
@@ -66,12 +69,20 @@ function paint() {
     return;
   const all = tiles(), ids = new Set(all.map(t => t.m.id));
   SEL = new Set([...SEL].filter(i => ids.has(i)));
+  const scenes = S.P.scenes.filter(s => !s.off);
   let prev = null;
-  const grid = all.map(t => {
-    const first = prev && prev !== t.sc.id;
-    prev = t.sc.id;
-    return tileHtml(t, first);
-  }).join('') + `<button type="button" class="tile add" data-gadd="1" aria-label="افزودن تصویر" title="افزودن تصویر">${ ic('plus') }</button>`;
+  const grid = scenes.map(sc => {
+    const is00 = sc.id === 'scene-00';
+    const scTiles = sc.blocks.flatMap(b => b.images.map(m => ({ m, sc, b })));
+    const head = `<div class="gshead" data-scene="${ sc.id }"><div class="gsinfo">${ is00 ? '' : `<b class="gsnum">صحنه ${ fa(sceneNo(sc)) }</b>` }<span class="gstitle">${ esc(sc.title || (is00 ? 'تامبنیل' : '')) }</span><span class="gscount">${ fa(scTiles.length) } تصویر</span></div><span class="mw smore-w"><button class="ib sm" type="button" data-smore="${ sc.id }" aria-label="منوی صحنه" aria-haspopup="menu" aria-expanded="false" title="منوی صحنه">${ ic('dots') }</button><div class="pop menu" role="menu" hidden></div></span></div>`;
+    const tilesHtml = scTiles.map(t => {
+      const first = prev && prev !== t.sc.id;
+      prev = t.sc.id;
+      return tileHtml(t, first);
+    }).join('');
+    const dropHtml = is00 ? '' : `<button type="button" class="tile add gdrop" data-gdrop="${ sc.id }" data-gadd="${ sc.id }" aria-label="افزودن تصویر به انتهای صحنه" title="کشیدن تصویر به اینجا یا کلیک برای افزودن">${ ic('plus') }</button>`;
+    return `<div class="gsec" data-scene="${ sc.id }">${ head }<div class="gtiles">${ tilesHtml }${ dropHtml }</div></div>`;
+  }).join('');
   const batches = [...new Set(all.map(t => t.m.batch).filter(Boolean))].sort();
   const un = S.P.unplaced || [], inbox = (S.P.inbox || []).filter(f => f.kind === 'image');
   g.innerHTML = `<div class="gtools"><button type="button" class="quiet sm" id="gSel" aria-pressed="${ PICK }">انتخاب</button><button type="button" class="quiet sm" id="gMove" aria-pressed="${ REORD }" title="در حالت جابه‌جایی، با کشیدن انگشت تصویر جابه‌جا می‌شود و صفحه جابه‌جا نمی‌شود">جابه‌جایی</button><span class="gcount" id="gCount"></span><span class="gbulk" id="gBulk" hidden><button type="button" class="quiet sm" data-gbulk="redo">بازسازی</button><button type="button" class="quiet sm" data-gbulk="off">کنار بگذار</button><button type="button" class="quiet sm" data-gbulk="clear">لغو</button></span><span class="gsp"></span>${ batches.map(b => `<button type="button" class="quiet sm" data-gbatch="${ b }" title="کپی پرامپت‌های این دسته">${ ic('batch') }<bdi dir="ltr">${ b }</bdi></button>`).join('') }</div><div class="ggrid" id="ggrid">${ grid }<div class="gline" hidden></div></div>${ un.length || inbox.length ? `<div class="gun"><h4>جا نگرفته‌ها <small>(بکش توی گالری، یا + بزن)</small></h4><div class="gur">${ un.map(u => `<div class="uit" data-drag="un" data-uid="${ u.id }">${ u.src ? `<img src="${ esc(u.src) }" alt="" loading="lazy" draggable="false">` : '<span class="uph"></span>' }<bdi dir="ltr">${ u.id }</bdi><button type="button" class="ib sm" data-gun="${ u.id }" aria-label="جاگذاری ${ u.id }">${ ic('plus') }</button></div>`).join('') }${ inbox.map(f => `<div class="uit" data-drag="un" data-uid="">${ f.src ? `<img src="${ esc(f.src) }" alt="" loading="lazy" draggable="false" data-inbzoom="${ esc(f.src) }" data-name="${ esc(f.name) }" title="بزرگ‌نمایی">` : '<span class="uph"></span>' }<bdi dir="ltr">${ esc(f.name) }</bdi><button type="button" class="ib sm" data-gun="" aria-label="جای تازه">${ ic('plus') }</button></div>`).join('') }</div></div>` : '' }`;
@@ -105,6 +116,14 @@ const count = () => {
       }
     }
   }
+  $$('#ggrid .gsec').forEach(sec => {
+    const cntEl = sec.querySelector('.gscount');
+    if (cntEl) {
+      const shown = sec.querySelectorAll('.tile[data-id]:not([hidden])').length;
+      const total = sec.querySelectorAll('.tile[data-id]').length;
+      cntEl.textContent = shown < total ? `${ fa(shown) } از ${ fa(total) } تصویر` : `${ fa(total) } تصویر`;
+    }
+  });
   if (c) {
     const shown = $$('#ggrid .tile[data-id]:not([hidden])').length, total = tiles().length;
     c.textContent = SEL.size ? `${ fa(SEL.size) } انتخاب‌شده` : shown < total ? `${ fa(shown) } از ${ fa(total) } تصویر` : `${ fa(total) } تصویر`;
@@ -117,6 +136,12 @@ export function galleryFilter() {
   $$('#ggrid .tile[data-id]').forEach(el => {
     const t = byId.get(el.dataset.id);
     el.hidden = !(t && hit(t, q));
+  });
+  $$('#ggrid .gsec').forEach(sec => {
+    const sc = S.P.scenes.find(s => s.id === sec.dataset.scene);
+    const titleHit = q && sc && sc.title.toLowerCase().includes(q);
+    const hasVis = sec.querySelectorAll('.tile[data-id]:not([hidden])').length > 0;
+    sec.hidden = !(hasVis || titleHit || (!q && S.filter === 'all'));
   });
   const gq = $('#gq');
   if (gq && gq.value !== S.q)
@@ -133,12 +158,11 @@ export const galleryRefresh = () => {
 /* ---- where a drop lands: just before / after a tile (in reading order, so "before" is on the right in a right-to-left page) */
 const ordered = () => $$('#ggrid .tile[data-id]');
 function target(x, y) {
-  const el = document.elementFromPoint(x, y), t = el && el.closest('#ggrid .tile');
-  if (t && t.dataset.gadd !== undefined) {
-    const l = ordered().pop();
-    return l && { id: l.dataset.id, before: false, el: l };
-  }
-  let tt = t && t.dataset.id ? t : null;
+  const el = document.elementFromPoint(x, y);
+  const dz = el && el.closest('#ggrid [data-gdrop]');
+  if (dz && dz.dataset.gdrop !== 'scene-00')
+    return { scene: dz.dataset.gdrop, el: dz };
+  let tt = el && el.closest('#ggrid .tile[data-id]');
   if (!tt && el && el.closest('#ggrid')) {
     let best = 60;
     ordered().forEach(c => {
@@ -160,11 +184,19 @@ function target(x, y) {
 }
 function showLine(d) {
   const ln = $('#ggrid .gline');
+  $$('#ggrid [data-gdrop].dragover').forEach(e => e.classList.remove('dragover'));
   if (!ln)
     return;
-  ln.hidden = !d;
-  if (!d)
+  if (!d) {
+    ln.hidden = true;
     return;
+  }
+  if (d.scene) {
+    ln.hidden = true;
+    d.el.classList.add('dragover');
+    return;
+  }
+  ln.hidden = false;
   const gr = $('#ggrid').getBoundingClientRect(), r = d.el.getBoundingClientRect(), edgeLeft = rtl() ? !d.before : d.before;
   ln.style.cssText = `left:${ (edgeLeft ? r.left : r.right) - gr.left - 2 }px;top:${ r.top - gr.top }px;height:${ r.height }px`;
 }
@@ -199,10 +231,12 @@ function end(ok) {
     drop(d);
 }
 async function drop(d) {
-  const pos = d.drop.before ? { before: d.drop.id } : { after: d.drop.id };
+  const pos = d.drop.scene ?
+    { to_end_of_scene: d.drop.scene } :
+    (d.drop.before ? { before: d.drop.id } : { after: d.drop.id });
   try {
     if (d.kind === 'tile') {
-      if (d.ids.includes(d.drop.id))
+      if (!d.drop.scene && d.ids.includes(d.drop.id))
         return;
       await api('/api/move', {
         ids: d.ids,
@@ -211,7 +245,7 @@ async function drop(d) {
       SEL.clear();
     } else
       await api('/api/addimage', {
-        ...pos,
+        ...d.drop.scene ? { scene: d.drop.scene } : pos,
         ...d.uid ? { id: d.uid } : {}
       });
   } catch (e) {
@@ -242,9 +276,14 @@ function pointerMove(e) {
 }
 /* ---- the picker: a new empty slot, a picture that has no place yet, or an existing picture moved here. pos = {after} | {before} | {scene} */
 export function openPicker(pos, open) {
+  if (pos.scene === 'scene-00')
+    return;
   const un = S.P.unplaced || [], all = tiles(), dlg = document.createElement('dialog');
   dlg.className = 'dlg gpick';
-  dlg.innerHTML = `<h3>افزودن تصویر</h3><button type="button" class="opt" data-pk="new"><span>جای خالی تازه</span><span class="c">شمارهٔ بعدی</span></button>${ un.length ? '<h4>جا نگرفته‌ها</h4>' + un.map(u => `<button type="button" class="opt" data-pk="${ u.id }"><span><bdi dir="ltr">${ u.id }</bdi></span><span class="c">${ u.src ? 'فایل دارد' : 'فقط پرامپت' }</span></button>`).join('') : '' }<h4>جابه‌جایی یک تصویر به اینجا</h4><div class="row"><select id="pkAll" aria-label="همهٔ تصویرها">${ all.map(t => `<option value="${ t.m.id }">${ t.m.id } · ${ t.sc.id === 'scene-00' ? 'تامبنیل' : 'صحنه ' + fa(sceneNo(t.sc)) }</option>`).join('') }</select><button type="button" class="outline" data-pk="move">انتقال</button></div><div class="btns"><button type="button" class="quiet" data-pk="">انصراف</button></div>`;
+  dlg.innerHTML = `<h3>افزودن تصویر</h3><button type="button" class="opt" data-pk="new"><span>جای خالی تازه</span><span class="c">شمارهٔ بعدی</span></button>${ un.length ? '<h4>جا نگرفته‌ها</h4>' + un.map(u => `<button type="button" class="opt" data-pk="${ u.id }"><span><bdi dir="ltr">${ u.id }</bdi></span><span class="c">${ u.src ? 'فایل دارد' : 'فقط پرامپت' }</span></button>`).join('') : '' }<h4>جابه‌جایی یک تصویر به اینجا</h4><div class="pkgrid" id="pkGrid">${ all.map(t => {
+    const is00 = t.sc.id === 'scene-00';
+    return `<button type="button" class="pktile" data-pk="move" data-id="${ t.m.id }" ${ is00 ? 'disabled title="تصویر تامبنیل جابه‌جا نمی‌شود"' : `title="${ t.m.id } · صحنه ${ fa(sceneNo(t.sc)) }"` } aria-label="${ t.m.id }">${ t.m.src ? `<img src="${ esc(t.m.src) }" alt="" loading="lazy">` : `<span class="ph">${ t.m.id }</span>` }<span class="pid" dir="ltr">${ t.m.id }</span></button>`;
+  }).join('') }</div><div class="btns"><button type="button" class="quiet" data-pk="">انصراف</button></div>`;
   document.body.appendChild(dlg);
   dlg.addEventListener('close', () => dlg.remove());
   dlg.addEventListener('click', async e => {
@@ -259,7 +298,9 @@ export function openPicker(pos, open) {
     try {
       let id;
       if (k === 'move') {
-        id = $('#pkAll').value;
+        id = b.dataset.id;
+        if (!id)
+          return;
         await api('/api/move', {
           ids: [id],
           ...pos.scene ? { to_end_of_scene: pos.scene } : pos
@@ -389,7 +430,7 @@ export function boot_gallery() {
       return reload();
     }
     if (b && b.dataset.gadd !== undefined)
-      return openPicker(endPos());
+      return openPicker(b.dataset.gdrop ? { scene: b.dataset.gdrop } : endPos());
     if (b && b.dataset.gun !== undefined) {
       try {
         await api('/api/addimage', {
@@ -422,7 +463,27 @@ export function boot_gallery() {
     $$('#ggrid .tile[data-id]').forEach(x => x.classList.toggle('sel', SEL.has(x.dataset.id)));
     count();
   });
-  g.addEventListener('keydown', e => {
+  g.addEventListener('keydown', async e => {
+    if (e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+      e.preventDefault();
+      const focused = document.activeElement?.closest('#ggrid .tile[data-id]');
+      const id = focused?.dataset.id || (SEL.size === 1 ? [...SEL][0] : null);
+      if (!id || id === 'IMG000')
+        return;
+      const step = rtl() ? (e.key === 'ArrowLeft' ? 1 : -1) : (e.key === 'ArrowLeft' ? -1 : 1);
+      const body = moveTarget(id, step);
+      if (!body)
+        return;
+      const ids = SEL.has(id) ? ordered().map(t => t.dataset.id).filter(i => SEL.has(i)) : [id];
+      try {
+        await api('/api/move', { ...body, ids });
+        await reload();
+        $(`#ggrid .tile[data-id="${ id }"]`)?.focus();
+      } catch (err) {
+        fail(err);
+      }
+      return;
+    }
     const t = e.target.closest('.tile[data-id]');
     if (t && (e.key === 'Enter' || e.key === ' ')) {
       e.preventDefault();

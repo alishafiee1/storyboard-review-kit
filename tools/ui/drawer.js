@@ -8,6 +8,7 @@ import {
   esc,
   fa,
   fail,
+  matchFilter,
   toast
 } from './core.js';
 import { ic } from './icons.js';
@@ -196,7 +197,7 @@ function buildScenes() {
 function paintFilter() {
   if ($('#q') && $('#q').value !== S.q)
     $('#q').value = S.q;
-  const all = imgs(), count = k => k === 'all' ? all.length : all.filter(m => k === 'missing' ? !m.src : k === 'none' ? !m.status : k === 'note' ? !!m.note : k === 'stale' ? m.stale : m.status === k).length;
+  const all = imgs(), count = k => k === 'all' ? all.length : all.filter(m => matchFilter(m, k)).length;
   $('#fopts').innerHTML = FILTERS.map(([k, t]) => `<button type="button" class="opt${ S.filter === k ? ' sel' : '' }" data-filter="${ k }" aria-pressed="${ S.filter === k }"><span>${ t }</span><span class="c">${ fa(count(k)) }</span></button>`).join('');
 }
 /* ---- versions and archive of the picture on show */

@@ -9,7 +9,9 @@ import {
   fa,
   fail,
   lineRef,
-  toast
+  toast,
+  toastAct,
+  voiceUrl
 } from './core.js';
 import { ic } from './icons.js';
 import {
@@ -118,23 +120,6 @@ export async function showRestored(id, name) {
   const i = m.versions.findIndex(v => v.name === name || (v.files || []).some(x => x.split('/').pop() === name));
   if (i >= 0)
     await pickVersion(f, m, i);
-}
-/* a toast with one button (the archive says «back» for a few seconds; the popup of the archive is always one click away) */
-let TOAST_ACT = 0;
-function toastAct(msg, label, fn) {
-  const t = $('#toast'), b = document.createElement('button');
-  t.textContent = msg + ' ';
-  b.type = 'button';
-  b.className = 'quiet';
-  b.textContent = label;
-  b.onclick = () => {
-    t.hidden = true;
-    fn();
-  };
-  t.append(b);
-  t.hidden = false;
-  clearTimeout(TOAST_ACT);
-  TOAST_ACT = setTimeout(() => t.hidden = true, 7000);
 }
 /* ---------- the archive of the shown picture: a grid like the gallery picker; a click opens one with ‹ › and «bring back» */
 export function openArchive(id) {
@@ -550,7 +535,7 @@ export function boot_versions() {
       return fail(err);
     }
     v.chosen = name;
-    const base = (v.srcs && v.srcs[name]) || (name === 'default' ? `audio/${ lg }/${ iid }.mp3` : /^[0-9a-f]{8}$/.test(name) ? `audio/${ lg }/${ iid }_${ name }.mp3` : `audio/${ lg }/${ iid }.${ name }.mp3`);
+    const base = voiceUrl(v, lg, iid, name);
     const url = base + '?v=' + Date.now();
     it.audio[lg] = url;
     const play = b.parentElement.querySelector(`.ab[data-lg="${ lg }"]`);

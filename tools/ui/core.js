@@ -89,12 +89,45 @@ export const fa = n => String(n).replace(/\d/g, d => '۰۱۲۳۴۵۶۷۸۹'[d]);
 /* a one-line note at the bottom of the page that goes away by itself */
 let TOAST_T = 0;
 export function toast(msg) {
+  showToast(msg);
+}
+export function toastAct(msg, label, fn) {
+  showToast(msg, label, fn);
+}
+function showToast(msg, label, fn) {
   const t = $('#toast');
-  t.textContent = msg;
+  if (!t)
+    return;
+  t.textContent = msg + (label ? ' ' : '');
+  if (label && fn) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'quiet';
+    b.textContent = label;
+    b.onclick = () => {
+      t.hidden = true;
+      fn();
+    };
+    t.append(b);
+  }
   t.hidden = false;
   clearTimeout(TOAST_T);
-  TOAST_T = setTimeout(() => t.hidden = true, 2600);
+  TOAST_T = setTimeout(() => t.hidden = true, label ? 7000 : 2600);
 }
+export const voiceUrl = (v, lg, id, name) => (v && v.srcs && v.srcs[name]) || (name === 'default' ? `audio/${ lg }/${ id }.mp3` : /^[0-9a-f]{8}$/.test(name) ? `audio/${ lg }/${ id }_${ name }.mp3` : `audio/${ lg }/${ id }.${ name }.mp3`);
+export const matchFilter = (m, v = S.filter) => !m ? false : v === 'all' || (v === 'missing' ? !m.src : v === 'none' ? !m.status : v === 'note' ? !!m.note : v === 'stale' ? m.stale : m.status === v);
+export const matchSearch = ({ m, b, sc }, q = S.q) => {
+  q = (q || '').trim().toLowerCase();
+  if (!q)
+    return true;
+  return [
+    m?.id,
+    sc?.title,
+    m?.note,
+    ...(b?.items || []).flatMap(i => [i.sp, i.fa, i.en])
+  ].some(t => t && String(t).toLowerCase().includes(q));
+};
+export const matchItem = (target, v = S.filter, q = S.q) => matchFilter(target.m, v) && matchSearch(target, q);
 /* How a line is addressed to the server: by its picture (index counted from the picture's own [IMG] line, so it survives moving the
    picture), or by the scene for lines above the first picture. `key` is the name of the number ('index', or 'after' when adding). */
 export function lineRef(scene, ln, key = 'index') {

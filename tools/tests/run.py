@@ -1955,9 +1955,9 @@ def gallery_open_tiles_drag_picker_batch(proj, page):
     assert order()[-1] == ("scene-01", "IMG010"), order()  # left half of IMG011 = after it; scene-00 does not take a new picture
     # the + tile: picker with a new empty slot
     n = len(order())
-    page.click("#ggrid .tile.add")
+    page.locator("#ggrid [data-gdrop='scene-01']").click()
     page.wait_for_selector("dialog.gpick[open]")
-    assert page.locator("dialog.gpick [data-pk=new]").count() == 1 and page.locator("#pkAll option").count() == n
+    assert page.locator("dialog.gpick [data-pk=new]").count() == 1 and page.locator("dialog.gpick .pktile").count() == n
     page.click("dialog.gpick [data-pk=new]")
     page.wait_for_function("document.querySelectorAll('#ggrid .tile[data-id]').length == %d" % (n + 1))
     assert len(order()) == n + 1 and order()[-1][0] == "scene-01"
@@ -1977,6 +1977,47 @@ def gallery_open_tiles_drag_picker_batch(proj, page):
     page.click("[data-gbatch=b01]")
     page.wait_for_function("document.querySelector('#toast') && !document.querySelector('#toast').hidden && document.querySelector('#toast').textContent.includes('b01')")
     assert "=== IMG001 ===" in page.evaluate("navigator.clipboard.readText()")
+
+
+@test
+def gallery_scene_end_drop_and_keyboard_reorder(proj, page):
+    """Gallery grouped by scene: drop zone at the end of each scene places picture via to_end_of_scene (/api/move);
+    keyboard reorder with Alt+←/→ moves the focused/selected tile."""
+    page.goto(proj.url + "/review.html#gallery")
+    page.wait_for_selector("#ggrid .tile[data-id]")
+    assert page.locator("#ggrid .gsec").count() >= 2
+    assert page.locator('#ggrid .gsec[data-scene="scene-01"] .gshead .gstitle').is_visible()
+    assert page.locator('#ggrid .gsec[data-scene="scene-01"] [data-smore="scene-01"]').is_visible()
+    assert page.locator('#ggrid [data-gdrop="scene-00"]').count() == 0
+    assert page.locator('#ggrid [data-gdrop="scene-02"]').count() == 1
+
+    def order():
+        P = proj.api("/api/project")[1]
+        return [(sc["id"], im["id"]) for sc in P["scenes"] for b in sc["blocks"] for im in b["images"]]
+
+    a = page.locator('#ggrid .tile[data-id="IMG001"]').bounding_box()
+    dz = page.locator('#ggrid [data-gdrop="scene-02"]').bounding_box()
+    page.mouse.move(a["x"] + a["width"] / 2, a["y"] + a["height"] / 2)
+    page.mouse.down()
+    page.mouse.move(a["x"] + a["width"] / 2 + 10, a["y"] + a["height"] / 2 + 10, steps=3)
+    page.mouse.move(dz["x"] + dz["width"] / 2, dz["y"] + dz["height"] / 2, steps=8)
+    page.mouse.up()
+    page.wait_for_timeout(600)
+    cur = order()
+    assert ("scene-02", "IMG001") in cur, cur
+    assert cur[-1] == ("scene-02", "IMG001"), cur
+
+    page.focus('#ggrid .tile[data-id="IMG001"]')
+    page.keyboard.press("Alt+ArrowRight")
+    page.wait_for_timeout(600)
+    cur = order()
+    s2_imgs = [i for sc, i in cur if sc == "scene-02"]
+    assert s2_imgs == ["IMG001", "IMG003"], s2_imgs
+    page.keyboard.press("Alt+ArrowLeft")
+    page.wait_for_timeout(600)
+    cur = order()
+    s2_imgs = [i for sc, i in cur if sc == "scene-02"]
+    assert s2_imgs == ["IMG003", "IMG001"], s2_imgs
 
 
 @test

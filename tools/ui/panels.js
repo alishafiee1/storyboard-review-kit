@@ -11,6 +11,8 @@ import {
   esc,
   fa,
   fail,
+  matchFilter,
+  matchSearch,
   modelById,
   modelOpts,
   pollJob,
@@ -313,16 +315,7 @@ export function stats() {
 /* the filter and the search box decide which blocks can be reached; the block on show is kept until you move on, so choosing a version
    under a filter does not make the picture vanish under your hands (`force` = the filter itself just changed) */
 let FILTERING = false;
-export const matchFilter = (m, v) => v === 'all' || (v === 'missing' ? !m.src : v === 'none' ? !m.status : v === 'note' ? !!m.note : v === 'stale' ? m.stale : m.status === v);
-const matches = (b, m, q) => !q || [
-  m ? m.id : '',
-  m ? m.note : '',
-  ...b.items.flatMap(t => [
-    t.sp,
-    t.fa,
-    t.en
-  ])
-].some(x => String(x || '').toLowerCase().includes(q));
+const matches = (b, m, q) => matchSearch({ b, m }, q);
 export function filt(force) {
   if (FILTERING)
     return;
