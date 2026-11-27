@@ -4,6 +4,8 @@ import {
   $$,
   TT,
   api,
+  askAlert,
+  askConfirm,
   audio,
   copy,
   esc,
@@ -114,7 +116,7 @@ export function speakersTab() {
     }
   });
   $$('#spk [data-tdel]').forEach(b => b.onclick = async () => {
-    if (!confirm('این لحن از فهرست حذف بشه؟ توی متن‌ها دست نمی‌خوره، فقط برچسبش دیگه فرستاده نمی‌شه.'))
+    if (!(await askConfirm('این لحن از فهرست حذف بشه؟ توی متن‌ها دست نمی‌خوره، فقط برچسبش دیگه فرستاده نمی‌شه.', 'حذف')))
       return;
     try {
       await api('/api/tone', {
@@ -202,7 +204,7 @@ export function speakersTab() {
       const r = await api('/api/voices/refresh', {});
       $('#vmsg').textContent = r.ok ? r.message : '';
       if (!r.ok)
-        alert(r.message);
+        askAlert(r.message);
       else
         await reload();
     } catch (e) {

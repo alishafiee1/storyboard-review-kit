@@ -1,6 +1,9 @@
 import {
   $,
   api,
+  askConfirm,
+  askNewScene,
+  askPrompt,
   esc,
   fa,
   fail,
@@ -263,7 +266,7 @@ async function onItem(b) {
     });
   if (d.isc)
     return run(async () => {
-      const title = prompt('عنوان صحنهٔ جدید که از این تصویر شروع می‌شه؟', 'صحنهٔ جدید');
+      const title = await askPrompt('عنوان صحنهٔ جدید که از این تصویر شروع می‌شه؟', 'صحنهٔ جدید');
       if (title === null)
         return;
       await api('/api/scenemark', {
@@ -276,7 +279,7 @@ async function onItem(b) {
   if (d.imerge)
     return run(async () => {
       const sc = sceneObj(sid), info = sc.env.length || sc.fx || sc.model;
-      if (!confirm('این صحنه با صحنهٔ قبلش ادغام بشه؟\nعنوان این صحنه برداشته می‌شه و تصویرهاش می‌رن توی صحنهٔ قبل' + (info ? '؛ محیط و ادیتِ صحنه هم حذف می‌شه' : '') + '.\nبا «برگردان» می‌شه برگشت.'))
+      if (!(await askConfirm('این صحنه با صحنهٔ قبلش ادغام بشه؟\nعنوان این صحنه برداشته می‌شه و تصویرهاش می‌رن توی صحنهٔ قبل' + (info ? '؛ محیط و ادیتِ صحنه هم حذف می‌شه' : '') + '.\nبا «برگردان» می‌شه برگشت.', 'ادغام')))
         return;
       await api('/api/scenemark', {
         op: 'remove',
@@ -315,7 +318,7 @@ async function onItem(b) {
     });
   if (d.soff !== undefined)
     return run(async () => {
-      if (!confirm('این صحنه کنار گذاشته بشه؟\nمتن، عکس‌ها و صداهاش پاک نمی‌شن؛ فقط از ترتیب نهایی بیرون می‌ره و هوش مصنوعی نادیده‌اش می‌گیره.'))
+      if (!(await askConfirm('این صحنه کنار گذاشته بشه؟\nمتن، عکس‌ها و صداهاش پاک نمی‌شن؛ فقط از ترتیب نهایی بیرون می‌ره و هوش مصنوعی نادیده‌اش می‌گیره.', 'کنار بگذار')))
         return;
       await api('/api/sceneoff', {
         scene: sid,
@@ -331,16 +334,13 @@ async function onItem(b) {
     });
   if (d.addscene)
     return run(async () => {
-      const title = prompt('عنوان صحنهٔ جدید؟', 'صحنهٔ جدید');
-      if (title === null)
-        return;
-      const n = prompt('چند جای خالی برای تصویر داشته باشه؟ (۰ تا ۱۲)', '1');
-      if (n === null)
+      const res = await askNewScene();
+      if (!res)
         return;
       const r = await api('/api/addscene', {
         after: d.addscene,
-        title,
-        images: +n || 0
+        title: res.title,
+        images: res.images
       });
       await reload();
       goScene(r.scene);

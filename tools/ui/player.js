@@ -7,7 +7,8 @@ import {
   audio,
   fa,
   fail,
-  pollJob
+  pollJob,
+  toast
 } from './core.js';
 import {
   defaultActive,
@@ -26,6 +27,7 @@ import {
   drawerOpen,
   drawerRefresh,
   filterLabel,
+  openDrawer,
   undo
 } from './drawer.js';
 /* The scrolling list of pictures: navigation, the top bar's numbers, the transport under the picture, auto-play, keyboard and start-up. */
@@ -356,13 +358,15 @@ export function boot_player() {
     b.disabled = true;
     try {
       const r = await api('/api/subtitles', {});
-      alert(r.message);
+      toast(r.message);
     } catch (e) {
       fail(e);
     } finally {
       b.disabled = false;
     }
   };
+  if ($('#jobPill'))
+    $('#jobPill').onclick = () => openDrawer('spk');
   $('#prev').onclick = $('#navPrev').onclick = () => step(-1);
   $('#next').onclick = $('#navNext').onclick = () => step(1);
   $('#prog').oninput = e => {

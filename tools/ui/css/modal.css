@@ -281,3 +281,39 @@ dialog.dlg .okm {
 .prefs {
   font-size:14px;
 }
+
+dialog.ask {
+  width:min(440px,92vw);
+}
+
+dialog.ask .askmsg {
+  margin:0 0 12px;
+  font-size:15px;
+  line-height:1.8;
+  white-space:pre-line;
+}
+
+dialog.ask input[type=text],
+dialog.ask input[type=number] {
+  display:block;
+  width:100%;
+  padding:8px 10px;
+  background:var(--paper);
+  border:1px solid var(--line);
+  border-radius:2px;
+  font-size:15px;
+  color:var(--ink);
+}
+
+.askchips {
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  margin:10px 0 4px;
+}
+
+.askrow {
+  display:grid;
+  grid-template-columns:1fr 110px;
+  gap:10px;
+}

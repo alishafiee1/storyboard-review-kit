@@ -113,7 +113,8 @@
   #bRedo,
   #bArch,
   #bArchList,
-  #bFlag {
+  #bFlag,
+  #bUndo:disabled {
     display:none;
   }
 

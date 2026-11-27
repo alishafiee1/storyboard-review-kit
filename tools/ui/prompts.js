@@ -1,6 +1,8 @@
 import {
   $,
   api,
+  askConfirm,
+  askPrompt,
   copy,
   esc,
   fa,
@@ -44,8 +46,8 @@ export function openPrompt(kind) {
     sv.classList.toggle('dirty', dirty());
     ta.classList.toggle('dirty', dirty());
   };
-  const tryClose = () => {
-    if (dirty() && !confirm('تغییرهای ذخیره‌نشده از بین می‌ره. بسته بشه؟'))
+  const tryClose = async () => {
+    if (dirty() && !(await askConfirm('تغییرهای ذخیره‌نشده از بین می‌ره. بسته بشه؟', 'ببند')))
       return;
     el.close();
   };
@@ -116,7 +118,9 @@ async function flagImage() {
   const c = curImg();
   if (!c)
     return;
-  const msg = prompt('مشکل فرمت این تصویر چیه؟ (برای هوش مصنوعی ثبت می‌شه؛ اختیاری)', 'فرمت این قسمت درست نیست');
+  const msg = await askPrompt('مشکل فرمت این تصویر چیه؟ (برای هوش مصنوعی ثبت می‌شه؛ اختیاری)', 'فرمت این قسمت درست نیست', {
+    chips: ['پرامپت با تصویر نمی‌خونه', 'نقص دست و صورت', 'کیفیت پایین', 'تغییر کادر']
+  });
   if (msg === null)
     return;
   const sid = c.f.closest('section[data-scene]').dataset.scene;

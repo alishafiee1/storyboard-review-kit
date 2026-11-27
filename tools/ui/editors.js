@@ -1,6 +1,9 @@
 import {
   $$,
   api,
+  askAlert,
+  askConfirm,
+  askPrompt,
   autoGrow,
   esc,
   fail,
@@ -59,12 +62,13 @@ export function openEditor(host, {scene, ln, key, old, op}) {
     host.style.display = '';
   };
   sv.onclick = async () => {
+    w._keep = true;
     try {
-      if (op === 'speaker' && ta.value.trim() !== old && !SPK()[ta.value.trim()] && !confirm(`گویندهٔ جدید «${ ta.value.trim() }» ساخته بشه؟ رنگ و صدای خودش رو می‌گیره.`))
+      if (op === 'speaker' && ta.value.trim() !== old && !SPK()[ta.value.trim()] && !(await askConfirm(`گویندهٔ جدید «${ ta.value.trim() }» ساخته بشه؟ رنگ و صدای خودش رو می‌گیره.`, 'بساز')))
         return;
       if (op === 'edit' && !ta.value.trim()) {
         if (key === 'env')
-          return alert('محیط حذف‌شدنی نیست؛ متن جدید بنویس.');
+          return askAlert('محیط حذف‌شدنی نیست؛ متن جدید بنویس.');
         ta.dataset.orig = ta.value;
         if (await askDelete(scene, ln, key, old, host.dataset.hasen === '1'))
           return;
@@ -81,6 +85,8 @@ export function openEditor(host, {scene, ln, key, old, op}) {
       await reload();
     } catch (e) {
       fail(e);
+    } finally {
+      w._keep = false;
     }
   };
   ta.onkeydown = e => {
@@ -106,7 +112,7 @@ const DK = {
 };
 async function askDelete(scene, ln, kind, old, hasEn) {
   const msg = `این ${ DK[kind] } حذف بشه؟\n«${ old.length > 60 ? old.slice(0, 60) + '…' : old }»` + (kind === 'say' && hasEn ? '\nترجمهٔ انگلیسی‌اش هم حذف می‌شه.' : '') + (kind === 'say' ? '\n(صدای این صحنه کهنه علامت می‌خوره)' : '');
-  if (!confirm(msg))
+  if (!(await askConfirm(msg, 'حذف')))
     return false;
   try {
     await api('/api/delete', {
@@ -134,7 +140,7 @@ export function openSayEditor(box, {scene, ln, focus}) {
   }
   const nmEl = box.querySelector('.nm'), tnEl = box.querySelector('.tn'), txEl = box.querySelector('.fa .v');
   if (!txEl) {
-    alert('برای ویرایش دیالوگ، تیک «متن فارسی» بالای صفحه باید روشن باشد.');
+    askAlert('برای ویرایش دیالوگ، تیک «متن فارسی» بالای صفحه باید روشن باشد.');
     return;
   }
   const O = {
@@ -188,6 +194,7 @@ export function openSayEditor(box, {scene, ln, focus}) {
     });
   });
   sv.onclick = async () => {
+    w._keep = true;
     try {
       if (!tx.value.trim()) {
         [
@@ -203,8 +210,8 @@ export function openSayEditor(box, {scene, ln, focus}) {
         return;
       }
       if (!nm.value.trim())
-        return alert('اسم گوینده را بنویس.');
-      if (nm.value.trim() !== O.name && !SPK()[nm.value.trim()] && !confirm(`گویندهٔ جدید «${ nm.value.trim() }» ساخته بشه؟ رنگ و صدای خودش رو می‌گیره.`))
+        return askAlert('اسم گوینده را بنویس.');
+      if (nm.value.trim() !== O.name && !SPK()[nm.value.trim()] && !(await askConfirm(`گویندهٔ جدید «${ nm.value.trim() }» ساخته بشه؟ رنگ و صدای خودش رو می‌گیره.`, 'بساز')))
         return;
       await api('/api/line', {
         ...lineRef(scene, ln),
@@ -224,6 +231,8 @@ export function openSayEditor(box, {scene, ln, focus}) {
       await reload();
     } catch (e) {
       fail(e);
+    } finally {
+      w._keep = false;
     }
   };
   w.onkeydown = e => {
@@ -295,12 +304,13 @@ export function openComposer(bar, {scene, after, kind}) {
   (nm || lb || ta).focus();
   cx.onclick = () => w.remove();
   sv.onclick = async () => {
+    w._keep = true;
     try {
       const name = nm ? nm.value.trim() : '';
       if (kind === 'say') {
         if (!name)
-          return alert('اسم گوینده رو بنویس.');
-        if (!SPK()[name] && !confirm(`گویندهٔ جدید «${ name }» ساخته بشه؟ رنگ و صدای خودش رو می‌گیره.`))
+          return askAlert('اسم گوینده رو بنویس.');
+        if (!SPK()[name] && !(await askConfirm(`گویندهٔ جدید «${ name }» ساخته بشه؟ رنگ و صدای خودش رو می‌گیره.`, 'بساز')))
           return;
       }
       await api('/api/add', {
@@ -321,6 +331,8 @@ export function openComposer(bar, {scene, after, kind}) {
       await reload();
     } catch (e) {
       fail(e);
+    } finally {
+      w._keep = false;
     }
   };
   w.onkeydown = e => {
@@ -471,7 +483,9 @@ export function wire() {
       op: 'add_en'
     }));
     s.querySelectorAll('[data-fl]').forEach(b => b.onclick = async () => {
-      const msg = prompt('مشکل فرمت این قسمت چیه؟ (برای هوش مصنوعی ثبت می‌شه؛ اختیاری)', 'فرمت این قسمت درست نیست');
+      const msg = await askPrompt('مشکل فرمت این قسمت چیه؟ (برای هوش مصنوعی ثبت می‌شه؛ اختیاری)', 'فرمت این قسمت درست نیست', {
+        chips: ['متن ناقص', 'ترجمه نامناسب', 'گوینده اشتباه', 'لحن نامناسب']
+      });
       if (msg === null)
         return;
       try {

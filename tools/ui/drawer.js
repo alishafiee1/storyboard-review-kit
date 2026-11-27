@@ -3,6 +3,7 @@ import {
   $,
   $$,
   api,
+  askConfirm,
   audio,
   copyText,
   esc,
@@ -247,7 +248,7 @@ export async function undo(force) {
     await reload();
   } catch (e) {
     if (!force && /force/.test(e.message)) {
-      if (confirm(e.message + '\n\nباز هم برگردد؟'))
+      if (await askConfirm(e.message + '\n\nباز هم برگردد؟', 'برگردان'))
         return undo(true);
     } else {
       fail(e);

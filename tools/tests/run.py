@@ -178,6 +178,17 @@ def more(page):
     page.wait_for_selector("#morePop:not([hidden])")
 
 
+def ask_ok(page, needle=None):
+    """Wait for our paper <dialog class="dlg ask"> and accept it."""
+    page.wait_for_selector("dialog.ask[open]")
+    txt = page.inner_text("dialog.ask")
+    if needle:
+        assert needle in txt, txt
+    page.click("dialog.ask [data-ask=ok]")
+    page.wait_for_selector("dialog.ask", state="detached")
+    return txt
+
+
 def label(page):
     return page.inner_text(".blk.on .slabel")
 
@@ -319,7 +330,8 @@ def add_and_delete_dialogue(proj, page):
     proj.wait("scenario/story.txt", "say: علی | دیالوگ اضافه‌شده")
     page.wait_for_selector("text=دیالوگ اضافه‌شده")
     settle(page)
-    page.locator(".it.sp", has_text="دیالوگ اضافه‌شده").locator("[data-del]").click()  # the page confirms, the test accepts
+    page.locator(".it.sp", has_text="دیالوگ اضافه‌شده").locator("[data-del]").click()
+    ask_ok(page, "حذف")
     proj.wait("scenario/story.txt", "دیالوگ اضافه‌شده", absent=True)
 
 
@@ -407,10 +419,9 @@ def prompts_save(proj, page):
     page.click("#bPrompt")
     page.fill(dlg + " textarea", "[REFS TO ATTACH: STYLE_ANCHOR| CH_ALI]\nA brand new prompt.")
     assert page.locator(dlg + " [data-psave].dirty").count() == 1
-    page._dialogs.clear()
-    page.keyboard.press("Escape")  # unsaved: the page asks (the test accepts, so it closes) ...
+    page.keyboard.press("Escape")  # unsaved: the page asks with a paper dialog
+    ask_ok(page, "ذخیره‌نشده")
     page.wait_for_selector(dlg, state="detached")
-    assert any("ذخیره‌نشده" in m for m in page._dialogs), page._dialogs
     assert "A brand new prompt." not in proj.read("prompts/prompts.txt")
     page.click("#bPrompt")
     page.fill(dlg + " textarea", "[REFS TO ATTACH: STYLE_ANCHOR| CH_ALI]\nA brand new prompt.")
@@ -437,13 +448,15 @@ def prompts_save(proj, page):
 @test
 def format_issue_flag(proj, page):
     atb(page, 1)
-    page.click(".blk.on .it.sp [data-fl] >> nth=0")  # the page asks for a message with prompt(); the test accepts its default text
+    page.click(".blk.on .it.sp [data-fl] >> nth=0")
+    ask_ok(page)
     proj.wait("scenario/story.txt", "format-issue:")
     page.wait_for_selector(".blk.on .issue")
     page.click(".blk.on .issue [data-clr] >> nth=0")
     proj.wait("scenario/story.txt", "format-issue:", absent=True)
     settle(page)
     page.click("#bFlag")  # the flag in the top bar marks the picture itself
+    ask_ok(page)
     proj.wait("scenario/story.txt", "format-issue:")
     page.wait_for_selector(".blk.on figure.shot .issue")
     page.click(".blk.on figure.shot .issue [data-clr]")
@@ -736,6 +749,7 @@ def scene_off_and_back(proj, page):
     at(page, "IMG003")
     more(page)
     page.click("#morePop [data-soff]")
+    ask_ok(page, "کنار گذاشته")
     proj.wait("scenario/story.txt", "off: yes")
     assert "و روز تمام شد." in proj.story() and "[IMG003]" in proj.story()
     page.wait_for_function("document.querySelectorAll('section[data-scene=scene-02]').length===0")
@@ -823,7 +837,8 @@ def scene_menu_and_add_image(proj, page):
 def add_scene(proj, page):
     at(page, "IMG001")
     more(page)
-    page.click("#morePop [data-addscene=scene-01]")  # the page asks for a title and a picture count; the test accepts the defaults (1 picture)
+    page.click("#morePop [data-addscene=scene-01]")  # unified paper dialog for title + image count
+    ask_ok(page)
     proj.wait("scenario/story.txt", "=== scene-03 | صحنهٔ جدید | - ===")
     st = proj.story()
     assert st.index("=== scene-01") < st.index("=== scene-03") < st.index("=== scene-02"), "new scene goes right after the chosen one"
@@ -1181,7 +1196,8 @@ def undo_after_a_page_edit(proj, page):
     """The page's own add / delete go through the same snapshot: delete a dialogue line in the page, undo, and the file is the one before."""
     before = story_bytes(proj)
     atb(page, 3)
-    page.locator("#b3 .it.sp [data-del]").click()  # the page asks, the test accepts
+    page.locator("#b3 .it.sp [data-del]").click()
+    ask_ok(page, "حذف")
     proj.wait("scenario/story.txt", "و روز تمام شد.", absent=True)
     assert [h["label"] for h in proj.api("/api/project")[1]["history"]] == ["delete"]
     assert proj.api("/api/undo", {})[0] == 200
@@ -1275,7 +1291,8 @@ def image_menu_moves_and_scene_marks(proj, page):
     page.keyboard.press("Escape")
     at(page, "IMG002")
     more(page)
-    page.click(pop + " [data-isc]")  # the page asks for a title; the test accepts the default
+    page.click(pop + " [data-isc]")
+    ask_ok(page)
     page.wait_for_selector("section[data-scene=scene-03] " + fig("IMG002"), state="attached")
     st = proj.story()
     assert "\n\n=== scene-03 | صحنهٔ جدید | - ===\n[IMG002]" in st and st.index("=== scene-03") < st.index("=== scene-02")
@@ -1286,6 +1303,7 @@ def image_menu_moves_and_scene_marks(proj, page):
     more(page)
     assert page.locator(pop + " [data-imerge]").count() == 1
     page.click(pop + " [data-imerge]")  # join the scene above: only the header goes
+    ask_ok(page, "ادغام")
     page.wait_for_function("document.querySelectorAll('section[data-scene=scene-01] figure.shot').length===2")
     assert page.locator("section[data-scene=scene-03]").count() == 0
     st = proj.story()
@@ -1294,10 +1312,10 @@ def image_menu_moves_and_scene_marks(proj, page):
     at(page, "IMG003")  # the first picture of the scene below: it can be joined to the one above (that scene has env text: asked)
     more(page)
     page.click(pop + " [data-imerge]")
+    ask_ok(page, "ادغام")
     page.wait_for_function("document.querySelectorAll('section[data-scene=scene-01] figure.shot').length===3")
     st = proj.story()
     assert "=== scene-02" not in st and "[IMG002]\nimage-stale: yes" in st and "env: غروب، کنار دریا." not in st
-    assert any("ادغام" in m for m in page._dialogs)
     assert proj.api("/api/undo", {})[0] == 200
     assert "env: غروب، کنار دریا." in proj.story()
     while proj.api("/api/project")[1]["history"]:
@@ -1465,10 +1483,10 @@ def scene_label_edits_title_env_fx(proj, page):
     page.wait_for_selector(dlg + "[open]")
     assert page.input_value(dlg + " [data-sf=title]") == "شروع" and page.input_value(dlg + " [data-sf=env]") == "یک خیابان شلوغ، صبح." and page.input_value(dlg + " [data-sf=fx]") == "فید از سیاه"
     page.fill(dlg + " [data-sf=title]", "چیزی که ذخیره نمی‌شه")
-    page._dialogs.clear()
-    page.keyboard.press("Escape")  # unsaved: asks, the test accepts
+    page.keyboard.press("Escape")  # unsaved: asks with paper dialog
+    ask_ok(page, "ذخیره‌نشده")
     page.wait_for_selector(dlg, state="detached")
-    assert any("ذخیره‌نشده" in m for m in page._dialogs) and "چیزی که ذخیره نمی‌شه" not in proj.story()
+    assert "چیزی که ذخیره نمی‌شه" not in proj.story()
     page.click(".blk.on .slabel")
     page.fill(dlg + " [data-sf=title]", "آغاز تازه")
     page.fill(dlg + " [data-sf=env]", "یک کوچهٔ خلوت\nصبح زود")
@@ -1482,10 +1500,8 @@ def scene_label_edits_title_env_fx(proj, page):
     page.wait_for_selector(dlg + "[open]")
     assert proj.api("/api/scenemark", {"op": "edit", "scene": "scene-01", "title": "عنوان بیرونی"})[0] == 200  # changed outside the page
     page.fill(dlg + " [data-sf=fx]", "چیز دیگر")
-    page._dialogs.clear()
     page.click(dlg + " [data-ssave]")
-    page.wait_for_timeout(300)
-    assert page._dialogs and "عوض شده" in page._dialogs[-1], page._dialogs
+    ask_ok(page, "عوض شده")
     page._errors[:] = [e for e in page._errors if "409" not in e]  # the refusal is the point of this test
     assert "=== scene-01 | عنوان بیرونی |" in proj.story() and "fx: چیز دیگر" not in proj.story()
     page.keyboard.press("Escape")
@@ -1600,6 +1616,7 @@ def voices_panel_has_three_sections_and_tones_can_be_added_marked_and_removed(pr
     code, _ = proj.api("/api/voicetest", {"model": json.loads(proj.read("voices/voice-config.json"))["models"] and list(json.loads(proj.read("voices/voice-config.json"))["models"])[0], "tone": cid, "result": "good"})
     assert code == 200
     page.click('#spk .tnrow:has-text("غمگین") [data-tdel]')
+    ask_ok(page, "حذف")
     page.wait_for_function("!document.querySelector('#spk').innerText.includes('غمگین')")
     assert '"[sad]"' not in proj.read("voices/voice-config.json")
 
@@ -1676,7 +1693,8 @@ def undo_from_the_drawer(proj, page):
     """Undo last change: the drawer lists the snapshots (newest first) and one button puts the file back byte for byte; a file edited since asks first."""
     before = story_bytes(proj)
     at(page, "IMG003")
-    page.locator("#b3 .it.sp [data-del]").click()  # the page asks, the test accepts
+    page.locator("#b3 .it.sp [data-del]").click()
+    ask_ok(page, "حذف")
     proj.wait("scenario/story.txt", "و روز تمام شد.", absent=True)
     settle(page)
     drawer(page)
@@ -1684,14 +1702,11 @@ def undo_from_the_drawer(proj, page):
     drawer(page, "undo")
     assert page.locator("#pUndo .hist li").count() == 1 and "حذف خط" in page.inner_text("#pUndo .hist")
     proj.api("/api/image", {"id": "IMG001", "note": "edited after the delete"})  # the file changed since: refuse unless forced
-    page._dialogs.clear()
-    page.click("#pUndo [data-undo]")  # the page explains and asks; the test accepts the force
-    page.wait_for_function("window.__kit.S.RELOADS >= 0")
-    page.wait_for_timeout(500)
+    page.click("#pUndo [data-undo]")
+    ask_ok(page, "force")
     page._errors[:] = [e for e in page._errors if "409" not in e]  # the refused first try is the point of this test
     page.wait_for_function("document.querySelectorAll('#pUndo .hist li').length===0 || document.querySelector('#toast').textContent.includes('برگشت')")
     proj.wait("scenario/story.txt", "و روز تمام شد.")
-    assert any("force" in m or "دوباره عوض شده" in m for m in page._dialogs), page._dialogs
     assert "edited after the delete" not in proj.story() and story_bytes(proj) == before
     page.wait_for_selector("text=و روز تمام شد.", state="attached")
     undrawer(page)
@@ -1982,6 +1997,20 @@ def workspace_speed_premiere_export_and_bulk_gallery(proj, page):
     page.click('[data-gbulk="redo"]')
     proj.wait_in("[IMG001]", "status: redo")
     proj.wait_in("[IMG002]", "status: redo")
+
+
+@test
+def paper_dialogs_no_native_alerts_and_chips(proj, page):
+    """Confirm / prompt / alert use paper <dialog class="dlg ask"> with quick chips and never trigger native browser alert/confirm/prompt."""
+    page._dialogs.clear()
+    at(page, "IMG001")
+    page.click("#bFlag")
+    page.wait_for_selector("dialog.ask [data-askchip]")
+    page.click("dialog.ask [data-askchip] >> nth=0")
+    chip_text = page.input_value("dialog.ask input")
+    page.click("dialog.ask [data-ask=ok]")
+    proj.wait_in("[IMG001]", "format-issue: " + chip_text)
+    assert not page._dialogs, page._dialogs
 
 
 def main():

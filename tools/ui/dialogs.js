@@ -5,6 +5,8 @@ import { reload } from './panels.js';
 import {
   TT,
   api,
+  askAlert,
+  askConfirm,
   esc,
   fa,
   fail,
@@ -142,14 +144,17 @@ export function openSceneDialog(sid) {
     x.value
   ]));
   const dirty = () => JSON.stringify(cur()) !== JSON.stringify(old);
-  el.addEventListener('cancel', e => {
-    if (dirty() && !confirm('تغییرهای ذخیره‌نشده از بین می‌ره. بسته بشه؟'))
+  el.addEventListener('cancel', async e => {
+    if (dirty()) {
       e.preventDefault();
+      if (await askConfirm('تغییرهای ذخیره‌نشده از بین می‌ره. بسته بشه؟', 'ببند'))
+        el.close();
+    }
   });
   el.querySelector('[data-ssave]').onclick = async () => {
     const v = cur();
     if (!v.title.trim())
-      return alert('عنوان صحنه خالی است.');
+      return askAlert('عنوان صحنه خالی است.');
     try {
       await api('/api/scenemark', {
         op: 'edit',
@@ -225,7 +230,7 @@ export function boot_dialogs() {
     if (t.dataset.dmake) {
       const langs = [...g.querySelectorAll('[data-dlg]:checked')].map(x => x.dataset.dlg);
       if (!langs.length)
-        return alert('حداقل یه زبان انتخاب کن.');
+        return askAlert('حداقل یه زبان انتخاب کن.');
       api('/api/linevoice', {
         scene: sid,
         id: iid,

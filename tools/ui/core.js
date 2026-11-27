@@ -29,7 +29,62 @@ export async function api(path, body) {
     throw new Error(j.error || 'خطا ' + r.status);
   return j;
 }
-export const fail = e => alert(e.message || e);
+function runAsk(html, onOpen, valFn) {
+  return new Promise(res => {
+    const dlg = document.createElement('dialog');
+    dlg.className = 'dlg ask';
+    dlg.innerHTML = html;
+    document.body.appendChild(dlg);
+    let out = valFn ? null : false;
+    dlg.addEventListener('close', () => {
+      dlg.remove();
+      res(out);
+    });
+    dlg.addEventListener('click', e => {
+      if (e.target === dlg)
+        dlg.close();
+      const b = e.target.closest('[data-ask]');
+      if (b) {
+        if (b.dataset.ask === 'ok')
+          out = valFn ? valFn(dlg) : true;
+        dlg.close();
+      }
+      const ch = e.target.closest('[data-askchip]');
+      if (ch) {
+        const inp = dlg.querySelector('input');
+        if (inp) {
+          inp.value = ch.dataset.askchip;
+          inp.focus();
+        }
+      }
+    });
+    dlg.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && e.target.tagName === 'INPUT' && !e.isComposing) {
+        e.preventDefault();
+        dlg.querySelector('[data-ask=ok]').click();
+      }
+    });
+    dlg.showModal();
+    if (onOpen)
+      onOpen(dlg);
+  });
+}
+export const askAlert = (msg, title = 'توجه') => runAsk(`<h3>${ esc(title) }</h3><p class="askmsg">${ esc(msg) }</p><div class="dbar"><span class="sp"></span><button type="button" class="b pri" data-ask="ok">باشه</button></div>`, d => d.querySelector('[data-ask=ok]').focus());
+export const askConfirm = (msg, okLabel = 'تأیید') => runAsk(`<p class="askmsg">${ esc(msg) }</p><div class="dbar"><span class="sp"></span><button type="button" class="quiet" data-ask="cancel">انصراف</button><button type="button" class="b pri" data-ask="ok">${ esc(okLabel) }</button></div>`, d => d.querySelector('[data-ask=ok]').focus());
+export const askPrompt = (msg, def = '', {placeholder = '', chips = []} = {}) => runAsk(`<p class="askmsg">${ esc(msg) }</p><input type="text" value="${ esc(def) }" placeholder="${ esc(placeholder) }" autocomplete="off">${ chips.length ? `<div class="askchips">${ chips.map(c => `<button type="button" class="chip" data-askchip="${ esc(c) }">${ esc(c) }</button>`).join('') }</div>` : '' }<div class="dbar"><span class="sp"></span><button type="button" class="quiet" data-ask="cancel">انصراف</button><button type="button" class="b pri" data-ask="ok">ثبت</button></div>`, d => {
+  const i = d.querySelector('input');
+  i.focus();
+  i.select();
+}, d => d.querySelector('input').value);
+export const askNewScene = () => runAsk(`<h3>صحنهٔ جدید</h3><div class="askrow"><label class="fld">عنوان صحنه<input type="text" data-ns="title" value="صحنهٔ جدید" maxlength="60" autocomplete="off"></label><label class="fld">تعداد تصویر<input type="number" data-ns="n" min="0" max="12" value="1"></label></div><div class="dbar"><span class="sp"></span><button type="button" class="quiet" data-ask="cancel">انصراف</button><button type="button" class="b pri" data-ask="ok">ساخت صحنه</button></div>`, d => {
+  const i = d.querySelector('[data-ns=title]');
+  i.focus();
+  i.select();
+}, d => ({
+  title: d.querySelector('[data-ns=title]').value,
+  images: Math.max(0, Math.min(12, +d.querySelector('[data-ns=n]').value || 0))
+}));
+export const fail = e => askAlert(e.message || e, 'خطا');
 /* Persian digits for numbers shown in the chrome (۴۵ / ۵۰) */
 export const fa = n => String(n).replace(/\d/g, d => '۰۱۲۳۴۵۶۷۸۹'[d]);
 /* a one-line note at the bottom of the page that goes away by itself */
@@ -91,10 +146,20 @@ let JOBT = null;
 export function pollJob() {
   if (JOBT)
     return;
+  const jp = $('#jobPill');
+  const syncPill = j => {
+    if (!jp)
+      return;
+    const on = j.state === 'running';
+    jp.hidden = !on;
+    if (on)
+      jp.textContent = j.total ? `صدا: ${ fa(j.done) }/${ fa(j.total) }…` : 'در حال ساخت صدا…';
+  };
   JOBT = setInterval(async () => {
     try {
       const j = await (await fetch('/api/job')).json();
-      document.querySelectorAll('[data-job]').forEach(x => x.textContent = x.dataset.job === j.scene && j.state === 'running' ? `${ j.done }/${ j.total } خط ساخته شد…` : '');
+      syncPill(j);
+      document.querySelectorAll('[data-job]').forEach(x => x.textContent = x.dataset.job === j.scene && j.state === 'running' ? `${ fa(j.done) }/${ fa(j.total) } خط ساخته شد…` : '');
       if (j.state !== 'running') {
         clearInterval(JOBT);
         JOBT = null;
@@ -102,9 +167,9 @@ export function pollJob() {
         if (typeof redrawDialog === 'function')
           redrawDialog();
         if (j.errors.length)
-          alert('بعضی خط‌ها ساخته نشدن:\n' + j.errors.slice(0, 6).join('\n'));
+          askAlert(j.errors.slice(0, 6).join('\n'), 'بعضی خط‌ها ساخته نشدن');
         if (j.warnings && j.warnings.length)
-          alert('هشدار:\n' + j.warnings.slice(0, 6).join('\n'));
+          askAlert(j.warnings.slice(0, 6).join('\n'), 'هشدار');
       }
     } catch (e) {
     }
