@@ -142,7 +142,8 @@ const HLABEL = {
   scenemark: 'ویرایش نشانهٔ صحنه',
   move: 'جابه‌جایی تصویر',
   add: 'افزودن خط',
-  delete: 'حذف خط'
+  delete: 'حذف خط',
+  moveline: 'جابه‌جایی خط'
 };
 let PANEL = null;
 export const drawerOpen = () => document.body.classList.contains('dopen');

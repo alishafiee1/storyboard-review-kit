@@ -1,5 +1,6 @@
 import {
   $,
+  $$,
   api,
   askConfirm,
   askNewScene,
@@ -7,6 +8,7 @@ import {
   esc,
   fa,
   fail,
+  lineRef,
   toast
 } from './core.js';
 import { ic } from './icons.js';
@@ -255,6 +257,50 @@ export function sceneMenuHtml(sc) {
   }
   return out.join('');
 }
+export function lineMoveTarget(sid, ln, step) {
+  const sc = S.P.scenes.find(s => s.id === sid);
+  if (!sc) return null;
+  const block = sc.blocks.find(b => b.items.some(it => it.ln === ln));
+  if (!block) return null;
+  const k = block.items.findIndex(it => it.ln === ln), items = block.items;
+  if (step < 0) {
+    if (k > 0) return { before: lineRef(sc.id, items[k - 1].ln) };
+    const bi = S.BL.indexOf(block), pb = bi > 0 ? S.BL[bi - 1] : null, pim = pb?.images[0];
+    if (pim && pim.id !== 'IMG000') {
+      const psc = S.P.scenes.find(s => s.blocks.includes(pb));
+      return pb.items.length ? { after: lineRef(psc.id, pb.items[pb.items.length - 1].ln) } : { to_image: pim.id };
+    }
+    return null;
+  }
+  if (step > 0) {
+    if (k < items.length - 1) return { after: lineRef(sc.id, items[k + 1].ln) };
+    const bi = S.BL.indexOf(block), nb = bi < S.BL.length - 1 ? S.BL[bi + 1] : null, nim = nb?.images[0];
+    if (nim) {
+      const nsc = S.P.scenes.find(s => s.blocks.includes(nb));
+      return nb.items.length ? { before: lineRef(nsc.id, nb.items[0].ln) } : { to_image: nim.id };
+    }
+    return null;
+  }
+  return null;
+}
+export function lineNeighborImages(sid, ln) {
+  const sc = S.P.scenes.find(s => s.id === sid);
+  const block = sc?.blocks.find(b => b.items.some(it => it.ln === ln));
+  if (!block) return [];
+  const bi = S.BL.indexOf(block), res = [];
+  const pim = bi > 0 ? S.BL[bi - 1]?.images[0] : null;
+  if (pim && pim.id !== 'IMG000') res.push(pim.id);
+  const nim = bi < S.BL.length - 1 ? S.BL[bi + 1]?.images[0] : null;
+  if (nim) res.push(nim.id);
+  return res;
+}
+export function lineMenuHtml(sc, ln) {
+  const up = lineMoveTarget(sc.id, ln, -1), dn = lineMoveTarget(sc.id, ln, 1), out = ['<div class="mhead">جابه‌جایی این خط</div>'];
+  if (up) out.push(item(`data-lmv="-1" data-ln="${ ln }"`, 'یک خط بالاتر', '', 'up'));
+  if (dn) out.push(item(`data-lmv="1" data-ln="${ ln }"`, 'یک خط پایین‌تر', '', 'down'));
+  out.push(item(`data-lpic="1" data-ln="${ ln }"`, 'انتقال به تصویر…', '', 'image'));
+  return out.join('');
+}
 const run = async fn => {
   try {
     await fn();
@@ -270,6 +316,29 @@ async function onItem(b) {
   const m = (fig ? S.BL.flatMap(x => x.images).find(x => x.id === fig.dataset.id) : null) || curImg()?.m;
   if (d.sedit)
     return openSceneDialog(d.sedit);
+  if (d.lmv) {
+    const ln = +d.ln;
+    return run(async () => {
+      const tgt = lineMoveTarget(sid, ln, +d.lmv);
+      if (tgt) {
+        await api('/api/moveline', { ...lineRef(sid, ln), ...tgt });
+        await reload();
+      }
+    });
+  }
+  if (d.lpic) {
+    const ln = +d.ln;
+    return run(async () => {
+      const neighbors = lineNeighborImages(sid, ln);
+      if (neighbors.length) {
+        const chosen = await askPrompt('انتقال این خط به کدام تصویر؟', neighbors[0], { chips: neighbors });
+        if (chosen) {
+          await api('/api/moveline', { ...lineRef(sid, ln), to_image: chosen.trim() });
+          await reload();
+        }
+      }
+    });
+  }
   if (d.imv)
     return run(async () => {
       const body = moveTarget(m.id, +d.imv);
@@ -425,6 +494,19 @@ export function boot_versions() {
         sm.setAttribute('aria-expanded', 'true');
       }
     }
+    const lgrip = e.target.closest('[data-lgrip]');
+    if (lgrip) {
+      const scEl = lgrip.closest('section[data-scene]');
+      const sc = S.P.scenes.find(s => s.id === scEl?.dataset.scene);
+      const pop = lgrip.nextElementSibling;
+      const wasHidden = pop.hidden;
+      closeMenus();
+      if (wasHidden && sc) {
+        pop.innerHTML = lineMenuHtml(sc, +lgrip.dataset.lgrip);
+        pop.hidden = false;
+        lgrip.setAttribute('aria-expanded', 'true');
+      }
+    }
     const mi = e.target.closest('.pop.menu [role=menuitem]');
     if (mi) {
       closeMenus();
@@ -477,5 +559,92 @@ export function boot_versions() {
     b.title = `${ lg === 'fa' ? 'صدای فارسی' : 'English voice' }: ${ name } · کلیک = صدای بعدی (همونی که آخر می‌ذاری، صدای نهایی می‌شه)`;
     stopLine();
     play.click();
+  });
+  let DRAG_LINE = null;
+  document.addEventListener('dragstart', e => {
+    const grip = e.target.closest('.lt-b.grip');
+    if (!grip) return;
+    const it = grip.closest('.it');
+    const scEl = grip.closest('section[data-scene]');
+    if (!it || !scEl) return;
+    DRAG_LINE = { scene: scEl.dataset.scene, ln: +grip.dataset.lgrip, el: it };
+    e.dataTransfer.setData('text/plain', JSON.stringify({ scene: DRAG_LINE.scene, ln: DRAG_LINE.ln }));
+    e.dataTransfer.effectAllowed = 'move';
+    it.classList.add('dragging');
+  });
+  document.addEventListener('dragend', () => {
+    if (DRAG_LINE) {
+      DRAG_LINE.el?.classList.remove('dragging');
+      DRAG_LINE = null;
+    }
+    $$('.drag-over, .drag-before, .drag-after').forEach(el => el.classList.remove('drag-over', 'drag-before', 'drag-after'));
+  });
+  document.addEventListener('dragover', e => {
+    if (!DRAG_LINE) return;
+    const it = e.target.closest('.it');
+    const shot = e.target.closest('.blk figure.shot');
+    if (it && it !== DRAG_LINE.el) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      const rect = it.getBoundingClientRect();
+      const isBefore = (e.clientY - rect.top) < rect.height / 2;
+      it.classList.toggle('drag-before', isBefore);
+      it.classList.toggle('drag-after', !isBefore);
+      return;
+    }
+    if (shot) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      shot.classList.add('drag-over');
+      return;
+    }
+  });
+  document.addEventListener('dragleave', e => {
+    const it = e.target.closest('.it');
+    if (it && !it.contains(e.relatedTarget)) {
+      it.classList.remove('drag-before', 'drag-after');
+    }
+    const shot = e.target.closest('.blk figure.shot');
+    if (shot && !shot.contains(e.relatedTarget)) {
+      shot.classList.remove('drag-over');
+    }
+  });
+  document.addEventListener('drop', async e => {
+    if (!DRAG_LINE) return;
+    const src = DRAG_LINE;
+    const it = e.target.closest('.it');
+    const shot = e.target.closest('.blk figure.shot');
+    $$('.drag-over, .drag-before, .drag-after').forEach(el => el.classList.remove('drag-over', 'drag-before', 'drag-after'));
+    if (it && it !== src.el) {
+      e.preventDefault();
+      const scEl = it.closest('section[data-scene]');
+      const targetLn = +it.dataset.ln;
+      const rect = it.getBoundingClientRect();
+      const isBefore = (e.clientY - rect.top) < rect.height / 2;
+      try {
+        await api('/api/moveline', {
+          ...lineRef(src.scene, src.ln),
+          [isBefore ? 'before' : 'after']: lineRef(scEl.dataset.scene, targetLn)
+        });
+        await reload();
+      } catch (err) {
+        fail(err);
+      }
+      return;
+    }
+    if (shot) {
+      e.preventDefault();
+      const targetImg = shot.dataset.id;
+      try {
+        await api('/api/moveline', {
+          ...lineRef(src.scene, src.ln),
+          to_image: targetImg
+        });
+        await reload();
+      } catch (err) {
+        fail(err);
+      }
+      return;
+    }
   });
 }

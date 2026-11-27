@@ -222,6 +222,40 @@ class StableLineIds(unittest.TestCase):
     def test_next_id_skips_numbers_already_used(self):
         self.assertEqual(lineedits.next_line_id(["id: L003", "voice-pick: L007.fa=x"]), "L008")
 
+    def test_moving_line_within_picture_preserves_chunk_and_id(self):
+        ls = lines()
+        say1_idx = next(i for i, l in enumerate(ls) if "این علیه" in l)
+        ls.insert(say1_idx + 1, "id: IMG001-custom")
+        ls.insert(say1_idx + 2, "voice: fa=take1")
+        ls.insert(say1_idx + 3, "voice-stale: fa")
+        ls.insert(say1_idx + 4, "format-issue: مشکل لحن")
+        say2_idx = next(i for i, l in enumerate(ls) if "این دیگه از کجا" in l)
+        lineedits.move_line(ls, say1_idx, after=say2_idx)
+        say_idx = next(i for i, l in enumerate(ls) if "این علیه" in l)
+        self.assertEqual(ls[say_idx + 1].strip(), "id: IMG001-custom")
+        self.assertEqual(ls[say_idx + 2].strip(), "voice: fa=take1")
+        self.assertEqual(ls[say_idx + 3].strip(), "voice-stale: fa")
+        self.assertEqual(ls[say_idx + 4].strip(), "format-issue: مشکل لحن")
+        self.assertEqual(ls[say_idx + 5].strip(), "en: This is Ali. He is not a person before coffee.")
+
+    def test_moving_line_to_neighboring_picture_and_onto_image(self):
+        ls = lines()
+        lineedits.move_line(ls, {"image": "IMG001", "index": 4}, to_image="IMG002")
+        sc = scene(ls, "scene-01")
+        b2_items = sc["blocks"][1]["items"]
+        self.assertTrue(any("این علیه" in it["fa"] for it in b2_items))
+        moved_it = next(it for it in b2_items if "این علیه" in it["fa"])
+        self.assertEqual(moved_it["id"], "IMG001_1")
+
+    def test_moving_line_refuses_invalid_targets(self):
+        ls = lines()
+        with self.assertRaises(ValueError):
+            lineedits.move_line(ls, {"image": "IMG001", "index": 3}, to_image="IMG003")
+        with self.assertRaises(ValueError):
+            lineedits.move_line(ls, {"image": "IMG001", "index": 3}, to_image="IMG000")
+        with self.assertRaises(ValueError):
+            lineedits.move_line(ls, {"image": "IMG001", "index": 3}, before={"image": "IMG001", "index": 3})
+
 
 class OldFormatHint(unittest.TestCase):
     def check(self, story, audio=()):

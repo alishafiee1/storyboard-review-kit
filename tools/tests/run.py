@@ -330,7 +330,7 @@ def edit_env_and_act(proj, page):
 @test
 def add_and_delete_dialogue(proj, page):
     atb(page, 2)
-    page.click("#b2 .addbar button[data-add=say]")
+    page.click("#b2 .addbar button[data-add=say] >> nth=-1")
     page.fill(".cmp input.nm", "علی")
     page.fill(".cmp textarea", "دیالوگ اضافه‌شده")
     page.press(".cmp textarea", "Enter")
@@ -340,6 +340,63 @@ def add_and_delete_dialogue(proj, page):
     page.locator(".it.sp", has_text="دیالوگ اضافه‌شده").locator("[data-del]").click()
     ask_ok(page, "حذف")
     proj.wait("scenario/story.txt", "دیالوگ اضافه‌شده", absent=True)
+
+
+@test
+def move_line_and_voice_resolves(proj, page):
+    """Moving a line with ↑/↓ or drag keeps its id: so voice still resolves/plays, and Ctrl+Z restores."""
+    at(page, "IMG001")
+    settle(page)
+    say1 = page.locator("#b1 .it.sp", has_text="این علیه")
+    say2 = page.locator("#b1 .it.sp", has_text="این دیگه از کجا")
+    assert say1.count() == 1 and say2.count() == 1
+    ab1 = say1.locator(".ab[data-lg=fa]")
+    orig_src = ab1.get_attribute("data-src")
+    assert orig_src and "IMG001" in orig_src
+
+    # 1. Move second line UP using ↑ button in grip menu
+    say2.locator(".grip").click()
+    page.wait_for_selector(".pop.menu:not([hidden]) [data-lmv='-1']")
+    page.click(".pop.menu:not([hidden]) [data-lmv='-1']")
+
+    proj.wait_in("[IMG001]", "این دیگه از کجا")
+    settle(page)
+    st = proj.story()
+    assert st.index("این دیگه از کجا") < st.index("این علیه"), "second line moved before first line"
+
+    # Voice button still resolves and matches the line
+    say1_after = page.locator("#b1 .it.sp", has_text="این علیه")
+    assert say1_after.locator(".ab[data-lg=fa]").get_attribute("data-src") == orig_src
+
+    # 2. Move line DOWN past end of picture onto neighbor picture (IMG002)
+    say1_after.locator(".grip").click()
+    page.wait_for_selector(".pop.menu:not([hidden]) [data-lmv='1']")
+    page.click(".pop.menu:not([hidden]) [data-lmv='1']")
+
+    proj.wait_in("[IMG002]", "این علیه")
+    settle(page)
+    st2 = proj.story()
+    assert st2.index("[IMG002]") < st2.index("این علیه")
+
+    # Voice still resolves in the new picture!
+    at(page, "IMG002")
+    settle(page)
+    say1_in_b2 = page.locator("#b2 .it.sp", has_text="این علیه")
+    assert say1_in_b2.locator(".ab[data-lg=fa]").get_attribute("data-src") == orig_src
+
+    # 3. Ctrl+Z undo restores previous file bytes
+    page.keyboard.press("Control+z")
+    proj.wait_in("[IMG002]", "این علیه", absent=True)
+    proj.wait_in("[IMG001]", "این علیه")
+    settle(page)
+    st3 = proj.story()
+    assert st3.index("این دیگه از کجا") < st3.index("این علیه")
+
+    # Second undo restores initial order
+    page.keyboard.press("Control+z")
+    settle(page)
+    st4 = proj.story()
+    assert st4.index("این علیه") < st4.index("این دیگه از کجا")
 
 
 @test

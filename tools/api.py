@@ -8,7 +8,7 @@ from story import clean_name, clean_tone, ensure_speaker, parse_prompts, parse_s
 from media import archive_item, audio_variants, find_version, scan_images, scan_refs
 from edits import add_image, add_scene, mark_stale, move_scene, patch_image, set_default_model, set_flag, set_line_pick, set_scene_off, set_stale, speech_scenes
 from moves import add_image_at, move_images, scene_mark
-from lineedits import add_issue, add_line, clear_issue, delete_line, edit_line, locate
+from lineedits import add_issue, add_line, clear_issue, delete_line, edit_line, locate, move_line
 from promptedits import replace_prompt, set_prompt_refs, upsert_prompt
 
 ROUTES = {}
@@ -229,6 +229,29 @@ def add(d):
     lines = read_lines(STORY)
     sid, after = locate(lines, d, "after")
     add_line(lines, sid, after, d["kind"], d.get("speaker", ""), d["text"], d.get("label", ""), d.get("tone", ""))
+    write_lines(STORY, lines)
+
+
+@route("/api/moveline", snapshot=True)
+def moveline(d):
+    """move a dialogue or act line chunk: {image, index} or {id} to {before}, {after}, or {to_image}"""
+    lines = read_lines(STORY)
+    source = d.get("source")
+    if source is None:
+        if d.get("id"):
+            source = {"id": str(d["id"])}
+        elif d.get("image") and (d.get("index") is not None or d.get("line") is not None):
+            source = {"image": d["image"], "index": d.get("index", d.get("line"))}
+        elif d.get("scene") and (d.get("index") is not None or d.get("line") is not None):
+            source = {"scene": d["scene"], "index": d.get("index", d.get("line"))}
+        elif d.get("line") is not None:
+            source = d["line"]
+        else:
+            source = d
+    to_img = d.get("to_image") or d.get("to")
+    if not to_img and not d.get("before") and not d.get("after") and d.get("image") and source != d:
+        to_img = d.get("image")
+    move_line(lines, source, before=d.get("before"), after=d.get("after"), to_image=to_img)
     write_lines(STORY, lines)
 
 

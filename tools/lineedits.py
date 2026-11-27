@@ -2,8 +2,8 @@
 """Edits of single lines in story.txt: change, add, delete a dialogue / action / translation line, and format-issue notes."""
 import glob, os, re
 from kitcore import Conflict, KEYLINE, LANGS, MARKER, ROOT, SAY_KEYS, SPEECH
-from story import DEC, ENC, clean_label, clean_line, clean_name, clean_tone, ensure_speaker, fmt_say, parse_scene, scene_span, split_act, split_say_head
-from edits import IMG_KEYS, image_range, stale_lines
+from story import DEC, ENC, clean_label, clean_line, clean_name, clean_tone, ensure_speaker, fmt_say, parse_scene, scene_ranges, scene_span, split_act, split_say_head
+from edits import IMG_KEYS, find_say, image_range, stale_lines
 
 
 def locate(lines, d, key="index"):
@@ -287,3 +287,191 @@ def clear_issue(lines, scene_id, index):
     if not (s < a < e) or not lines[a].strip().startswith("format-issue:"):
         raise Conflict("این یادداشت دیگر نیست؛ صفحه را دوباره بارگذاری کن.")
     del lines[a]
+
+
+def _resolve_line_index(lines, ref):
+    if isinstance(ref, dict):
+        if ref.get("id"):
+            _, a = find_say(lines, str(ref["id"]))
+            return a
+        if ref.get("image"):
+            img = str(ref["image"])
+            if not re.fullmatch(r"IMG\d{3,4}", img):
+                raise ValueError("bad image")
+            _, _, m, end = image_range(lines, img)
+            k = int(ref.get("index", ref.get("line", 0)))
+            a = m + k
+            if not (m <= a < end):
+                raise ValueError("bad line index")
+            return a
+        if ref.get("scene"):
+            sid = str(ref["scene"])
+            if not re.fullmatch(r"scene-\d{2,3}", sid):
+                raise ValueError("bad scene")
+            s, e = scene_span(lines, sid)
+            k = int(ref.get("index", ref.get("line", 0)))
+            a = s + k
+            if not (s < a < e):
+                raise ValueError("bad line index")
+            return a
+    if isinstance(ref, str):
+        if re.fullmatch(r"IMG\d{3,4}", ref):
+            return ref
+        _, a = find_say(lines, ref)
+        return a
+    if isinstance(ref, (int, float)):
+        a = int(ref)
+        if 0 <= a < len(lines):
+            return a
+    raise ValueError("bad line reference")
+
+
+def move_line(lines, source=None, before=None, after=None, to_image=None, scene=None, index=None, line=None, image=None):
+    """Move an entire dialogue or action line chunk (say/act + id: + en: + voice: + voice-stale: + format-issue:)
+    strictly preserving its id:, within the picture or to a neighboring picture (before/after target line, or onto another image)."""
+    if source is None:
+        if image and (index is not None or line is not None):
+            source = {"image": image, "index": index if index is not None else line}
+        elif scene and (index is not None or line is not None):
+            source = {"scene": scene, "index": index if index is not None else line}
+        elif line is not None:
+            source = line
+        else:
+            raise ValueError("missing source")
+    a = _resolve_line_index(lines, source)
+    if not isinstance(a, int) or not (0 <= a < len(lines)):
+        raise ValueError("bad source line")
+    kv = KEYLINE.match(lines[a].strip())
+    if not kv or kv.group(1) not in ("say", "act"):
+        raise ValueError("source line must be say or act")
+
+    src_sc = next(((sid, s, e) for sid, s, e in scene_ranges(lines) if s <= a < e), None)
+    if not src_sc or src_sc[0] == "scene-00":
+        raise ValueError("bad source scene")
+    src_sid, src_s, src_e = src_sc
+    src_img = owner_image(lines, a, src_s)
+    if not src_img:
+        raise ValueError("source line has no owner picture")
+
+    all_imgs = [m.group(1) for sid, s, e in scene_ranges(lines) if sid != "scene-00"
+                for l in lines[s + 1:e] for m in [MARKER.match(l.strip())] if m]
+    if src_img not in all_imgs:
+        raise ValueError("source picture not found")
+    src_idx = all_imgs.index(src_img)
+    allowed_imgs = {src_img}
+    if src_idx > 0:
+        allowed_imgs.add(all_imgs[src_idx - 1])
+    if src_idx < len(all_imgs) - 1:
+        allowed_imgs.add(all_imgs[src_idx + 1])
+
+    targets = [x for x in (before, after, to_image) if x is not None]
+    if len(targets) != 1:
+        raise ValueError("exactly one target (before, after, or to_image) must be specified")
+
+    if to_image is not None or (isinstance(before, str) and re.fullmatch(r"IMG\d{3,4}", before)) or (isinstance(after, str) and re.fullmatch(r"IMG\d{3,4}", after)):
+        dst_img = str(to_image or before or after)
+        if dst_img not in allowed_imgs:
+            raise ValueError("target image not in picture or neighbor")
+        dst_sid, dst_s, _, _ = image_range(lines, dst_img)
+
+        ins_src = materialize_ids(lines, src_sid)
+        s_src, _ = scene_span(lines, src_sid)
+        a = a + sum(1 for p in ins_src if s_src + p <= a)
+        if dst_sid != src_sid:
+            ins_dst = materialize_ids(lines, dst_sid)
+            s_dst, _ = scene_span(lines, dst_sid)
+            if s_dst < s_src:
+                a += len(ins_dst)
+
+        _, _, m, img_end = image_range(lines, dst_img)
+
+        chunk_end = a + 1
+        while chunk_end < len(lines):
+            k2 = KEYLINE.match(lines[chunk_end].strip())
+            if not k2 or k2.group(1) not in SAY_KEYS:
+                break
+            chunk_end += 1
+        chunk = lines[a:chunk_end]
+        chunk_len = len(chunk)
+
+        if before is not None and isinstance(before, str):
+            pos = m + 1
+            while pos < img_end:
+                k2 = KEYLINE.match(lines[pos].strip())
+                if not k2 or k2.group(1) not in IMG_KEYS:
+                    break
+                pos += 1
+            target_pos = pos
+        else:
+            pos = img_end
+            while pos > m + 1 and not lines[pos - 1].strip():
+                pos -= 1
+            target_pos = pos
+
+        if target_pos > a:
+            del lines[a:chunk_end]
+            lines[target_pos - chunk_len:target_pos - chunk_len] = chunk
+        elif target_pos < a:
+            del lines[a:chunk_end]
+            lines[target_pos:target_pos] = chunk
+        return
+
+    is_before = before is not None
+    target_ref = before if is_before else after
+    tgt_a = _resolve_line_index(lines, target_ref)
+    if not isinstance(tgt_a, int) or not (0 <= tgt_a < len(lines)):
+        raise ValueError("bad target line")
+    if tgt_a == a:
+        raise ValueError("cannot move line relative to itself")
+    tgt_kv = KEYLINE.match(lines[tgt_a].strip())
+    if not tgt_kv or tgt_kv.group(1) not in ("say", "act"):
+        raise ValueError("target line must be say or act")
+
+    tgt_sc = next(((sid, s, e) for sid, s, e in scene_ranges(lines) if s <= tgt_a < e), None)
+    if not tgt_sc or tgt_sc[0] == "scene-00":
+        raise ValueError("bad target scene")
+    tgt_sid, tgt_s, tgt_e = tgt_sc
+    tgt_img = owner_image(lines, tgt_a, tgt_s)
+    if not tgt_img or tgt_img not in allowed_imgs:
+        raise ValueError("target line not in picture or neighbor")
+
+    ins_src = materialize_ids(lines, src_sid)
+    s_src, _ = scene_span(lines, src_sid)
+    a = a + sum(1 for p in ins_src if s_src + p <= a)
+    if tgt_sid == src_sid:
+        tgt_a = tgt_a + sum(1 for p in ins_src if s_src + p <= tgt_a)
+    else:
+        ins_tgt = materialize_ids(lines, tgt_sid)
+        s_tgt, _ = scene_span(lines, tgt_sid)
+        if s_tgt < s_src:
+            a += len(ins_tgt)
+            tgt_a = tgt_a + sum(1 for p in ins_tgt if s_tgt + p <= tgt_a)
+        else:
+            tgt_a = tgt_a + len(ins_src) + sum(1 for p in ins_tgt if s_tgt + p <= tgt_a)
+
+    chunk_end = a + 1
+    while chunk_end < len(lines):
+        k2 = KEYLINE.match(lines[chunk_end].strip())
+        if not k2 or k2.group(1) not in SAY_KEYS:
+            break
+        chunk_end += 1
+    chunk = lines[a:chunk_end]
+    chunk_len = len(chunk)
+
+    if is_before:
+        target_pos = tgt_a
+    else:
+        tgt_chunk_end = tgt_a + 1
+        while tgt_chunk_end < len(lines):
+            k2 = KEYLINE.match(lines[tgt_chunk_end].strip())
+            if not k2 or k2.group(1) not in SAY_KEYS:
+                break
+            tgt_chunk_end += 1
+        target_pos = tgt_chunk_end
+
+    if target_pos > a:
+        del lines[a:chunk_end]
+        lines[target_pos - chunk_len:target_pos - chunk_len] = chunk
+    elif target_pos < a:
+        del lines[a:chunk_end]
+        lines[target_pos:target_pos] = chunk

@@ -475,21 +475,74 @@ figure.shot.off .frame img {
   opacity:.8;
 }
 
+.lt-b.grip {
+  cursor:grab;
+}
+
+.lt-b.grip:active {
+  cursor:grabbing;
+}
+
+.it.dragging {
+  opacity:.4;
+}
+
+.it.drag-before {
+  border-top:2px solid var(--accent, #e65100);
+}
+
+.it.drag-after {
+  border-bottom:2px solid var(--accent, #e65100);
+}
+
+figure.shot.drag-over {
+  outline:2px dashed var(--accent, #e65100);
+  outline-offset:2px;
+}
+
 .addbar {
   display:flex;
-  gap:20px;
-  margin-top:14px;
+  align-items:center;
+  justify-content:center;
+  gap:12px;
+  min-height:16px;
+  margin:2px 0;
+  position:relative;
+  opacity:0;
+  transition:opacity .15s ease;
+}
+
+.addbar::before {
+  content:'';
+  position:absolute;
+  inset:50% 0 auto 0;
+  height:1px;
+  background:var(--line);
+  z-index:0;
+}
+
+.addbar:hover,
+.addbar:focus-within,
+.blk.noimg .addbar,
+.blk:not(:has(.it)) .addbar {
+  opacity:1;
 }
 
 .addbar button {
-  font-size:13px;
+  position:relative;
+  z-index:1;
+  background:var(--bg, #fff);
+  padding:1px 8px;
+  font-size:12px;
+  border-radius:10px;
+  border:1px solid var(--line);
   color:var(--ink-muted);
-  border-bottom:1px dashed var(--line);
-  padding:2px 0;
+  cursor:pointer;
 }
 
 .addbar button:hover {
   color:var(--ink);
+  border-color:var(--ink-muted);
 }
 
 .vstrip {
