@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 2,
+  "projectSlug": "storyboard-review-kit",
+  "name": "storyboard-review-kit",
+  "serverUrl": null,
+  "boardId": null,
+  "repoFingerprint": null,
+  "language": { "simple": "fa", "technical": "en" },
+  "testCommand": null,
+  "stepsDirs": []
+}

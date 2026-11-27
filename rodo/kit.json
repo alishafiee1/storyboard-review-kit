@@ -1,0 +1,24 @@
+{
+  "kitVersion": "2.6.0",
+  "files": {
+    ".agents/skills/rodo/clean.md": "sha256:aaa7efb489009574f1b76b08ec0bf313f33ff7a1c1be05caa2b953117ba661b4",
+    ".agents/skills/rodo/coder.md": "sha256:66bb4d88f5ca94a2b3e00b9cbfb13624222cc6df95b546dcd6addfaa6dea95bb",
+    ".agents/skills/rodo/onboarding.md": "sha256:3c8c62416ba20fcf147af8fdbba4e2b44141dc871d45c54b94aef59b5342f645",
+    ".agents/skills/rodo/planner.md": "sha256:5654fbf5f294cb93ce5dea08e3d1b3d48f53996c0ba43eb5f7c69080c6fbad9f",
+    ".agents/skills/rodo/review.md": "sha256:134807e83af671ea1ce500d937bf0c3e82856e9a01d73d4acc59680bde2712f6",
+    ".agents/skills/rodo/SKILL.md": "sha256:8e8afdb6fb803c9b1637b31e4822269b41acc0b853de122ef61d97b81bf9b5c4",
+    ".agents/skills/rodo/small-change.md": "sha256:75310d562119a270fadf1f4f2efeefb004171d47527594d57090449a085007e4",
+    ".agents/skills/rodo/templates/acceptance.feature": "sha256:0156ea9eb06f09de596a52a5ad2b1852b351d9cbe7a28230a4f90a2138a4b131",
+    ".agents/skills/rodo/templates/card.rodo.md": "sha256:32e7efd8b4c5502ab821f4a40b6183d511e682d49c56312553544f2a54839602",
+    ".agents/skills/rodo/templates/design.md": "sha256:4395a48d3430dbd6e2e9d3277bfc8dea8d614aa84dd0ebd24e69afaf866c6873",
+    ".agents/skills/rodo/templates/en/acceptance.feature": "sha256:376079e6a1b3ec9d0598d479c408c996196940d6dc7008d96e6d55c91c73ee04",
+    ".agents/skills/rodo/templates/en/card.rodo.md": "sha256:b83a973fe747399735149ebbff95f24b2453e6c33a45b3167dbb93823bf0a1a0",
+    ".agents/skills/rodo/templates/en/request.rodo.md": "sha256:09591f2fd1e512af462f245857c117ddcce2e210fbb8e5b579bbc30e0f1e023b",
+    ".agents/skills/rodo/templates/en/simple.md": "sha256:d1d72724c6a082336b6799cc83776816f28fb501cab760ec6e71e47b35cc1b44",
+    ".agents/skills/rodo/templates/request.rodo.md": "sha256:1e99ca237113de04cc755882040adfd8b3f6f0f175b57ee0ac006f5fab2fa57f",
+    ".agents/skills/rodo/templates/simple.md": "sha256:b81908a8886698cce148400113a2525f6c44cf34c8e412290ba1652b3b928b6f",
+    ".agents/skills/rodo/templates/spec.md": "sha256:8c603638c145277a41452d0ee06ffdda4531c8cd3091c306600d161d9a5665c8",
+    ".agents/skills/rodo/testing.md": "sha256:4620c3f4371c176fe495a5a9cbb91878b369b3d5a990451746c8a9b5c4a2fdc3",
+    ".agents/skills/rodo/version-test.md": "sha256:1d3f707aee457e053ddd083824b1547eb362fc21043833176d427d914ec7daf3"
+  }
+}
