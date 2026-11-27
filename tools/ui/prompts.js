@@ -24,11 +24,14 @@ let PM = null;
 /* the references of a picture as chips, with the button that opens the attach dialog */
 const refsRow = m => `<span class="rl">رفرنس‌ها</span>${ m.refs.map(c => c.src ? `<button type="button" class="chip ref" data-ref="${ c.src }" data-name="${ esc(c.name) }" title="باز کردن رفرنس">${ esc(c.name) }</button>${ c.video ? `<button type="button" class="chip ref" data-vid="${ esc(c.video) }" data-name="${ esc(c.name) }" title="پخش ویدیوی این رفرنس">${ ic('play') }</button>` : '' }` : `<span class="chip miss" title="این رفرنس هنوز ساخته نشده">${ esc(c.name) }</span>`).join('') || '<small>بدون رفرنس</small>' }<button type="button" class="chip add" data-attach="${ m.id }" title="رفرنس‌های این تصویر رو اضافه یا کم کن">اتچ رفرنس</button>`;
 const words = t => t.trim() ? t.trim().split(/\s+/).length : 0;
-export function openPrompt(kind) {
-  const c = curImg();
-  if (!c || PM)
+export function openPrompt(kind, m) {
+  if (!m) {
+    const c = curImg();
+    m = c && c.m;
+  }
+  if (!m || PM)
     return;
-  const {m} = c, video = kind === 'video', id = m.id, text = (video ? m.vprompt : m.prompt) || '';
+  const video = kind === 'video', id = m.id, text = (video ? m.vprompt : m.prompt) || '';
   const sc = S.P.scenes.find(s => s.blocks.some(b => b.images.some(x => x.id === id)));
   const el = document.createElement('dialog');
   el.className = 'dlg pm';
@@ -101,32 +104,41 @@ export function redrawPrompt() {
   if (m)
     PM.refs.innerHTML = refsRow(m);
 }
-function toggleNote() {
-  const c = curImg();
-  if (!c)
+function toggleNote(fig, m) {
+  if (!fig) {
+    const c = curImg();
+    fig = c && c.f;
+  }
+  if (!fig)
     return;
-  const nb = c.f.querySelector('.nbox');
+  const nb = fig.querySelector('.nbox');
+  if (!nb)
+    return;
   nb.classList.toggle('hide');
   const open = !nb.classList.contains('hide');
-  $('#bNote').classList.toggle('open', open);
+  fig.querySelector('[data-pact="note"]')?.classList.toggle('open', open);
   if (open) {
     nb.querySelectorAll('textarea').forEach(grow);
     nb.querySelector('textarea.nt').focus();
   }
 }
-async function flagImage() {
-  const c = curImg();
-  if (!c)
+async function flagImage(fig, m) {
+  if (!fig || !m) {
+    const c = curImg();
+    fig = fig || c?.f;
+    m = m || c?.m;
+  }
+  if (!fig || !m)
     return;
   const msg = await askPrompt('مشکل فرمت این تصویر چیه؟ (برای هوش مصنوعی ثبت می‌شه؛ اختیاری)', 'فرمت این قسمت درست نیست', {
     chips: ['پرامپت با تصویر نمی‌خونه', 'نقص دست و صورت', 'کیفیت پایین', 'تغییر کادر']
   });
   if (msg === null)
     return;
-  const sid = c.f.closest('section[data-scene]').dataset.scene;
+  const sid = fig.closest('section[data-scene]').dataset.scene;
   try {
     await api('/api/issue', {
-      ...lineRef(sid, c.m.ln),
+      ...lineRef(sid, m.ln),
       message: msg
     });
     await reload();
@@ -135,11 +147,21 @@ async function flagImage() {
   }
 }
 export function boot_prompts() {
-  $('#bNote').onclick = toggleNote;
-  $('#bPrompt').onclick = () => openPrompt('image');
-  $('#bVprompt').onclick = () => openPrompt('video');
-  $('#bFlag').onclick = flagImage;
   document.addEventListener('click', e => {
+    const pact = e.target.closest('[data-pact]');
+    if (pact) {
+      const k = pact.dataset.pact;
+      const fig = pact.closest('figure.shot');
+      const m = fig ? S.BL.flatMap(b => b.images).find(x => x.id === fig.dataset.id) : null;
+      if (k === 'note')
+        toggleNote(fig, m);
+      else if (k === 'prompt')
+        openPrompt('image', m);
+      else if (k === 'vprompt')
+        openPrompt('video', m);
+      else if (k === 'flag')
+        flagImage(fig, m);
+    }
     const r = e.target.closest('[data-ref]');
     if (r)
       lightbox(r.dataset.ref, r.dataset.name);
@@ -151,7 +173,7 @@ export function boot_prompts() {
       const nb = n.closest('.nbox');
       nb.querySelectorAll('textarea').forEach(x => x.value !== x.dataset.orig && x._save && x._save());
       nb.classList.add('hide');
-      $('#bNote').classList.remove('open');
+      nb.closest('figure.shot')?.querySelector('[data-pact="note"]')?.classList.remove('open');
     }
   });
 }

@@ -414,7 +414,7 @@ class SketchbookShell(unittest.TestCase):
         html = self.text("review.html")
         for gone in ("tabR", "tabF", "tabS", 'id="filter"', 'id="speed"', 'id="jump"', 'id="fab"', 'id="pSpeed"'):
             self.assertNotIn(gone, html)
-        for need in ('id="menuBtn"', 'id="drawer"', 'id="nav"', 'id="lang"', 'id="more"', 'id="bPrompt"', 'id="bVprompt"', 'id="bNote"', 'id="bFlag"', 'dir="rtl"'):
+        for need in ('id="menuBtn"', 'id="drawer"', 'id="nav"', 'id="lang"', 'dir="rtl"'):
             self.assertIn(need, html)
 
     def test_speeds_list_shared_and_no_drawer_speed_panel(self):

@@ -222,6 +222,10 @@ figure.shot.off .frame img {
   font-size:14px;
 }
 
+.pghead .mw {
+  margin-inline-end:auto;
+}
+
 .slabel {
   color:var(--ink-muted);
   font-size:14px;

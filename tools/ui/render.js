@@ -159,6 +159,7 @@ function figHtml(m, sc) {
   const n = (m.versions || []).length;
   const pic = m.src ? `<img src="${ m.src }" alt="" draggable="false">` : `<div class="ph"><b>${ m.id }</b><span>هنوز ساخته نشده</span></div>`;
   const arrows = n > 1 ? `<button class="va l" data-vn="-1" aria-label="نسخهٔ قبلی" title="نسخهٔ قبلی (↑)">${ ic('chevL') }</button><button class="va r" data-vn="1" aria-label="نسخهٔ بعدی" title="نسخهٔ بعدی (↓)">${ ic('chevR') }</button>` : '';
+  const acts = `<span class="pacts"><button class="ib${ m.note || m.fx ? ' has' : '' }" type="button" data-pact="note" aria-label="یادداشت و ادیت" title="یادداشت و توصیهٔ ادیت">${ ic('pencil') }</button><button class="ib${ m.stale ? ' has' : '' }" type="button" data-pact="prompt" aria-label="پرامپت تصویر" title="پرامپت تصویر">${ ic('image') }</button><button class="ib${ m.vprompt ? ' has' : '' }" type="button" data-pact="vprompt" aria-label="پرامپت ویدیو" title="پرامپت ویدیو">${ ic('clapper') }</button><button class="ib" type="button" data-pact="flag" aria-label="نشانه‌گذاری مشکل" title="نشانه‌گذاری (ثبت مشکل برای هوش مصنوعی)">${ ic('flag') }</button><button class="ib${ m.status === 'redo' ? ' has' : '' }" type="button" data-pact="redo" aria-pressed="${ m.status === 'redo' ? 'true' : 'false' }" aria-label="نیاز به بازسازی" title="${ m.status === 'redo' ? 'برداشتن علامت «نیاز به بازسازی»' : 'علامت‌گذاری: نیاز به بازسازی' }">${ ic('redo') }</button><button class="ib" type="button" data-pact="arch" ${ !(m.versions && m.versions.length) ? 'disabled ' : '' }aria-label="آرشیو کردن این نسخه" title="این نسخه بره توی آرشیو (فایل پاک نمی‌شه)">${ ic('archive') }</button><button class="ib${ m.archived && m.archived.length ? ' has' : '' }" type="button" data-pact="archlist" aria-label="آرشیو این تصویر" title="${ m.archived && m.archived.length ? `آرشیو این تصویر (${ m.archived.length } مورد): بازگردانی` : 'آرشیو این تصویر: هنوز چیزی توش نیست' }">${ ic('restore') }</button><span class="mw"><button class="ib" type="button" data-pact="more" aria-label="منوی تصویر" aria-haspopup="menu" aria-expanded="false" title="منوی تصویر">${ ic('dots') }</button><div class="pop menu" role="menu" hidden></div></span></span>`;
   return `<figure class="shot${ m.off ? ' off' : '' }" data-id="${ m.id }" data-m="${ m.status }"><div class="mount"><i class="tape a"></i><i class="tape b"></i><div class="frame">${ pic }${ arrows }<span class="vmeta">${ vmetaHtml(m) }</span></div></div>
    <div class="idrow"><bdi class="iid" dir="ltr">${ m.id }</bdi>${ m.off ? '<span class="offl">کنار گذاشته شده</span>' : '' }${ m.video ? `<button class="quiet sm vid" data-vid="${ esc(m.video) }" data-name="${ m.id }" title="پخش ویدیوی این تصویر">${ ic('play') }ویدیو</button>` : '' }</div>
    ${ m.stale ? `<div class="stalebox">پرامپت عوض شده؛ تصویر کهنه است <button class="quiet sm" data-clrimg="1">تصویر به‌روز شد</button></div>` : '' }${ issHtml(m.issues) }
@@ -166,7 +167,7 @@ function figHtml(m, sc) {
      <textarea class="nt" rows="2" data-key="note:${ m.id }" data-orig="${ esc(m.note) }" placeholder="یادداشت برای این صحنه... (Enter = ذخیره · Shift+Enter = خط بعد)">${ esc(m.note) }</textarea>
      <div class="phead"><b>ادیت</b></div>
      <textarea class="fx" rows="1" data-key="fx:${ m.id }" data-orig="${ esc(m.fx || '') }" placeholder="${ FX_PH }">${ esc(m.fx || '') }</textarea>
-     <div class="btns"><button class="b pri" type="button" data-sn="1">ذخیره</button><button class="quiet sm" type="button" data-nclose="1">بستن</button></div></div></figure>`;
+     <div class="btns"><button class="b pri" type="button" data-sn="1">ذخیره</button><button class="quiet sm" type="button" data-nclose="1">بستن</button></div></div>${ acts }</figure>`;
 }
 /* the voice button of a scene: «make voices» for lines that are out of date */
 function sceneModel(sc) {
@@ -190,8 +191,6 @@ const nameParts = () => {
 };
 export function render() {
   const list = $('#list');
-  if ($('#picActs').closest('#list'))
-    $('.be').appendChild($('#picActs'));
   list.innerHTML = '';
   S.BL = [];
   NUM = {};
@@ -214,7 +213,7 @@ export function render() {
       d.id = 'b' + i;
       d.dataset.bid = b.images.length ? b.images[0].id : sc.id + '#' + holder.children.length;
       const first = !holder.children.length;
-      const head = `<div class="pghead"><button class="slabel" type="button" data-sedit="${ sc.id }" title="ویرایش عنوان، محیط و ادیت صحنه">${ esc(sceneLabel(sc)) }${ sc.time && sc.time !== '-' ? `<small dir="ltr">${ esc(sc.time) }</small>` : '' }</button><span class="cnt" aria-live="polite"></span></div>`;
+      const head = `<div class="pghead"><button class="slabel" type="button" data-sedit="${ sc.id }" title="ویرایش عنوان، محیط و ادیت صحنه">${ esc(sceneLabel(sc)) }${ sc.time && sc.time !== '-' ? `<small dir="ltr">${ esc(sc.time) }</small>` : '' }</button><span class="mw smore-w"><button class="ib sm" type="button" data-smore="${ sc.id }" aria-label="منوی صحنه" aria-haspopup="menu" aria-expanded="false" title="منوی صحنه">${ ic('dots') }</button><div class="pop menu" role="menu" hidden></div></span><span class="cnt" aria-live="polite"></span></div>`;
       d.innerHTML = `<div class="imgs">${ b.images.length ? b.images.map(im => figHtml(im, sc)).join('') : '<div class="mount"><div class="frame"><div class="ph"><span>این متن به تصویری وصل نیست</span></div></div></div>' }</div><div class="txt">${ head }${ sc.env.map(e => `<div class="env">${ val(e.text, e.ln, 'env') }<span class="lt">${ flagBtn(e.ln) }</span>${ issHtml(e.issues) }</div>`).join('') }${ first ? warns : '' }${ b.items.map((t, j) => itemHtml(t, sc, i, j)).join('') }${ addBar(b.items.length ? b.items[b.items.length - 1].ln : b.images[b.images.length - 1].ln) }${ b.items.some(x => x.vstale && x.vstale.length) ? `<div class="vstrip">${ sceneModel(sc) }</div>` : '' }</div>`;
       holder.appendChild(d);
     });

@@ -264,14 +264,15 @@ export function boot_core() {
     }
     /* the note / edit-advice popover: a click outside saves what changed and closes it */
     document.querySelectorAll('.nbox:not(.hide)').forEach(nb => {
-      if (nb.contains(t) || t.closest && t.closest('#bNote'))
+      if (nb.contains(t) || t.closest && (t.closest('#bNote') || t.closest('[data-pact="note"]')))
         return;
       nb.querySelectorAll('textarea').forEach(x => {
         if (x.value !== x.dataset.orig && x._save)
           x._save();
       });
       nb.classList.add('hide');
-      $('#bNote').classList.remove('open');
+      nb.closest('figure.shot')?.querySelector('[data-pact="note"]')?.classList.remove('open');
+      $('#bNote')?.classList.remove('open');
     });
     if (ran && S.RELOADS !== r0 && pend) {
       const sec = document.querySelector(`section[data-scene="${ pend.scene }"]`);

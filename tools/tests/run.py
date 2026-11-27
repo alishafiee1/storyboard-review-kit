@@ -141,6 +141,7 @@ def at(page, bid):
     """Show one picture. The page shows one at a time; a link like review.html#IMG002 (the address) is how a test (or a bookmark) goes to it."""
     page.evaluate("id => { location.hash = id }", bid)
     page.wait_for_selector('.blk.on[data-bid="%s"]' % bid)
+    page.wait_for_timeout(200)
 
 
 def atb(page, n):
@@ -173,9 +174,15 @@ def undrawer(page):
 
 
 def more(page):
-    """Open the image «⋯» menu of the picture on show."""
-    page.click("#more")
-    page.wait_for_selector("#morePop:not([hidden])")
+    """Open the picture «⋯» menu of the picture on show."""
+    page.click(".blk.on figure.shot [data-pact='more']")
+    page.wait_for_selector(".blk.on figure.shot .pop.menu:not([hidden])")
+
+
+def smore(page):
+    """Open the scene «⋯» menu of the current block."""
+    page.click(".blk.on .pghead [data-smore]")
+    page.wait_for_selector(".blk.on .pghead .pop.menu:not([hidden])")
 
 
 def ask_ok(page, needle=None):
@@ -742,8 +749,8 @@ def scene_off_and_back(proj, page):
     """A scene set aside keeps its text, pictures and audio; it just leaves the final order (off: yes). Bringing it back is in the scene list of the drawer."""
     before = proj.story()
     at(page, "IMG003")
-    more(page)
-    page.click("#morePop [data-soff]")
+    smore(page)
+    page.click(".blk.on .pghead [data-soff]")
     ask_ok(page, "کنار گذاشته")
     proj.wait("scenario/story.txt", "off: yes")
     assert "و روز تمام شد." in proj.story() and "[IMG003]" in proj.story()
@@ -774,7 +781,7 @@ def picture_set_aside(proj, page):
     proj.wait_in("[IMG003]", "off: yes", absent=True)
     settle(page)
     more(page)  # the image menu has it too
-    page.click("#morePop [data-ioff]")
+    page.click(".blk.on figure.shot [data-ioff]")
     proj.wait_in("[IMG003]", "off: yes")
     settle(page)
     page.click("#aside")
@@ -786,8 +793,8 @@ def move_scenes(proj, page):
     """Reordering moves whole blocks; ids and file names never change, the shown scene numbers follow the order."""
     at(page, "IMG003")
     assert label(page).startswith("صحنه ۲ · پایان")
-    more(page)
-    page.click("#morePop [data-smv='-1']")
+    smore(page)
+    page.click(".blk.on .pghead [data-smv='-1']")
     page.wait_for_function("document.querySelector('.blk.on .slabel').textContent.startsWith('صحنه ۱')")
     st = proj.story()
     assert st.index("=== scene-02") < st.index("=== scene-01") and "\n\n=== scene-01" in st
@@ -796,8 +803,8 @@ def move_scenes(proj, page):
     for needle in ("[IMG001]", "[IMG002]", "[IMG003]", "say: تست | یک خط"):
         assert needle in st
     at(page, "IMG003")
-    more(page)
-    page.click("#morePop [data-smv='1']")
+    smore(page)
+    page.click(".blk.on .pghead [data-smv='1']")
     page.wait_for_function("document.querySelector('.blk.on .slabel').textContent.startsWith('صحنه ۲')")
     assert proj.story().index("=== scene-01") < proj.story().index("=== scene-02")
     assert proj.api("/api/scenemove", {"scene": "scene-01", "step": -1})[0] == 400  # the thumbnail stays first
@@ -808,16 +815,16 @@ def move_scenes(proj, page):
 def scene_menu_and_add_image(proj, page):
     """One «⋯» popover on the page; Esc and outside clicks close it; «new picture» appends an empty slot to the scene and shows it."""
     at(page, "IMG001")
-    pop = "#morePop"
+    pop = ".blk.on .pghead .pop.menu"
     assert page.locator(pop).is_hidden()
-    more(page)
-    assert page.get_attribute("#more", "aria-expanded") == "true" and page.locator(pop + " [role=menuitem]").count() >= 8
+    smore(page)
+    assert page.get_attribute(".blk.on .pghead [data-smore]", "aria-expanded") == "true" and page.locator(pop + " [role=menuitem]").count() >= 5
     page.keyboard.press("Escape")
-    assert page.locator(pop).is_hidden() and page.get_attribute("#more", "aria-expanded") == "false"
-    more(page)
+    assert page.locator(pop).is_hidden() and page.get_attribute(".blk.on .pghead [data-smore]", "aria-expanded") == "false"
+    smore(page)
     page.click("#title")
     assert page.locator(pop).is_hidden()
-    more(page)
+    smore(page)
     page.click(pop + " [data-addimg=scene-01]")
     proj.wait("scenario/story.txt", "[IMG004]")
     st = proj.story()
@@ -831,8 +838,8 @@ def scene_menu_and_add_image(proj, page):
 @test
 def add_scene(proj, page):
     at(page, "IMG001")
-    more(page)
-    page.click("#morePop [data-addscene=scene-01]")  # unified paper dialog for title + image count
+    smore(page)
+    page.click(".blk.on .pghead [data-addscene=scene-01]")  # unified paper dialog for title + image count
     ask_ok(page)
     proj.wait("scenario/story.txt", "=== scene-03 | صحنهٔ جدید | - ===")
     st = proj.story()
@@ -912,15 +919,13 @@ def picture_archive_and_back(proj, page):
     proj.wait_in("[IMG001]", "pick: IMG001_start.png")
     page.click(f + " [data-vn='1']")
     proj.wait_in("[IMG001]", "pick: IMG001_start_a1b2c3.png")
-    more(page)
-    assert page.locator("#morePop [data-irest]").count() == 0
-    page.click("#morePop [data-iarch]")  # archiving the chosen picture clears the pick
+    assert page.locator(f + " [data-pact=archlist].has").count() == 0
+    page.click(f + " [data-pact=arch]")  # archiving the chosen picture clears the pick
     proj.wait_in("[IMG001]", "pick:", absent=True)
     page.wait_for_function("document.querySelectorAll('figure.shot[data-id=IMG001] [data-vn]').length===0")  # one version left
     assert os.path.exists(os.path.join(proj.root, "images", "archive", "IMG001_start_a1b2c3.png"))
     assert not os.path.exists(os.path.join(proj.root, "images", "scenes", "IMG001_start_a1b2c3.png"))
-    more(page)
-    page.click("#morePop [data-irest]")  # «archive (1)» opens the archive popup: a grid, then one picture with «bring back»
+    page.click(f + " [data-pact=archlist]")  # «archive (1)» opens the archive popup: a grid, then one picture with «bring back»
     page.wait_for_selector("dialog.archdlg .atile")
     assert page.locator("dialog.archdlg .atile").count() == 1
     page.click("dialog.archdlg .atile")
@@ -1233,10 +1238,10 @@ def image_menu_moves_and_scene_marks(proj, page):
     use_story(proj, page, "story.txt")
     orig = story_bytes(proj)
     fig = lambda i: "figure.shot[data-id=%s]" % i
-    pop = "#morePop"
+    pop = ".blk.on figure.shot .pop.menu"
     at(page, "IMG001")
     more(page)
-    assert page.get_attribute("#more", "aria-expanded") == "true"
+    assert page.get_attribute(".blk.on figure.shot [data-pact='more']", "aria-expanded") == "true"
     assert not page.locator(pop + " [data-imv='-1']").count(), "nothing above the first picture (the thumbnail scene is closed)"
     assert not page.locator(pop + " [data-imerge]").count()
     page.keyboard.press("Escape")
@@ -1295,9 +1300,10 @@ def image_menu_moves_and_scene_marks(proj, page):
     at(page, "IMG003")
     assert label(page).startswith("صحنه ۳ · پایان")
     at(page, "IMG002")
-    more(page)
-    assert page.locator(pop + " [data-imerge]").count() == 1
-    page.click(pop + " [data-imerge]")  # join the scene above: only the header goes
+    smore(page)
+    spop = ".blk.on .pghead .pop.menu"
+    assert page.locator(spop + " [data-imerge]").count() == 1
+    page.click(spop + " [data-imerge]")  # join the scene above: only the header goes
     ask_ok(page, "ادغام")
     page.wait_for_function("document.querySelectorAll('section[data-scene=scene-01] figure.shot').length===2")
     assert page.locator("section[data-scene=scene-03]").count() == 0
@@ -1305,8 +1311,8 @@ def image_menu_moves_and_scene_marks(proj, page):
     assert "=== scene-03" not in st and "id: IMG001_1" in st and "id: IMG002_1" in st, "the old line ids were written out before the scene header moved"
     assert [h["label"] for h in proj.api("/api/project")[1]["history"]] == ["scenemark", "scenemark"]
     at(page, "IMG003")  # the first picture of the scene below: it can be joined to the one above (that scene has env text: asked)
-    more(page)
-    page.click(pop + " [data-imerge]")
+    smore(page)
+    page.click(spop + " [data-imerge]")
     ask_ok(page, "ادغام")
     page.wait_for_function("document.querySelectorAll('section[data-scene=scene-01] figure.shot').length===3")
     st = proj.story()
@@ -1563,15 +1569,15 @@ def archive_buttons_under_the_picture_and_the_old_rejected_folder(proj, page):
     page.reload()
     page.wait_for_selector(f)
     assert page.locator(f + " .rj").count() == 0  # no more «ردشده‌ها» link
-    assert page.locator("#picActs #bArch").is_visible() and page.locator("#picActs #bArchList").is_visible()
-    assert page.evaluate("document.querySelector('#picActs').parentElement.matches('figure.shot')")  # the icons sit under the picture they act on
-    page.click("#bArch")
+    assert page.locator(f + " [data-pact=arch]").is_visible() and page.locator(f + " [data-pact=archlist]").is_visible()
+    assert page.evaluate("document.querySelector('figure.shot[data-id=IMG001] .pacts').parentElement.matches('figure.shot')")  # the icons sit under the picture they act on
+    page.click(f + " [data-pact=arch]")
     page.wait_for_selector("#toast button")
     assert os.path.exists(os.path.join(proj.root, "images", "archive", "IMG001_start_a1b2c3.png")) or os.path.exists(os.path.join(proj.root, "images", "archive", "IMG001_start.png"))
     page.click("#toast button")  # «بازگردانی» puts it back
     page.wait_for_function("document.querySelectorAll('figure.shot[data-id=IMG001] [data-vn]').length > 0")
     assert not os.path.exists(os.path.join(proj.root, "images", "archive", "IMG001_start_a1b2c3.png"))
-    page.click("#bArchList")
+    page.click(f + " [data-pact=archlist]")
     page.wait_for_selector("dialog.archdlg .atile")
     assert page.locator("dialog.archdlg .atile").count() == 1  # the file of the old _rejected folder
     page.click("dialog.archdlg .atile")
@@ -1579,7 +1585,7 @@ def archive_buttons_under_the_picture_and_the_old_rejected_folder(proj, page):
     page.click("dialog.archdlg [data-ar=list]")
     page.wait_for_selector("dialog.archdlg .agrid")
     page.click("dialog.archdlg [data-ar=close]")
-    page.click("#bArchList")
+    page.click(f + " [data-pact=archlist]")
     page.click("dialog.archdlg .atile")
     page.click("dialog.archdlg [data-ar=restore]")  # an old rejected file comes back as a version
     page.wait_for_function("document.querySelectorAll('figure.shot[data-id=IMG001] [data-vn]').length > 0")
@@ -1713,13 +1719,14 @@ def noimg_block_and_icons_need_a_picture(proj, page):
     use_story(proj, page)
     noimg = page.evaluate("document.querySelector('.blk.noimg').dataset.bid")
     at(page, noimg)
-    for sel in ("#bNote", "#bPrompt", "#bVprompt", "#bFlag", "#more", "#aside"):
-        assert page.is_disabled(sel), sel
+    assert page.locator(".blk.on figure.shot").count() == 0
+    assert page.is_disabled("#aside")
     assert page.locator(".blk.on .it.act").count() == 1 and page.locator(".blk.on .ph").count() == 1
     assert page.locator("#apr.show").count() == 0
     page.keyboard.press("ArrowRight")
     page.wait_for_function("!document.querySelector('.blk.on').classList.contains('noimg')")
-    assert not page.is_disabled("#bPrompt")
+    assert page.locator(".blk.on figure.shot").count() == 1
+    assert not page.is_disabled("#aside")
 
 
 @test
@@ -1889,7 +1896,7 @@ def gallery_open_tiles_drag_picker_batch(proj, page):
     page.click('#ggrid .tile[data-id="IMG001"]')
     page.wait_for_selector(".blk.on")
     more(page)
-    page.click("#morePop [data-ipick]")
+    page.click(".blk.on figure.shot .pop.menu [data-ipick]")
     page.wait_for_selector("dialog.gpick[open]")
     page.click("dialog.gpick [data-pk=new]")
     page.wait_for_function("window.__kit.S.P.scenes.flatMap(s => s.blocks).flatMap(b => b.images).length == %d" % (n + 2))
@@ -1936,14 +1943,13 @@ def voice_rid_takes_play_from_srcs(proj, page):
 def redo_gallery_filter_inbox_preview_and_regen_all(proj, page):
     """#bRedo & #morePop mark status: redo; gallery tiles & filter sync with S.filter/S.q and #fltChip; inbox images show previews; #spk offers regen-all."""
     at(page, "IMG001")
-    page.click("#bRedo")
+    page.click(".blk.on [data-pact=redo]")
     proj.wait_in("[IMG001]", "status: redo")
-    page.wait_for_selector("#bRedo.has")
+    page.wait_for_selector(".blk.on [data-pact=redo].has")
     page.wait_for_selector("#apr.show.redo")
-    page.click("#bRedo")
+    page.click(".blk.on [data-pact=redo]")
     proj.wait_in("[IMG001]", "status: redo", absent=True)
-    more(page)
-    page.click("#morePop [data-iredo]")
+    page.click(".blk.on [data-pact=redo]")
     proj.wait_in("[IMG001]", "status: redo")
     os.makedirs(os.path.join(proj.root, "inbox"), exist_ok=True)
     open(os.path.join(proj.root, "inbox", "inb_pic.png"), "wb").write(png())
@@ -1979,7 +1985,10 @@ def workspace_speed_premiere_export_and_bulk_gallery(proj, page):
     assert page.inner_text(".ftp .spdl").strip() == "۱×"
     assert page.evaluate("window.__kit.S.speed") == 1.0
     more(page)
-    assert page.locator("#morePop .mhead").count() == 2
+    assert page.locator(".blk.on figure.shot .pop.menu .mhead").count() == 1
+    page.keyboard.press("Escape")
+    smore(page)
+    assert page.locator(".blk.on .pghead .pop.menu .mhead").count() == 1
     page.keyboard.press("Escape")
     drawer(page, "export")
     page.click("[data-ex=px-fa]")
@@ -2078,6 +2087,24 @@ def paper_dialogs_no_native_alerts_and_chips(proj, page):
     assert not page._dialogs, page._dialogs
 
 
+@test
+def scene_actions_on_no_picture_block(proj, page):
+    """The per-scene menu works on blocks with no picture: title/env edit, new picture at end, new scene, set aside."""
+    use_story(proj, page)
+    noimg = page.evaluate("document.querySelector('.blk.noimg').dataset.bid")
+    at(page, noimg)
+    assert page.locator(".blk.on.noimg").count() == 1
+    smore(page)
+    spop = ".blk.on .pghead .pop.menu"
+    assert page.locator(spop + " [data-sedit]").count() == 1
+    assert page.locator(spop + " [data-addimg]").count() == 1
+    assert page.locator(spop + " [data-addscene]").count() == 1
+    assert page.locator(spop + " [data-soff]").count() == 1
+    page.click(spop + " [data-addimg]")
+    page.wait_for_selector(".blk.on figure.shot")
+    assert not page.evaluate("document.querySelector('.blk.on').classList.contains('noimg')")
+
+
 def main():
     global UPDATE
     ap = argparse.ArgumentParser()
@@ -2117,7 +2144,7 @@ def main():
                     print("   dialogs shown by the page:", page._dialogs)
                 if errors:
                     print("   browser errors:", errors[:3])
-                print("FAIL %s\n%s" % (t.__name__, "".join(traceback.format_exc().splitlines(True)[-14:])))
+                print("FAIL %s\n%s" % (t.__name__, traceback.format_exc()))
             finally:
                 proj.close()
         browser.close()

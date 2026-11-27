@@ -28,6 +28,7 @@ import {
   show
 } from './player.js';
 import { openPicker } from './gallery.js';
+import { openSceneDialog } from './dialogs.js';
 /* Picture versions, the image «⋯» menu, scene management and voice variants. Everything is written to story.txt; no file is renamed or deleted. */
 /* ---------- where we are */
 const sceneId = () => $('#b' + S.cur).closest('section[data-scene]').dataset.scene;
@@ -79,11 +80,14 @@ async function browse(d) {
   }
 }
 export const stepVersion = d => browse(d);
-export async function archiveShown() {
-  const c = curImg();
-  if (!c || !c.m.versions[c.m.vi])
+export async function archiveShown(m) {
+  if (!m) {
+    const c = curImg();
+    m = c && c.m;
+  }
+  if (!m || !m.versions[m.vi])
     return;
-  const id = c.m.id, name = c.m.versions[c.m.vi].name;
+  const id = m.id, name = m.versions[m.vi].name;
   await api('/api/archive', {
     kind: 'image',
     id,
@@ -131,11 +135,14 @@ function toastAct(msg, label, fn) {
   TOAST_ACT = setTimeout(() => t.hidden = true, 7000);
 }
 /* ---------- the archive of the shown picture: a grid like the gallery picker; a click opens one with ‹ › and «bring back» */
-export function openArchive() {
-  const c = curImg();
-  if (!c)
+export function openArchive(id) {
+  if (!id) {
+    const c = curImg();
+    id = c && c.m.id;
+  }
+  if (!id)
     return;
-  const id = c.m.id, dlg = document.createElement('dialog');
+  const dlg = document.createElement('dialog');
   let at = -1;
   const list = () => (curImgById(id) || { archived: [] }).archived;
   const draw = () => {
@@ -193,50 +200,60 @@ export function openArchive() {
   dlg.showModal();
 }
 const curImgById = id => S.BL.flatMap(b => b.images).find(x => x.id === id);
-/* ---------- the image «⋯» popover */
-const closeMore = () => {
-  $('#morePop').hidden = true;
-  $('#more').setAttribute('aria-expanded', 'false');
-};
+/* ---------- the image and scene «⋯» popovers */
+export function closeMenus() {
+  document.querySelectorAll('.pop.menu:not([hidden])').forEach(p => {
+    p.hidden = true;
+    p.previousElementSibling?.setAttribute('aria-expanded', 'false');
+  });
+}
 const item = (attr, text, extra = '', icon = '') => `<button type="button" role="menuitem" ${ attr } ${ extra }>${ icon ? ic(icon) : '' }<span>${ text }</span></button>`;
-function moreHtml() {
-  const c = curImg(), sid = sceneId(), sc = sceneObj(sid), out = [];
-  if (c) {
-    const {m} = c, vis = S.P.scenes.filter(s => !s.off), prev = vis[vis.indexOf(sc) - 1];
-    const first = sc.blocks.flatMap(b => b.images)[0]?.id === m.id;
-    out.push(`<div class="mhead">تصویر <bdi dir="ltr">${ m.id }</bdi></div>`);
-    if (sid !== 'scene-00') {
-      if (moveTarget(m.id, -1))
-        out.push(item('data-imv="-1"', 'یک تصویر بالاتر', '', 'up'));
-      if (moveTarget(m.id, 1))
-        out.push(item('data-imv="1"', 'یک تصویر پایین‌تر', '', 'down'));
-      out.push(item('data-iadd="1"', 'تصویر جدید بعد از این', '', 'plus'));
-      out.push(item('data-ipick="1"', 'انتخاب یا جابه‌جایی به بعد…', '', 'grid'));
-      if (!first)
-        out.push(item('data-isc="1"', 'شروع صحنهٔ جدید از اینجا', '', 'list'));
-      if (first && prev && prev.id !== 'scene-00')
-        out.push(item('data-imerge="1"', 'ادغام با صحنهٔ قبل', 'title="عنوان این صحنه برداشته می‌شه و تصویرهاش می‌رن توی صحنهٔ قبل"', 'undo'));
-    }
-    out.push(item('data-iredo="1"', m.status === 'redo' ? 'برداشتن علامت بازسازی' : 'نیاز به بازسازی', '', 'redo'));
-    out.push(item('data-ioff="1"', m.off ? 'برگردان تصویر' : 'کنار بگذار', 'title="فایلش پاک نمی‌شه"', 'tray'));
-    if (m.versions.length)
-      out.push(item('data-iarch="1"', 'نسخهٔ فعلی به آرشیو', 'title="فایل پاک نمی‌شه"', 'archive'));
-    if (m.archived.length)
-      out.push(item('data-irest="1"', `نسخه‌های آرشیو (${ fa(m.archived.length) })`, '', 'restore'));
+export function moreHtml(m, sc) {
+  if (!m) {
+    const c = curImg();
+    m = c && c.m;
   }
+  if (!sc)
+    sc = sceneObj(sceneId());
+  if (!m || !sc)
+    return '';
+  const sid = sc.id, out = [];
+  out.push(`<div class="mhead">تصویر <bdi dir="ltr">${ esc(m.id) }</bdi></div>`);
   if (sid !== 'scene-00') {
-    if (out.length)
-      out.push('<hr>');
-    out.push('<div class="mhead">این صحنه</div>');
-    out.push(item('data-smv="-1"', 'یک صحنه بالاتر', '', 'up'), item('data-smv="1"', 'یک صحنه پایین‌تر', '', 'down'), item(`data-addimg="${ sid }"`, 'تصویر جدید در انتهای صحنه', '', 'plus'), item(`data-addscene="${ sid }"`, 'صحنهٔ جدید بعد از این', '', 'list'), item('data-soff="1"', 'کنار گذاشتن این صحنه', 'title="متن و فایل‌ها پاک نمی‌شن"', 'tray'));
+    if (moveTarget(m.id, -1))
+      out.push(item('data-imv="-1"', 'یک تصویر بالاتر', '', 'up'));
+    if (moveTarget(m.id, 1))
+      out.push(item('data-imv="1"', 'یک تصویر پایین‌تر', '', 'down'));
+    out.push(item('data-ipick="1"', 'انتخاب یا جابه‌جایی به بعد…', '', 'grid'));
+    out.push(item('data-iadd="1"', 'تصویر جدید بعد از این', '', 'plus'));
+    const first = sc.blocks.flatMap(b => b.images)[0]?.id === m.id;
+    if (!first)
+      out.push(item('data-isc="1"', 'شروع صحنهٔ جدید از اینجا', '', 'list'));
   }
+  out.push(item('data-ioff="1"', m.off ? 'برگردان تصویر' : 'کنار بگذار', 'title="فایلش پاک نمی‌شه"', 'tray'));
   return out.join('');
 }
-function openMore() {
-  const pop = $('#morePop');
-  pop.innerHTML = moreHtml();
-  pop.hidden = false;
-  $('#more').setAttribute('aria-expanded', 'true');
+export function sceneMenuHtml(sc) {
+  if (!sc)
+    sc = sceneObj(sceneId());
+  if (!sc)
+    return '';
+  const sid = sc.id, out = [];
+  out.push('<div class="mhead">این صحنه</div>');
+  out.push(item(`data-sedit="${ sid }"`, 'ویرایش عنوان، محیط و ادیت', '', 'pencil'));
+  if (sid !== 'scene-00') {
+    out.push(item('data-smv="-1"', 'یک صحنه بالاتر', '', 'up'));
+    out.push(item('data-smv="1"', 'یک صحنه پایین‌تر', '', 'down'));
+    out.push(item(`data-addimg="${ sid }"`, 'تصویر جدید در انتهای صحنه', '', 'plus'));
+    out.push(item(`data-addscene="${ sid }"`, 'صحنهٔ جدید بعد از این', '', 'list'));
+    const vis = S.P.scenes.filter(s => !s.off);
+    const idx = vis.indexOf(sc);
+    const prev = idx > 0 ? vis[idx - 1] : null;
+    if (prev && prev.id !== 'scene-00')
+      out.push(item(`data-imerge="${ sid }"`, 'ادغام با صحنهٔ قبل', 'title="عنوان این صحنه برداشته می‌شه و تصویرهاش می‌رن توی صحنهٔ قبل"', 'undo'));
+    out.push(item(`data-soff="${ sid }"`, 'کنار گذاشتن این صحنه', 'title="متن و فایل‌ها پاک نمی‌شن"', 'tray'));
+  }
+  return out.join('');
 }
 const run = async fn => {
   try {
@@ -246,7 +263,13 @@ const run = async fn => {
   }
 };
 async function onItem(b) {
-  const c = curImg(), m = c && c.m, sid = sceneId(), d = b.dataset;
+  const fig = b.closest('figure.shot');
+  const scEl = b.closest('section[data-scene]');
+  const sid = b.dataset.addimg || b.dataset.addscene || b.dataset.soff || b.dataset.imerge || b.dataset.sedit || scEl?.dataset.scene || sceneId();
+  const d = b.dataset;
+  const m = (fig ? S.BL.flatMap(x => x.images).find(x => x.id === fig.dataset.id) : null) || curImg()?.m;
+  if (d.sedit)
+    return openSceneDialog(d.sedit);
   if (d.imv)
     return run(async () => {
       const body = moveTarget(m.id, +d.imv);
@@ -276,7 +299,7 @@ async function onItem(b) {
     });
   if (d.imerge)
     return run(async () => {
-      const sc = sceneObj(sid), info = sc.env.length || sc.fx || sc.model;
+      const sc = sceneObj(sid), info = sc && (sc.env.length || sc.fx || sc.model);
       if (!(await askConfirm('این صحنه با صحنهٔ قبلش ادغام بشه؟\nعنوان این صحنه برداشته می‌شه و تصویرهاش می‌رن توی صحنهٔ قبل' + (info ? '؛ محیط و ادیتِ صحنه هم حذف می‌شه' : '') + '.\nبا «برگردان» می‌شه برگشت.', 'ادغام')))
         return;
       await api('/api/scenemark', {
@@ -303,9 +326,9 @@ async function onItem(b) {
       await reload();
     });
   if (d.iarch)
-    return run(archiveShown);
+    return run(() => archiveShown(m));
   if (d.irest)
-    return openArchive();
+    return openArchive(m?.id);
   if (d.smv)
     return run(async () => {
       await api('/api/scenemove', {
@@ -354,42 +377,75 @@ export const bringBack = sid => run(async () => {
   goScene(sid);
 });
 export function boot_versions() {
-  $('#bArch').onclick = () => run(archiveShown);
-  $('#bArchList').onclick = openArchive;
-  $('#bRedo').onclick = () => run(async () => {
-    const c = curImg();
-    if (!c)
-      return;
-    await api('/api/image', {
-      id: c.m.id,
-      status: c.m.status === 'redo' ? '' : 'redo'
-    });
-    await reload();
-  });
   document.addEventListener('click', e => {
     const b = e.target.closest('[data-vn]');
     if (b)
       browse(+b.dataset.vn);
+    const pact = e.target.closest('[data-pact]');
+    if (pact) {
+      const k = pact.dataset.pact;
+      const fig = pact.closest('figure.shot');
+      const m = fig ? S.BL.flatMap(x => x.images).find(x => x.id === fig.dataset.id) : null;
+      if (k === 'arch')
+        run(() => archiveShown(m));
+      else if (k === 'archlist')
+        openArchive(m?.id);
+      else if (k === 'redo')
+        run(async () => {
+          if (!m)
+            return;
+          await api('/api/image', {
+            id: m.id,
+            status: m.status === 'redo' ? '' : 'redo'
+          });
+          await reload();
+        });
+      else if (k === 'more') {
+        const scEl = pact.closest('section[data-scene]');
+        const sc = S.P.scenes.find(s => s.id === scEl?.dataset.scene);
+        const pop = pact.nextElementSibling;
+        const wasHidden = pop.hidden;
+        closeMenus();
+        if (wasHidden && m && sc) {
+          pop.innerHTML = moreHtml(m, sc);
+          pop.hidden = false;
+          pact.setAttribute('aria-expanded', 'true');
+        }
+      }
+    }
+    const sm = e.target.closest('[data-smore]');
+    if (sm) {
+      const sc = S.P.scenes.find(s => s.id === sm.dataset.smore);
+      const pop = sm.nextElementSibling;
+      const wasHidden = pop.hidden;
+      closeMenus();
+      if (wasHidden && sc) {
+        pop.innerHTML = sceneMenuHtml(sc);
+        pop.hidden = false;
+        sm.setAttribute('aria-expanded', 'true');
+      }
+    }
+    const mi = e.target.closest('.pop.menu [role=menuitem]');
+    if (mi) {
+      closeMenus();
+      onItem(mi);
+    }
     const o = e.target.closest('[data-ioff]');
-    if (o && !o.closest('#morePop'))
+    if (o && !o.closest('.pop.menu'))
       onItem(o);
   });
-  $('#more').onclick = () => $('#morePop').hidden ? openMore() : closeMore();
-  $('#morePop').addEventListener('click', e => {
-    const b = e.target.closest('[role=menuitem]');
-    if (!b)
-      return;
-    closeMore();
-    onItem(b);
-  });
   document.addEventListener('pointerdown', e => {
-    if (!$('#morePop').hidden && !e.target.closest('#morePop,#more'))
-      closeMore();
+    if (!e.target.closest('.mw'))
+      closeMenus();
   });
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && !$('#morePop').hidden) {
-      closeMore();
-      $('#more').focus();
+    if (e.key === 'Escape') {
+      const open = document.querySelector('.pop.menu:not([hidden])');
+      if (open) {
+        const btn = open.previousElementSibling;
+        closeMenus();
+        btn?.focus();
+      }
     }
   });
   /* the small ‹۱/۲› next to a voice button: next voice of that line; the one you stop on becomes the chosen (final) voice */

@@ -96,28 +96,28 @@ export function chrome() {
   $('#apr').innerHTML = isRedo ? ic('redo') + 'نیاز به بازسازی' : isOk ? ic('check') + 'تأیید شده' : '';
   $('#apr').classList.toggle('show', !!(isRedo || isOk));
   $('#apr').classList.toggle('redo', !!isRedo);
-  const acts = $('#picActs');
-  const home = c ? c.f : $('.be');
-  if (acts.parentElement !== home)
-    home.appendChild(acts);
-  [
-    '#bNote',
-    '#bRedo',
-    '#bPrompt',
-    '#bVprompt',
-    '#bFlag',
-    '#more'
-  ].forEach(s => $(s).disabled = !m);
-  $('#bRedo').classList.toggle('has', !!isRedo);
-  $('#bRedo').setAttribute('aria-pressed', isRedo ? 'true' : 'false');
-  $('#bRedo').title = isRedo ? 'برداشتن علامت «نیاز به بازسازی»' : 'علامت‌گذاری: نیاز به بازسازی';
-  $('#bArch').disabled = !(m && m.versions && m.versions.length);
-  $('#bArchList').disabled = !m;
-  $('#bArchList').classList.toggle('has', !!(m && m.archived && m.archived.length));
-  $('#bArchList').title = m && m.archived && m.archived.length ? `آرشیو این تصویر (${ m.archived.length } مورد): بازگردانی` : 'آرشیو این تصویر: هنوز چیزی توش نیست';
-  $('#bNote').classList.toggle('has', !!(m && (m.note || m.fx)));
-  $('#bVprompt').classList.toggle('has', !!(m && m.vprompt));
-  $('#bPrompt').classList.toggle('has', !!(m && m.stale));
+  $$('.pacts button[id]').forEach(b => b.removeAttribute('id'));
+  if (c && c.f) {
+    const pacts = c.f.querySelector('.pacts');
+    if (pacts) {
+      pacts.querySelector('[data-pact="note"]')?.setAttribute('id', 'bNote');
+      pacts.querySelector('[data-pact="prompt"]')?.setAttribute('id', 'bPrompt');
+      pacts.querySelector('[data-pact="vprompt"]')?.setAttribute('id', 'bVprompt');
+      pacts.querySelector('[data-pact="flag"]')?.setAttribute('id', 'bFlag');
+      pacts.querySelector('[data-pact="redo"]')?.setAttribute('id', 'bRedo');
+      pacts.querySelector('[data-pact="arch"]')?.setAttribute('id', 'bArch');
+      pacts.querySelector('[data-pact="archlist"]')?.setAttribute('id', 'bArchList');
+      pacts.querySelector('[data-pact="redo"]')?.classList.toggle('has', !!isRedo);
+      pacts.querySelector('[data-pact="redo"]')?.setAttribute('aria-pressed', isRedo ? 'true' : 'false');
+      pacts.querySelector('[data-pact="redo"]')?.setAttribute('title', isRedo ? 'برداشتن علامت «نیاز به بازسازی»' : 'علامت‌گذاری: نیاز به بازسازی');
+      pacts.querySelector('[data-pact="arch"]')?.toggleAttribute('disabled', !(m && m.versions && m.versions.length));
+      pacts.querySelector('[data-pact="archlist"]')?.classList.toggle('has', !!(m && m.archived && m.archived.length));
+      pacts.querySelector('[data-pact="archlist"]')?.setAttribute('title', m && m.archived && m.archived.length ? `آرشیو این تصویر (${ m.archived.length } مورد): بازگردانی` : 'آرشیو این تصویر: هنوز چیزی توش نیست');
+      pacts.querySelector('[data-pact="note"]')?.classList.toggle('has', !!(m && (m.note || m.fx)));
+      pacts.querySelector('[data-pact="vprompt"]')?.classList.toggle('has', !!(m && m.vprompt));
+      pacts.querySelector('[data-pact="prompt"]')?.classList.toggle('has', !!(m && m.stale));
+    }
+  }
   const fc = $('#fltChip'), activeFlt = S.filter !== 'all' || !!S.q;
   fc.hidden = !activeFlt;
   if (activeFlt)
@@ -357,8 +357,17 @@ export function boot_player() {
   }, { passive: true });
   document.addEventListener('click', e => {
     const f = e.target.closest('[data-fwd]');
-    if (f)
-      document.getElementById(f.dataset.fwd).click();
+    if (f) {
+      const a = f.dataset.fwd;
+      if (a === 'play')
+        $('#play').click();
+      else {
+        const act = a.replace(/^b/, '').toLowerCase();
+        const target = document.querySelector(`.blk.on [data-pact="${ act }"]`) || document.getElementById(a);
+        if (target)
+          target.click();
+      }
+    }
   });
   $('#play').onclick = () => {
     stopLine();
@@ -455,7 +464,7 @@ export function boot_player() {
         'INPUT'
       ].includes(tag) && e.target.id !== 'prog' || e.target.isContentEditable)
       return;
-    if (document.querySelector('dialog[open]') || document.body.classList.contains('gal') || drawerOpen() || !$('#morePop').hidden)
+    if (document.querySelector('dialog[open]') || document.body.classList.contains('gal') || drawerOpen() || document.querySelector('.pop.menu:not([hidden])'))
       return;
     if (e.code === 'Space' && tag !== 'BUTTON') {
       e.preventDefault();
