@@ -105,6 +105,9 @@ export function chrome() {
   const en = $('#showEN').checked;
   $('#lang').setAttribute('aria-pressed', en ? 'true' : 'false');
   $('#lang').classList.toggle('en', en);
+  const sb = $('#spdBtn');
+  if (sb)
+    sb.textContent = fa(String(S.speed).replace('.', '٫')) + '×';
 }
 /* the list scrolls: a jump from a button moves the list to that page (smooth when near); while it moves, the scroll watcher stays quiet */
 let SCROLLING = 0, FIRST = true;
@@ -370,7 +373,24 @@ export function boot_player() {
   $('#lang').onclick = () => {
     $('#showEN').checked = !$('#showEN').checked;
     S.START = null;
-    reload();
+    reload(true);
+  };
+  const SPDS = [0.9, 1, 1.15, 1.3], spdFmt = v => fa(String(v).replace('.', '٫')) + '×';
+  if ($('#spdBtn'))
+    $('#spdBtn').onclick = () => {
+      const i = (SPDS.indexOf(S.speed) + 1) % SPDS.length;
+      S.speed = SPDS[i];
+      audio.playbackRate = S.speed;
+      $('#spdBtn').textContent = spdFmt(S.speed);
+      preTime(S.cur);
+      drawerRefresh();
+    };
+  $('#tbar').onclick = e => {
+    if (!S.playing || !isFinite(audio.duration) || audio.duration <= 0)
+      return;
+    const r = e.currentTarget.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+    audio.currentTime = ratio * audio.duration;
   };
   /* the slider must not keep the keyboard: otherwise ← → ↑ ↓ move it instead of going to the next picture / version */
   $('#prog').addEventListener('pointerup', () => setTimeout(() => $('#prog').blur(), 0));

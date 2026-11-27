@@ -181,7 +181,29 @@ def api_pack(d):
     return {"ok": True, "path": path, "files": n, "mb": round(os.path.getsize(path) / 1e6, 1), "package": pkg or "", "missing": miss[:20]}
 
 
-SLOW = {"/api/pack": api_pack, "/api/tonesample": api_tonesample, "/api/settings/testkey": lambda d: __import__("settings").test_key(), "/api/subtitles": api_subtitles, "/api/voices/refresh": api_refresh, "/api/sample": api_sample, "/api/regen": api_regen, "/api/linevoice": api_linevoice}
+def api_premiere_export(d):
+    """Build a simple Premiere XML timeline into premiere/premiere_<lang>.xml."""
+    import premiere_export
+    lang = str(d.get("lang", "fa"))
+    if lang not in LANGS:
+        raise ValueError("bad lang")
+    out = os.path.join(ROOT, "premiere", f"premiere_{lang}.xml")
+    path, warns = premiere_export.build(lang=lang, out=out)
+    return {"ok": True, "path": os.path.relpath(path, ROOT).replace("\\", "/"), "warnings": warns[:20]}
+
+
+def api_premiere_check(d):
+    """Check all Premiere XML files in the project for missing or absolute paths."""
+    import premiere_check
+    xmls = premiere_check.find_xmls()
+    out = []
+    for x in xmls:
+        r = premiere_check.check(x)
+        out.append({"name": os.path.relpath(x, ROOT).replace("\\", "/"), "total": r["total"], "missing": len(r["missing"]), "absolute": len(r["absolute"])})
+    return {"ok": True, "xmls": out}
+
+
+SLOW = {"/api/pack": api_pack, "/api/premiere/export": api_premiere_export, "/api/premiere/check": api_premiere_check, "/api/tonesample": api_tonesample, "/api/settings/testkey": lambda d: __import__("settings").test_key(), "/api/subtitles": api_subtitles, "/api/voices/refresh": api_refresh, "/api/sample": api_sample, "/api/regen": api_regen, "/api/linevoice": api_linevoice}
 
 
 SAMPLE_TEXT = "سلام، این یه نمونهٔ صداست. امروز می‌خوام یه چیز جالب بهت نشون بدم."

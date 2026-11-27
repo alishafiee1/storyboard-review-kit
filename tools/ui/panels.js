@@ -342,13 +342,14 @@ export function filt(force) {
   else if (S.BL.length)
     chrome();
 }
-export async function reload() {
+export async function reload(localOnly) {
   const here = $('#b' + S.cur), abid = here && here.dataset.bid, was = S.cur, actJ = here ? [...here.querySelectorAll('.it')].findIndex(x => x.classList.contains('cur')) : -1, fields = () => $$('textarea[data-key],input[data-key]'), drafts = fields().filter(t => t.value !== t.dataset.orig).map(t => [
       t.dataset.key,
       t.value
     ]);
   const open = $$('[data-key^="panel:"]:not(.hide)').map(e => e.dataset.key);
-  S.P = await (await fetch('/api/project')).json();
+  if (localOnly !== true)
+    S.P = await (await fetch('/api/project')).json();
   render();
   const at = blockByBid(abid);
   if (at >= 0 && !$('#b' + at).classList.contains('hide'))

@@ -57,7 +57,8 @@ const hit = ({m, sc, b}, q = S.q.trim().toLowerCase()) => matchFilter(m, S.filte
 const tileHtml = (t, first) => {
   const {m, sc} = t;
   const st = m.off ? 'off' : m.status === 'redo' ? 'redo' : m.status === 'ok' ? 'ok' : 'pend', n = m.versions.length;
-  return `<div class="tile ${ m.src ? '' : 'empty' } ${ st }${ first ? ' sb' : '' }${ SEL.has(m.id) ? ' sel' : '' }" ${ hit(t) ? '' : 'hidden' } data-id="${ m.id }" data-drag="tile" tabindex="0" role="button" aria-label="${ m.id }">${ m.src ? `<img src="${ esc(m.src) }" alt="" loading="lazy" decoding="async" draggable="false">` : `<span class="gid" dir="ltr">${ m.id }</span>` }${ sc.id === 'scene-00' ? '' : `<b class="no">${ fa(sceneNo(sc)) }</b>` }<i class="dot"></i>${ n > 1 ? `<u class="gvc">${ fa(n) }</u>` : '' }</div>`;
+  const tip = `${ m.id } · ${ sc.title }${ m.note ? ' · دارای یادداشت' : '' }${ m.stale ? ' · کهنه' : '' }`;
+  return `<div class="tile ${ m.src ? '' : 'empty' } ${ st }${ first ? ' sb' : '' }${ SEL.has(m.id) ? ' sel' : '' }" ${ hit(t) ? '' : 'hidden' } data-id="${ m.id }" data-drag="tile" tabindex="0" role="button" aria-label="${ m.id }" title="${ esc(tip) }">${ m.src ? `<img src="${ esc(m.src) }" alt="" loading="lazy" decoding="async" draggable="false"><span class="tid" dir="ltr">${ m.id }</span>` : `<span class="gid" dir="ltr">${ m.id }</span>` }${ sc.id === 'scene-00' ? '' : `<b class="no">${ fa(sceneNo(sc)) }</b>` }<i class="dot"></i>${ m.stale ? '<i class="gstl" title="پرامپت عوض شده">!</i>' : '' }${ n > 1 ? `<u class="gvc">${ fa(n) }</u>` : '' }</div>`;
 };
 function paint() {
   const g = $('#gallery');
@@ -73,7 +74,7 @@ function paint() {
   }).join('') + `<button type="button" class="tile add" data-gadd="1" aria-label="افزودن تصویر" title="افزودن تصویر">${ ic('plus') }</button>`;
   const batches = [...new Set(all.map(t => t.m.batch).filter(Boolean))].sort();
   const un = S.P.unplaced || [], inbox = (S.P.inbox || []).filter(f => f.kind === 'image');
-  g.innerHTML = `<div class="gtools"><button type="button" class="quiet sm" id="gSel" aria-pressed="${ PICK }">انتخاب</button><button type="button" class="quiet sm" id="gMove" aria-pressed="${ REORD }" title="در حالت جابه‌جایی، با کشیدن انگشت تصویر جابه‌جا می‌شود و صفحه جابه‌جا نمی‌شود">جابه‌جایی</button><span class="gcount" id="gCount"></span><span class="gsp"></span>${ batches.map(b => `<button type="button" class="quiet sm" data-gbatch="${ b }" title="کپی پرامپت‌های این دسته">${ ic('image') }<bdi dir="ltr">${ b }</bdi></button>`).join('') }</div><div class="ggrid" id="ggrid">${ grid }<div class="gline" hidden></div></div>${ un.length || inbox.length ? `<div class="gun"><h4>جا نگرفته‌ها <small>(بکش توی گالری، یا + بزن)</small></h4><div class="gur">${ un.map(u => `<div class="uit" data-drag="un" data-uid="${ u.id }">${ u.src ? `<img src="${ esc(u.src) }" alt="" loading="lazy" draggable="false">` : '<span class="uph"></span>' }<bdi dir="ltr">${ u.id }</bdi><button type="button" class="ib sm" data-gun="${ u.id }" aria-label="جاگذاری ${ u.id }">${ ic('plus') }</button></div>`).join('') }${ inbox.map(f => `<div class="uit" data-drag="un" data-uid="">${ f.src ? `<img src="${ esc(f.src) }" alt="" loading="lazy" draggable="false" data-inbzoom="${ esc(f.src) }" data-name="${ esc(f.name) }" title="بزرگ‌نمایی">` : '<span class="uph"></span>' }<bdi dir="ltr">${ esc(f.name) }</bdi><button type="button" class="ib sm" data-gun="" aria-label="جای تازه">${ ic('plus') }</button></div>`).join('') }</div></div>` : '' }`;
+  g.innerHTML = `<div class="gtools"><button type="button" class="quiet sm" id="gSel" aria-pressed="${ PICK }">انتخاب</button><button type="button" class="quiet sm" id="gMove" aria-pressed="${ REORD }" title="در حالت جابه‌جایی، با کشیدن انگشت تصویر جابه‌جا می‌شود و صفحه جابه‌جا نمی‌شود">جابه‌جایی</button><span class="gcount" id="gCount"></span><span class="gbulk" id="gBulk" hidden><button type="button" class="quiet sm" data-gbulk="redo">بازسازی</button><button type="button" class="quiet sm" data-gbulk="off">کنار بگذار</button><button type="button" class="quiet sm" data-gbulk="clear">لغو</button></span><span class="gsp"></span>${ batches.map(b => `<button type="button" class="quiet sm" data-gbatch="${ b }" title="کپی پرامپت‌های این دسته">${ ic('batch') }<bdi dir="ltr">${ b }</bdi></button>`).join('') }</div><div class="ggrid" id="ggrid">${ grid }<div class="gline" hidden></div></div>${ un.length || inbox.length ? `<div class="gun"><h4>جا نگرفته‌ها <small>(بکش توی گالری، یا + بزن)</small></h4><div class="gur">${ un.map(u => `<div class="uit" data-drag="un" data-uid="${ u.id }">${ u.src ? `<img src="${ esc(u.src) }" alt="" loading="lazy" draggable="false">` : '<span class="uph"></span>' }<bdi dir="ltr">${ u.id }</bdi><button type="button" class="ib sm" data-gun="${ u.id }" aria-label="جاگذاری ${ u.id }">${ ic('plus') }</button></div>`).join('') }${ inbox.map(f => `<div class="uit" data-drag="un" data-uid="">${ f.src ? `<img src="${ esc(f.src) }" alt="" loading="lazy" draggable="false" data-inbzoom="${ esc(f.src) }" data-name="${ esc(f.name) }" title="بزرگ‌نمایی">` : '<span class="uph"></span>' }<bdi dir="ltr">${ esc(f.name) }</bdi><button type="button" class="ib sm" data-gun="" aria-label="جای تازه">${ ic('plus') }</button></div>`).join('') }</div></div>` : '' }`;
   g.classList.toggle('reorder', REORD);
   count();
 }
@@ -85,7 +86,9 @@ const stat = () => {
 };
 const count = () => {
   stat();
-  const c = $('#gCount');
+  const c = $('#gCount'), b = $('#gBulk');
+  if (b)
+    b.hidden = !SEL.size;
   if (c) {
     const shown = $$('#ggrid .tile[data-id]:not([hidden])').length, total = tiles().length;
     c.textContent = SEL.size ? `${ fa(SEL.size) } انتخاب‌شده` : shown < total ? `${ fa(shown) } از ${ fa(total) } تصویر` : `${ fa(total) } تصویر`;
@@ -346,6 +349,22 @@ export function boot_gallery() {
     }
     if (b && b.dataset.gbatch)
       return copyBatch(b.dataset.gbatch);
+    if (b && b.dataset.gbulk) {
+      const k = b.dataset.gbulk;
+      if (k === 'clear') {
+        SEL.clear();
+        return paint();
+      }
+      try {
+        for (const id of SEL)
+          await api('/api/image', k === 'redo' ? { id, status: 'redo' } : { id, off: true });
+        SEL.clear();
+        toast('تغییر گروهی انجام شد');
+      } catch (er) {
+        fail(er);
+      }
+      return reload();
+    }
     if (b && b.dataset.gadd !== undefined)
       return openPicker(endPos());
     if (b && b.dataset.gun !== undefined) {

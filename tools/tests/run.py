@@ -456,7 +456,7 @@ def drawer_panels_filter_search_jump(proj, page):
     drawer(page)
     assert page.locator("#dmenu .drow").count() == 13 and page.is_hidden("#dback")
     labels = page.locator("#dmenu .rt").all_inner_texts()
-    assert labels[:3] == ["فهرست صحنه‌ها", "فیلتر و جست‌وجو", "سرعت پخش"] and "کپی پرامپت‌های دسته" in labels
+    assert labels[:3] == ["فهرست صحنه‌ها", "فیلتر و جست‌وجو", "نسخه‌ها و آرشیو"] and "سرعت پخش" in labels and "کپی پرامپت‌های دسته" in labels
     drawer(page, "refs")
     assert page.locator("#refs .card").count() == 1 and page.is_visible("#dback") and page.is_hidden("#dmenu")
     page.click("#refs [data-img] >> nth=0")  # jump to a picture that uses the reference: the drawer closes
@@ -1954,6 +1954,34 @@ def redo_gallery_filter_inbox_preview_and_regen_all(proj, page):
     assert page.locator("#fltChip").is_hidden()
     drawer(page, "spk")
     assert page.locator("#spk [data-regen-all]").count() == 1
+
+
+@test
+def workspace_speed_premiere_export_and_bulk_gallery(proj, page):
+    """Footer #spdBtn cycles playback speed; #pExport builds & checks Premiere XML; #morePop has section headers; gallery bulk redo works."""
+    at(page, "IMG001")
+    assert page.inner_text("#spdBtn").strip() == "۱×"
+    page.click("#spdBtn")
+    assert page.inner_text("#spdBtn").strip() == "۱٫۱۵×"
+    assert page.evaluate("window.__kit.S.speed") == 1.15
+    more(page)
+    assert page.locator("#morePop .mhead").count() == 2
+    page.keyboard.press("Escape")
+    drawer(page, "export")
+    page.click("[data-ex=px-fa]")
+    page.wait_for_function("document.querySelector('#pxres') && document.querySelector('#pxres').innerText.includes('premiere_fa.xml')")
+    assert os.path.exists(os.path.join(proj.root, "premiere", "premiere_fa.xml"))
+    page.click("[data-ex=pchk]")
+    page.wait_for_function("document.querySelector('#pxres') && document.querySelector('#pxres').innerText.includes('سالم')")
+    undrawer(page)
+    page.click("#galBtn")
+    page.wait_for_selector("#ggrid .tile[data-id]")
+    page.click("#gSel")
+    page.click('#ggrid .tile[data-id="IMG001"]')
+    page.click('#ggrid .tile[data-id="IMG002"]')
+    page.click('[data-gbulk="redo"]')
+    proj.wait_in("[IMG001]", "status: redo")
+    proj.wait_in("[IMG002]", "status: redo")
 
 
 def main():

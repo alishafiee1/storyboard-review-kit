@@ -398,15 +398,25 @@ export function wire() {
     });
     sn.onclick = async () => {
       try {
-        await api('/api/image', {
-          id,
-          note: nt.value
-        });
-        nt.dataset.orig = nt.value;
-        nt.dispatchEvent(new Event('input'));
-        m.note = nt.value;
-        stats();
-        filt();
+        const body = { id };
+        if (nt.value !== nt.dataset.orig)
+          body.note = nt.value;
+        if (ft.value !== ft.dataset.orig)
+          body.fx = ft.value;
+        if (body.note === undefined && body.fx === undefined)
+          return;
+        await api('/api/image', body);
+        if (body.note !== undefined) {
+          nt.dataset.orig = nt.value;
+          nt.dispatchEvent(new Event('input'));
+          m.note = nt.value;
+          stats();
+          filt();
+        }
+        if (body.fx !== undefined) {
+          ft.dataset.orig = ft.value;
+          await reload();
+        }
       } catch (e) {
         fail(e);
       }

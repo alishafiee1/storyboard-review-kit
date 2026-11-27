@@ -163,10 +163,10 @@ function figHtml(m, sc) {
    <div class="idrow"><bdi class="iid" dir="ltr">${ m.id }</bdi>${ m.off ? '<span class="offl">کنار گذاشته شده</span>' : '' }${ m.video ? `<button class="quiet sm vid" data-vid="${ esc(m.video) }" data-name="${ m.id }" title="پخش ویدیوی این تصویر">${ ic('play') }ویدیو</button>` : '' }</div>
    ${ m.stale ? `<div class="stalebox">پرامپت عوض شده؛ تصویر کهنه است <button class="quiet sm" data-clrimg="1">تصویر به‌روز شد</button></div>` : '' }${ issHtml(m.issues) }
    <div class="nbox pop hide" data-key="panel:note:${ m.id }" role="group" aria-label="یادداشت و ادیت"><div class="phead"><b>یادداشت</b><button class="ib sm" type="button" data-nclose="1" aria-label="بستن">${ ic('close') }</button></div>
-     <textarea class="nt" rows="2" data-key="note:${ m.id }" data-orig="${ esc(m.note) }" placeholder="یادداشت برای این صحنه... (Enter = ذخیره · Shift+Enter = خط بعد · Esc = برگشت)">${ esc(m.note) }</textarea>
-     <div class="btns" hidden><button class="b" data-sn="1">ذخیره یادداشت</button></div>
+     <textarea class="nt" rows="2" data-key="note:${ m.id }" data-orig="${ esc(m.note) }" placeholder="یادداشت برای این صحنه... (Enter = ذخیره · Shift+Enter = خط بعد)">${ esc(m.note) }</textarea>
      <div class="phead"><b>ادیت</b></div>
-     <textarea class="fx" rows="1" data-key="fx:${ m.id }" data-orig="${ esc(m.fx || '') }" placeholder="${ FX_PH }">${ esc(m.fx || '') }</textarea></div></figure>`;
+     <textarea class="fx" rows="1" data-key="fx:${ m.id }" data-orig="${ esc(m.fx || '') }" placeholder="${ FX_PH }">${ esc(m.fx || '') }</textarea>
+     <div class="btns"><button class="b pri" type="button" data-sn="1">ذخیره</button><button class="quiet sm" type="button" data-nclose="1">بستن</button></div></div></figure>`;
 }
 /* the voice button of a scene: «make voices» for lines that are out of date */
 function sceneModel(sc) {

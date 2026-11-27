@@ -109,6 +109,12 @@ const ROWS = [
     'راهنما'
   ]
 ];
+const GROUPS = [
+  ['ناوبری و مرور', ['scenes', 'filter', 'vers']],
+  ['تولید و رسانه', ['spk', 'refs', 'batch', 'inbox']],
+  ['خروجی و تحویل', ['export', 'subs', 'speed']],
+  ['سیستم و راهنما', ['undo', 'settings', 'help']]
+];
 const FILTERS = [
   [
     'all',
@@ -350,16 +356,49 @@ async function settingsClick(act, on) {
     fail(e);
   }
 }
-/* ---- export for the editor: one zip with the chosen pictures and voices, the review page and the Premiere package */
+/* ---- export for the editor: Premiere XML, subtitles, and one zip with the chosen pictures and voices */
 function buildExport() {
   const P = $('#pExport');
   if (P.querySelector('#exres') && P.querySelector('#exres').dataset.busy === '1')
     return;
-  P.innerHTML = `<p class="muted">یه زیپ کنار پوشهٔ پروژه ساخته می‌شه برای ادیتور:</p>
-    <ul class="muted"><li>سناریو، پرامپت‌ها و صفحهٔ بازبینی (ادیتور با نصب Python می‌تونه داستان رو ببینه و صداها رو بشنوه)</li><li>فقط عکس و صدای <b>انتخاب‌شده</b> (نسخه‌های اضافه و آرشیو نمی‌ره)</li><li>پوشهٔ بستهٔ پریمیر، اگه ساخته باشی</li><li>یه راهنمای کوتاه برای ادیتور</li></ul>
+  P.innerHTML = `<h4>تایم‌لاین پریمیر (XML)</h4>
+    <p class="muted">خروجی ساده با مسیر نسبی در پوشهٔ <bdi dir="ltr">premiere/</bdi> از روی ترتیب داستان و نسخه‌های تأییدشده.</p>
+    <div class="srow act"><button type="button" class="outline" data-ex="px-fa">ساخت XML فارسی</button><button type="button" class="outline" data-ex="px-en">ساخت XML انگلیسی</button><button type="button" class="quiet" data-ex="pchk">بررسی فایل‌های XML</button></div>
+    <p id="pxres" class="muted" role="status"></p>
+    <h4>زیرنویس (SRT)</h4>
+    <div class="srow"><span class="st"><small class="muted">فایل‌های <bdi dir="ltr">subtitles/fa.srt</bdi> و <bdi dir="ltr">en.srt</bdi></small></span><button type="button" class="outline" data-ex="subs">ساخت زیرنویس</button></div>
+    <p id="subres" class="muted" role="status"></p>
+    <h4>زیپ برای ادیتور</h4>
+    <p class="muted">یه زیپ کنار پوشهٔ پروژه ساخته می‌شه شامل صفحهٔ بازبینی، سناریو، فقط عکس و صدای <b>انتخاب‌شده</b> و بستهٔ پریمیر.</p>
     <label class="srow"><input type="checkbox" id="exclips"> <span>کلیپ‌های ویدیویی (<bdi dir="ltr">videos/clips</bdi>) هم باشه</span></label>
     <div class="srow"><button type="button" class="outline" data-ex="go">ساخت زیپ</button></div>
     <p id="exres" class="muted" role="status"></p>`;
+}
+async function exportAct(act, btn) {
+  if (act === 'go')
+    return exportGo(btn);
+  const px = $('#pxres'), sb = $('#subres');
+  btn.disabled = true;
+  try {
+    if (act === 'subs') {
+      sb.textContent = 'در حال ساخت زیرنویس…';
+      const r = await api('/api/subtitles', {});
+      sb.textContent = r.message || 'ساخته شد';
+    } else if (act === 'px-fa' || act === 'px-en') {
+      const lang = act.slice(3);
+      px.textContent = 'در حال ساخت XML…';
+      const r = await api('/api/premiere/export', { lang });
+      px.innerHTML = `ساخته شد: <bdi dir="ltr">${ esc(r.path) }</bdi>${ r.warnings.length ? '<br>هشدار: ' + r.warnings.slice(0, 5).map(esc).join('، ') : '' }`;
+    } else if (act === 'pchk') {
+      px.textContent = 'در حال بررسی…';
+      const r = await api('/api/premiere/check', {});
+      px.innerHTML = r.xmls.length ? r.xmls.map(x => `<bdi dir="ltr">${ esc(x.name) }</bdi>: ${ fa(x.total) } فایل${ x.missing ? ` · <b style="color:var(--accent)">${ fa(x.missing) } گمشده</b>` : ' · سالم' }${ x.absolute ? ` · ${ fa(x.absolute) } مسیر مطلق` : '' }`).join('<br>') : 'فایل XML پریمیر پیدا نشد.';
+    }
+  } catch (e) {
+    fail(e);
+  } finally {
+    btn.disabled = false;
+  }
 }
 async function exportGo(btn) {
   const res = $('#exres');
@@ -392,7 +431,11 @@ async function loadHelp() {
     }
   };
   const guide = await get('/skills/how-to-write-prompts-for-flow.md'), own = await get('/skills/project-scripts.md');
-  const cards = [];
+  const cards = [{
+    title: 'میانبرهای صفحه‌کلید',
+    summary: '← → تصویر قبلی/بعدی · ↑ ↓ نسخهٔ قبلی/بعدی · Space پخش · Ctrl+Z برگردان',
+    body: '← / → : رفتن به تصویر قبلی یا بعدی (مطابق فیلتر)\n↑ / ↓ : جابه‌جایی بین نسخه‌های تصویر و تأیید خودکار\nSpace : پخش یا توقف خودکار صداهای صحنه\nCtrl+Z : برگرداندن آخرین تغییر ساختاری\nEsc : بستن پنجره، منو یا کشو\nEnter (در ویرایش خط و یادداشت) : ذخیره (Shift+Enter = خط بعد)'
+  }];
   guide.split(/^## /m).slice(1).forEach(part => {
     const lines = part.replace(/<style>[\s\S]*$/, '').split('\n'), title = lines[0].replace(/^[\d۰-۹]+\)\s*/, '').trim();
     const sum = lines.findIndex(l => l.startsWith('> خلاصه:'));
@@ -451,7 +494,9 @@ export function drawerRefresh() {
   const bu = $('#bUndo');
   bu.disabled = !(P.history || []).length;
   bu.title = bu.disabled ? 'چیزی برای برگرداندن نیست' : 'برگردان آخرین تغییر ساختاری (Ctrl+Z)';
-  $('#dmenu').innerHTML = ROWS.map(([k, i, t]) => `<button type="button" class="drow${ k === PANEL ? ' sel' : '' }" data-panel="${ k }">${ ic(i) }<span class="rt">${ t }</span><span class="trail">${ trail[k] || '' }</span></button>`).join('');
+  const byKey = Object.fromEntries(ROWS.map(r => [r[0], r]));
+  const rowHtml = ([k, i, t]) => `<button type="button" class="drow${ k === PANEL ? ' sel' : '' }" data-panel="${ k }">${ ic(i) }<span class="rt">${ t }</span><span class="trail">${ trail[k] || '' }</span></button>`;
+  $('#dmenu').innerHTML = GROUPS.map(([g, keys]) => `<div class="dgrp">${ g }</div>` + keys.map(k => rowHtml(byKey[k])).join('')).join('');
   if (drawerOpen() && PANEL)
     build(PANEL);
 }
@@ -490,6 +535,8 @@ export function boot_drawer() {
     } else if (d.speed) {
       S.speed = +d.speed;
       audio.playbackRate = S.speed;
+      if ($('#spdBtn'))
+        $('#spdBtn').textContent = speedText(S.speed);
       paintSpeed();
       drawerRefresh();
     } else if (d.vpick !== undefined) {
@@ -512,8 +559,8 @@ export function boot_drawer() {
           id: c.m.id,
           name: d.irestore
         }).then(reload).then(() => showRestored(c.m.id, d.irestore)).catch(fail);
-    } else if (d.ex === 'go')
-      exportGo(t);
+    } else if (d.ex)
+      exportAct(d.ex, t);
     else if (d.sset)
       settingsClick(d.sset);
     else if (d.hmore != null) {

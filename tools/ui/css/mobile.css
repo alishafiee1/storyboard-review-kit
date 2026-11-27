@@ -183,10 +183,11 @@
     padding:10px;
   }
 
-  /* playback line, time, small play: they would sit on top of the list, so the phone keeps only the action bar */
+  /* playback line, time, small play, speed: they would sit on top of the list, so the phone keeps only the action bar */
   #tbar,
   #ttime,
-  #playS {
+  #playS,
+  #spdBtn {
     display:none;
   }
 
@@ -247,6 +248,9 @@
   }
 
   .nbox.pop {
+    position:fixed;
+    top:auto;
+    bottom:64px;
     left:8px;
     right:8px;
     width:auto;

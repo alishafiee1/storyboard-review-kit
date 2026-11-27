@@ -196,37 +196,39 @@ const closeMore = () => {
   $('#morePop').hidden = true;
   $('#more').setAttribute('aria-expanded', 'false');
 };
-const item = (attr, text, extra = '') => `<button type="button" role="menuitem" ${ attr } ${ extra }>${ text }</button>`;
+const item = (attr, text, extra = '', icon = '') => `<button type="button" role="menuitem" ${ attr } ${ extra }>${ icon ? ic(icon) : '' }<span>${ text }</span></button>`;
 function moreHtml() {
   const c = curImg(), sid = sceneId(), sc = sceneObj(sid), out = [];
   if (c) {
     const {m} = c, vis = S.P.scenes.filter(s => !s.off), prev = vis[vis.indexOf(sc) - 1];
     const first = sc.blocks.flatMap(b => b.images)[0]?.id === m.id;
+    out.push(`<div class="mhead">تصویر <bdi dir="ltr">${ m.id }</bdi></div>`);
     if (sid !== 'scene-00') {
       if (moveTarget(m.id, -1))
-        out.push(item('data-imv="-1"', 'یک تصویر بالاتر'));
+        out.push(item('data-imv="-1"', 'یک تصویر بالاتر', '', 'up'));
       if (moveTarget(m.id, 1))
-        out.push(item('data-imv="1"', 'یک تصویر پایین‌تر'));
-      out.push(item('data-iadd="1"', 'تصویر بعد از این'));
-      out.push(item('data-ipick="1"', 'افزودن تصویر بعد از این…'));
+        out.push(item('data-imv="1"', 'یک تصویر پایین‌تر', '', 'down'));
+      out.push(item('data-iadd="1"', 'تصویر جدید بعد از این', '', 'plus'));
+      out.push(item('data-ipick="1"', 'انتخاب یا جابه‌جایی به بعد…', '', 'grid'));
       if (!first)
-        out.push(item('data-isc="1"', 'شروع صحنهٔ جدید از اینجا'));
+        out.push(item('data-isc="1"', 'شروع صحنهٔ جدید از اینجا', '', 'list'));
       if (first && prev && prev.id !== 'scene-00')
-        out.push(item('data-imerge="1"', 'ادغام با صحنهٔ قبل', 'title="عنوان این صحنه برداشته می‌شه و تصویرهاش می‌رن توی صحنهٔ قبل"'));
+        out.push(item('data-imerge="1"', 'ادغام با صحنهٔ قبل', 'title="عنوان این صحنه برداشته می‌شه و تصویرهاش می‌رن توی صحنهٔ قبل"', 'undo'));
     }
-    out.push(item('data-ioff="1"', m.off ? 'برگردان تصویر' : 'کنار بگذار', 'title="فایلش پاک نمی‌شه"'));
-    out.push(item('data-iredo="1"', m.status === 'redo' ? 'برداشتن علامت بازسازی' : 'نیاز به بازسازی'));
+    out.push(item('data-iredo="1"', m.status === 'redo' ? 'برداشتن علامت بازسازی' : 'نیاز به بازسازی', '', 'redo'));
+    out.push(item('data-ioff="1"', m.off ? 'برگردان تصویر' : 'کنار بگذار', 'title="فایلش پاک نمی‌شه"', 'tray'));
     if (m.versions.length)
-      out.push(item('data-iarch="1"', 'نسخهٔ نمایش‌داده‌شده به آرشیو', 'title="فایل پاک نمی‌شه"'));
+      out.push(item('data-iarch="1"', 'نسخهٔ فعلی به آرشیو', 'title="فایل پاک نمی‌شه"', 'archive'));
     if (m.archived.length)
-      out.push(item('data-irest="1"', `نسخه‌های آرشیو (${ fa(m.archived.length) })`));
+      out.push(item('data-irest="1"', `نسخه‌های آرشیو (${ fa(m.archived.length) })`, '', 'restore'));
   }
   if (sid !== 'scene-00') {
     if (out.length)
       out.push('<hr>');
-    out.push(item('data-smv="-1"', 'یک صحنه بالاتر'), item('data-smv="1"', 'یک صحنه پایین‌تر'), item('data-soff="1"', 'کنار گذاشتن این صحنه', 'title="متن و فایل‌ها پاک نمی‌شن"'), item(`data-addimg="${ sid }"`, 'تصویر جدید در این صحنه'), item(`data-addscene="${ sid }"`, 'صحنهٔ جدید بعد از این'));
+    out.push('<div class="mhead">این صحنه</div>');
+    out.push(item('data-smv="-1"', 'یک صحنه بالاتر', '', 'up'), item('data-smv="1"', 'یک صحنه پایین‌تر', '', 'down'), item(`data-addimg="${ sid }"`, 'تصویر جدید در انتهای صحنه', '', 'plus'), item(`data-addscene="${ sid }"`, 'صحنهٔ جدید بعد از این', '', 'list'), item('data-soff="1"', 'کنار گذاشتن این صحنه', 'title="متن و فایل‌ها پاک نمی‌شن"', 'tray'));
   } else
-    out.push(item(`data-addimg="${ sid }"`, 'تصویر جدید در این صحنه'));
+    out.push('<hr><div class="mhead">این صحنه</div>', item(`data-addimg="${ sid }"`, 'تصویر جدید در این صحنه', '', 'plus'));
   return out.join('');
 }
 function openMore() {
