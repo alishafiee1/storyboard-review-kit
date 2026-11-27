@@ -170,7 +170,12 @@
           "default",
           "eleven-v3",
           "eleven-v4"
-         ]
+         ],
+         "srcs": {
+          "default": "audio/en/IMG001_1.mp3",
+          "eleven-v3": "audio/en/IMG001_1.eleven-v3.mp3",
+          "eleven-v4": "audio/en/IMG001_1.eleven-v4.mp3"
+         }
         },
         "fa": {
          "archived": [],
@@ -179,7 +184,12 @@
           "default",
           "eleven-v3",
           "eleven-v4"
-         ]
+         ],
+         "srcs": {
+          "default": "audio/fa/IMG001_1.mp3",
+          "eleven-v3": "audio/fa/IMG001_1.eleven-v3.mp3",
+          "eleven-v4": "audio/fa/IMG001_1.eleven-v4.mp3"
+         }
         }
        },
        "en": "This is Ali. He is not a person before coffee.",
@@ -210,14 +220,20 @@
          "chosen": "default",
          "names": [
           "default"
-         ]
+         ],
+         "srcs": {
+          "default": "audio/en/IMG001_2.mp3"
+         }
         },
         "fa": {
          "archived": [],
          "chosen": "default",
          "names": [
           "default"
-         ]
+         ],
+         "srcs": {
+          "default": "audio/fa/IMG001_2.mp3"
+         }
         }
        },
        "en": "Where did that come from?",
@@ -308,12 +324,14 @@
         "en": {
          "archived": [],
          "chosen": "",
-         "names": []
+         "names": [],
+         "srcs": {}
         },
         "fa": {
          "archived": [],
          "chosen": "",
-         "names": []
+         "names": [],
+         "srcs": {}
         }
        },
        "en": null,
@@ -414,12 +432,14 @@
         "en": {
          "archived": [],
          "chosen": "",
-         "names": []
+         "names": [],
+         "srcs": {}
         },
         "fa": {
          "archived": [],
          "chosen": "",
-         "names": []
+         "names": [],
+         "srcs": {}
         }
        },
        "en": "And the day was over.",

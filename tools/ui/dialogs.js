@@ -21,7 +21,7 @@ export const redrawDialog = () => {
 };
 const findItem = id => S.BL.flatMap(b => b.items).find(x => x.id === id);
 const findImage = id => S.BL.flatMap(b => b.images).find(x => x.id === id);
-const voiceUrl = (lg, id, name) => name === 'default' ? `audio/${ lg }/${ id }.mp3` : `audio/${ lg }/${ id }.${ name }.mp3`;
+const voiceUrl = (v, lg, id, name) => (v && v.srcs && v.srcs[name]) || (name === 'default' ? `audio/${ lg }/${ id }.mp3` : /^[0-9a-f]{8}$/.test(name) ? `audio/${ lg }/${ id }_${ name }.mp3` : `audio/${ lg }/${ id }.${ name }.mp3`);
 const dlgAudio = new Audio();
 /* closing asks the dialog first (a «cancel» it may refuse, like Esc does), so unsaved edits are not lost by a click outside or on «close» */
 const tryClose = el => {
@@ -68,8 +68,8 @@ const dAct = async fn => {
     fail(e);
   }
 };
-const hintFor = sc => mm => {
-  const need = [...new Set(sc.blocks.flatMap(b => b.items.filter(i => i.k === 'say').map(i => i.sp)))];
+const hintFor = (sc, spName) => mm => {
+  const need = spName ? [spName] : [...new Set(sc.blocks.flatMap(b => b.items.filter(i => i.k === 'say').map(i => i.sp)))];
   const miss = mm.voices.length ? need.filter(n => {
     const s = (S.P.speakers || []).find(x => x.name === n);
     return s && s.voice && !mm.voices.some(v => v.name === s.voice);
@@ -90,15 +90,16 @@ function openVoiceDialog(sid, iid) {
       const v = (it.audio_v || {})[lg] || {
         names: [],
         chosen: '',
-        archived: []
+        archived: [],
+        srcs: {}
       };
-      return `<div class="dlang"><b>${ lg === 'fa' ? 'فارسی' : 'English' }</b>` + (v.names.length ? v.names.map(n => `<div class="vrow"><label><input type="radio" name="vp-${ lg }" data-dpick="${ lg }" value="${ esc(n) }"${ n === v.chosen ? ' checked' : '' }> <bdi dir="ltr">${ esc(n) }</bdi>${ n === v.chosen ? ' <small class="okm">انتخاب‌شده</small>' : '' }</label><button class="b" data-dplay="${ voiceUrl(lg, iid, n) }">▶</button><button class="b" data-darch="${ lg }" data-n="${ esc(n) }">آرشیو</button></div>`).join('') : '<div class="none">هنوز صدایی ساخته نشده.</div>') + (v.archived && v.archived.length ? `<details><summary>آرشیو (${ v.archived.length })</summary>${ v.archived.map(a => `<div class="vrow"><bdi dir="ltr">${ esc(a.name) }</bdi><button class="b" data-dplay="${ a.src }">▶</button><button class="b" data-drest="${ lg }" data-n="${ esc(a.name) }">برگردان</button></div>`).join('') }</details>` : '') + `</div>`;
+      return `<div class="dlang"><b>${ lg === 'fa' ? 'فارسی' : 'English' }</b>` + (v.names.length ? v.names.map(n => `<div class="vrow"><label><input type="radio" name="vp-${ lg }" data-dpick="${ lg }" value="${ esc(n) }"${ n === v.chosen ? ' checked' : '' }> <bdi dir="ltr">${ esc(n) }</bdi>${ n === v.chosen ? ' <small class="okm">انتخاب‌شده</small>' : '' }</label><button class="b" data-dplay="${ esc(voiceUrl(v, lg, iid, n)) }">▶</button><button class="b" data-darch="${ lg }" data-n="${ esc(n) }">آرشیو</button></div>`).join('') : '<div class="none">هنوز صدایی ساخته نشده.</div>') + (v.archived && v.archived.length ? `<details><summary>آرشیو (${ v.archived.length })</summary>${ v.archived.map(a => `<div class="vrow"><bdi dir="ltr">${ esc(a.name) }</bdi><button class="b" data-dplay="${ esc(a.src) }">▶</button><button class="b" data-drest="${ lg }" data-n="${ esc(a.name) }">برگردان</button></div>`).join('') }</details>` : '') + `</div>`;
     };
     return `<h3>صدای این خط</h3><p class="dq">${ esc(it.sp) }: ${ esc(it.fa) }</p>${ langs.map(rows).join('') }<hr>
-      <div class="dgen"><label>مدل: <select id="dmodel">${ modelOpts(sc.model || TT().default, false, hintFor(sc)) }</select></label>
+      <div class="dgen"><label>مدل: <select id="dmodel">${ modelOpts(sc.model || TT().default, false, hintFor(sc, it.sp)) }</select></label>
       ${ langs.map(lg => `<label><input type="checkbox" data-dlg="${ lg }" checked> ${ lg === 'fa' ? 'فارسی' : 'English' }</label>`).join('') }
       <button class="b pri" data-dmake="1">ساخت صدا</button> <span class="jobst" data-job="${ sid }"></span></div>
-      <small>ساخت صدا هزینه داره (قیمت هر مدل کنار اسمشه). صدای تازه کنار قبلی‌ها می‌شینه و همون نهایی می‌شه؛ ساختن دوبارهٔ همون مدل، قبلی رو می‌فرسته آرشیو.</small>
+      <small>ساخت صدا هزینه داره (قیمت هر مدل کنار اسمشه). صدای تازه کنار قبلی‌ها می‌شینه و همون نهایی می‌شه؛ هیچ صدایی پاک نمی‌شه.</small>
       <div class="dbar"><button class="b" data-dclose="1">بستن</button></div>`;
   });
   DLG.el.dataset.kind = 'voice';

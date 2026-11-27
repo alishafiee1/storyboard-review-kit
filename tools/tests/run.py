@@ -1419,7 +1419,7 @@ def intake_inbox_imports_batch(proj, page):
     page.click("[data-batch=b01]")
     page.wait_for_function("document.querySelector('#toast') && !document.querySelector('#toast').hidden && document.querySelector('#toast').textContent.includes('b01')")
     assert "پرامپت دستهٔ b01 کپی شد" in page.inner_text("#toast")
-    copied = page.evaluate("navigator.clipboard.readText()")
+    copied = page.evaluate("navigator.clipboard.readText()").replace("\r\n", "\n")
     assert copied == proj.api("/api/batch?b=b01")[1]["text"] and "=== IMG001 ===" in copied, copied[:200]
     undrawer(page)
     code, b = proj.api("/api/batch?b=b01")
@@ -1891,6 +1891,34 @@ def gallery_open_tiles_drag_picker_batch(proj, page):
     page.click("[data-gbatch=b01]")
     page.wait_for_function("document.querySelector('#toast') && !document.querySelector('#toast').hidden && document.querySelector('#toast').textContent.includes('b01')")
     assert "=== IMG001 ===" in page.evaluate("navigator.clipboard.readText()")
+
+
+@test
+def voice_rid_takes_play_from_srcs(proj, page):
+    """New <id>_<rid>.mp3 takes (even in subfolders) resolve to their real path in both the voice dialog and the .vv switcher."""
+    if not shutil.which("ffmpeg"):
+        print("   (skipped: no ffmpeg to make test audio)", end="")
+        return
+    sub = os.path.join(proj.root, "audio", "fa", "b01")
+    os.makedirs(sub, exist_ok=True)
+    shutil.copy2(os.path.join(proj.root, "audio", "fa", "IMG001_1.mp3"), os.path.join(sub, "IMG001_1_a1b2c3d4.mp3"))
+    page.reload()
+    at(page, "IMG001")
+    page.click("[data-vgen=IMG001_1]")
+    page.wait_for_selector("dialog.dlg [data-dpick=fa][value=a1b2c3d4]")
+    play_src = page.get_attribute("dialog.dlg [data-dpick=fa][value=a1b2c3d4] >> xpath=../..//button[@data-dplay]", "data-dplay")
+    assert play_src == "audio/fa/b01/IMG001_1_a1b2c3d4.mp3", play_src
+    assert urllib.request.urlopen(proj.url + "/" + play_src).status == 200
+    page.click("dialog.dlg [data-dclose]")
+    page.wait_for_selector("dialog.dlg", state="detached")
+    btn = "#b1 .vv[data-vv=fa] >> nth=0"
+    for _ in range(4):
+        page.click(btn)
+        if "a1b2c3d4" in proj.story():
+            break
+    proj.wait("scenario/story.txt", "voice: fa=a1b2c3d4")
+    ab_src = page.get_attribute("#b1 .ab[data-lg=fa] >> nth=0", "data-src")
+    assert ab_src.startswith("audio/fa/b01/IMG001_1_a1b2c3d4.mp3?v="), ab_src
 
 
 def main():

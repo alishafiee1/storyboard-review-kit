@@ -393,7 +393,8 @@ export function boot_versions() {
       return fail(err);
     }
     v.chosen = name;
-    const url = (name === 'default' ? `audio/${ lg }/${ iid }.mp3` : `audio/${ lg }/${ iid }.${ name }.mp3`) + '?v=' + Date.now();
+    const base = (v.srcs && v.srcs[name]) || (name === 'default' ? `audio/${ lg }/${ iid }.mp3` : /^[0-9a-f]{8}$/.test(name) ? `audio/${ lg }/${ iid }_${ name }.mp3` : `audio/${ lg }/${ iid }.${ name }.mp3`);
+    const url = base + '?v=' + Date.now();
     it.audio[lg] = url;
     const play = b.parentElement.querySelector(`.ab[data-lg="${ lg }"]`);
     play.dataset.src = url;

@@ -207,6 +207,8 @@ class Voices(Folder):
         url, v = media.audio_url("fa", "IMG045-1", {"IMG045-1.fa": "ab12cd34"})
         self.assertTrue(url.startswith("audio/fa/IMG045-1_ab12cd34.mp3?v="))
         self.assertEqual((v["chosen"], len(v["names"])), ("ab12cd34", 4))
+        self.assertEqual(v["srcs"]["ab12cd34"], "audio/fa/IMG045-1_ab12cd34.mp3")
+        self.assertEqual(v["srcs"]["00ff00ff"], "audio/fa/b05/IMG045-1_00ff00ff.mp3")
 
     def test_archived_voices_are_listed_with_the_same_rule(self):
         self.assertEqual([a["name"] for a in media.archived_voices("fa", "IMG045-1")], ["99999999"])

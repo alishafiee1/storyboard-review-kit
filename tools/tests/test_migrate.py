@@ -126,9 +126,9 @@ class Apply(Base):
                 continue
             self.assertNotEqual(o, n)
             self.assertTrue(n.startswith(o[:o.rindex(b"audio") + 5]))  # the folder part stays exactly as it was (URL-encoded D%3a, backslashes, ../..)
-        self.assertIn(b"file://localhost/D%3a/2%20Curent%20project%20git/Video-Animations/1-mimo-white-head/audio/en/IMG005-1.mp3", new)
+        self.assertIn(b"file://localhost/Z%3a/mimo-other-pc/1-mimo-white-head/audio/en/IMG005-1.mp3", new)
         self.assertIn(b"<pathurl>../../audio/en/IMG001-1.mp3</pathurl>", new)
-        self.assertIn(b"D:\\2 Curent project git\\Video-Animations\\1-mimo-white-head\\audio\\fa\\IMG001-1.mp3", new)
+        self.assertIn(b"Z:\\mimo-other-pc\\1-mimo-white-head\\audio\\fa\\IMG001-1.mp3", new)
         for n in want.values():
             self.assertIn(n, new)
 

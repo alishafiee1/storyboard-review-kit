@@ -1,67 +1,82 @@
-/* Panels inside the drawer: speakers and voices, references */
-.ttsbox {
-  font-size:13px;
-  line-height:2;
-  color:var(--ink-muted);
-  padding-bottom:10px;
-  border-bottom:1px solid var(--line-soft);
+/* Panels inside the drawer: speakers, voices, tones, references */
+#spk .vsec {
+  padding:4px 0 14px;
+  border-bottom:1px solid var(--line);
 }
 
-.ttsbox select,
-.spt select {
-  max-width:100%;
-  background:var(--paper-bright);
+#spk .vsec h4 {
+  margin:10px 0 8px;
+}
+
+#spk select,
+#spk input[type=text] {
+  width:100%;
+  min-width:0;
+  margin:2px 0;
+  padding:8px 10px;
   border:1px solid var(--line);
-  border-radius:2px;
-  padding:2px 6px;
-  font-size:13px;
+  background:var(--paper-bright);
+  color:var(--ink);
+  font:inherit;
 }
 
-#spk p.env {
-  margin:10px 0;
-  font-size:13px;
-  line-height:1.9;
-  color:var(--ink-muted);
+#spk input.unk {
+  border-color:var(--accent);
 }
 
-.spt {
-  display:flex;
-  flex-wrap:wrap;
-  align-items:center;
-  gap:8px 10px;
-  padding:10px 0;
-  border-bottom:1px solid var(--line-soft);
-  font-size:14px;
+.spcard,
+.tnrow {
+  padding:8px 0;
+  border-top:1px solid var(--line);
 }
 
-.spt b {
-  font-weight:500;
-  min-width:64px;
+.spcard:first-of-type,
+.tnrow:first-of-type {
+  border-top:0;
 }
 
-.spt input[type=color] {
-  width:30px;
-  height:26px;
+.spcard input[type=color] {
+  width:32px;
+  height:32px;
   padding:0;
   border:1px solid var(--line);
   background:none;
-  cursor:pointer;
 }
 
-.spt input[type=text] {
-  background:var(--paper-bright);
-  border:1px solid var(--line);
-  border-radius:2px;
-  padding:2px 8px;
-  direction:ltr;
+.vhint {
+  margin:8px 0 4px;
   font-size:13px;
-  width:150px;
+  line-height:1.8;
 }
 
-.spt > span:last-child {
-  margin-inline-start:auto;
+.vwarn {
+  margin:6px 0;
+  padding:6px 10px;
+  font-size:13px;
+  color:var(--accent);
+  border:1px solid var(--accent);
+}
+
+.tg {
+  font-family:ui-monospace,Consolas,monospace;
   font-size:12px;
   color:var(--ink-muted);
+}
+
+.tag.bad {
+  color:var(--accent);
+  border-color:var(--accent);
+}
+
+.srow.act {
+  flex-wrap:wrap;
+  justify-content:flex-start;
+}
+
+.tnadd {
+  margin-top:12px;
+  padding-top:10px;
+  border-top:1px solid var(--line);
 }
 
 input.unk {

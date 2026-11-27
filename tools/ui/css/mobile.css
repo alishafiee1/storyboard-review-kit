@@ -19,7 +19,8 @@
   body > #bar { grid-column:1 / -1; grid-row:1; }
 
   /* #list is "contents" here, so this banner would become a stray one-cell grid item and squeeze into a narrow column; it stays on the desktop and in the voices drawer */
-  #list > .msg.tonewarn { display:none; }
+  #list > .msg.tonewarn,
+  #list > .msg.spkwarn { display:none; }
 
   /* v2.4 phone: the list is one scrolling area between the bar and the action bar; every picture is a page (picture, then its lines) */
   #list {
@@ -186,25 +187,6 @@
   #ttime,
   #playS {
     display:none;
-  }
-
-  #tbar {
-    grid-row:3;
-    grid-column:3 / 8;
-    align-self:center;
-    margin:0 16px;
-  }
-
-  #ttime {
-    grid-row:3;
-    grid-column:2;
-    min-width:0;
-    font-size:13px;
-  }
-
-  #playS {
-    grid-row:3;
-    grid-column:1;
   }
 
   .txt {

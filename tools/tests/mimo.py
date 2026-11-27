@@ -6,7 +6,7 @@ import hashlib, os, shutil, struct, subprocess, zlib
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 KIT = os.path.dirname(os.path.dirname(HERE))
-WIN = "file://localhost/D%3a/2%20Curent%20project%20git/Video-Animations/1-mimo-white-head/"  # where the XML was made (another computer)
+WIN = "file://localhost/Z%3a/mimo-other-pc/1-mimo-white-head/"  # where the XML was made (another computer; Z: never exists here)
 _cache = {}
 
 
@@ -53,7 +53,7 @@ def xml():
              clip(6, "IMG004_1.mp3", WIN + "audio/en/IMG004_1.mp3", "audio"),
              clip(7, "L007.mp3", WIN + "audio/en/L007.mp3", "audio"),
              clip(8, "IMG001_1.mp3", "../../audio/en/IMG001_1.mp3", "audio"),
-             clip(9, "IMG001_1.mp3", "D:\\2 Curent project git\\Video-Animations\\1-mimo-white-head\\audio\\fa\\IMG001_1.mp3", "audio")]
+             clip(9, "IMG001_1.mp3", "Z:\\mimo-other-pc\\1-mimo-white-head\\audio\\fa\\IMG001_1.mp3", "audio")]
     return ('<?xml version="1.0" encoding="UTF-8"?>\r\n<!DOCTYPE xmeml>\r\n<xmeml version="4"><sequence><name>EP01 EN</name><media>\r\n'
             + "\r\n".join(items) + "\r\n</media></sequence></xmeml>\r\n").encode("utf-8")
 

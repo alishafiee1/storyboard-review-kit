@@ -179,8 +179,8 @@ def audio_path(lang, id_, pick_map=None, idx=None):
 def audio_url(lang, id_, pick_map=None, idx=None):
     ch, vs = audio_choice(lang, id_, pick_map, idx)
     if not ch:
-        return None, dict(names=[], chosen="")
-    return f"{rel(ch['path'])}?v={int(os.path.getmtime(ch['path']))}", dict(names=[v["name"] for v in vs], chosen=ch["name"])
+        return None, dict(names=[], chosen="", srcs={})
+    return f"{rel(ch['path'])}?v={int(os.path.getmtime(ch['path']))}", dict(names=[v["name"] for v in vs], chosen=ch["name"], srcs={v["name"]: rel(v["path"]) for v in vs})
 
 
 def archive_dir(kind, lang=""):
