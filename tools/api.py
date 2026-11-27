@@ -6,7 +6,7 @@ import history, settings
 from kitcore import LANGS, MARKS, MODEL_RE, PROMPTS, STORY, VPROMPTS, read_lines, write_lines
 from story import clean_name, clean_tone, ensure_speaker, parse_prompts, parse_speakers, scene_ranges, story_scenes
 from media import archive_item, audio_variants, find_version, scan_images, scan_refs
-from edits import add_image, add_scene, mark_stale, move_scene, patch_image, set_default_model, set_flag, set_line_pick, set_scene_fx, set_scene_off, set_stale, speech_scenes
+from edits import add_image, add_scene, mark_stale, move_scene, patch_image, set_default_model, set_flag, set_line_pick, set_scene_off, set_stale, speech_scenes
 from moves import add_image_at, move_images, scene_mark
 from lineedits import add_issue, add_line, clear_issue, delete_line, edit_line, locate
 from promptedits import replace_prompt, set_prompt_refs, upsert_prompt
@@ -302,16 +302,6 @@ def issue(d):
         clear_issue(lines, sid, idx)
     else:
         add_issue(lines, sid, idx, d.get("message", ""))
-    write_lines(STORY, lines)
-
-
-@route("/api/scenefx")
-def scenefx(d):
-    """edit advice (fx) of a whole scene"""
-    if not re.fullmatch(r"scene-\d{2,3}", str(d["scene"])):
-        raise ValueError("bad scene")
-    lines = read_lines(STORY)
-    set_scene_fx(lines, d["scene"], str(d.get("fx", ""))[:2000])
     write_lines(STORY, lines)
 
 

@@ -331,6 +331,15 @@ class AddImage(unittest.TestCase):
         self.assertEqual(layout(ls)[1][1][0], "IMG1000")
         self.assertEqual(layout(ls)[2][1][-2:], ["IMG999", "IMG1001"])
 
+    def test_adding_to_scene_00_is_refused(self):
+        ls = modern()
+        before = "\n".join(ls)
+        with self.assertRaises(ValueError):
+            moves.add_image_at(ls, scene="scene-00")
+        with self.assertRaises(ValueError):
+            moves.add_image_at(ls, after="IMG000")
+        self.assertEqual("\n".join(ls), before)
+
 
 class Endpoints(unittest.TestCase):
     """The API functions: a snapshot before each edit, undo gives the very same bytes back, a stale page gets 409 and leaves no snapshot."""

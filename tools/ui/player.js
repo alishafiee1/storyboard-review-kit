@@ -326,9 +326,6 @@ function step(d) {
   if (k != null && k !== S.cur)
     go(k, S.playing);
 }
-export function stopPlayback() {
-  stop();
-}
 export function boot_player() {
   let tick = 0;
   $('#list').addEventListener('scroll', () => {
@@ -352,18 +349,6 @@ export function boot_player() {
       run(S.START.n, S.START.lg, S.START.j);
     else
       run(S.cur);
-  };
-  $('#subs').onclick = async () => {
-    const b = $('#subs');
-    b.disabled = true;
-    try {
-      const r = await api('/api/subtitles', {});
-      toast(r.message);
-    } catch (e) {
-      fail(e);
-    } finally {
-      b.disabled = false;
-    }
   };
   if ($('#jobPill'))
     $('#jobPill').onclick = () => openDrawer('spk');

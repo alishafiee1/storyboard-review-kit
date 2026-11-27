@@ -290,6 +290,8 @@ def add_image_at(lines, before=None, after=None, scene=None, image_id=None):
         image_id = f"IMG{n:03d}"
     pre, scenes = split(lines)
     si = find_image(scenes, before or after)[0] if (before or after) else find_scene(scenes, to_end)
+    if scenes[si]["id"] == "scene-00":
+        raise ValueError("تصویری به صحنهٔ تامبنیل (scene-00) اضافه نمی‌شود")
     pin_scene(lines, scenes[si]["id"])  # a new marker may join or split an old shared block: pin the old line ids first
     pre, scenes = split(lines)
     _put(scenes, [dict(id=image_id, lines=[f"[{image_id}]"], gap=0)], before, after, to_end)

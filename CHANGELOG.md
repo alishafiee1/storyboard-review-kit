@@ -2,8 +2,9 @@
 
 ## 2.7.0
 - Replaced all native browser `alert` / `confirm` / `prompt` dialogs with paper modals (`askAlert`, `askConfirm`, `askPrompt`, `askNewScene`), added live `#jobPill` TTS progress badge in the top bar, and hid disabled `#bUndo` on narrow mobile screens.
-- Grouped the drawer menu into Review / Tools / Settings, consolidated Premiere XML export + check + subtitles + editor zip in **Export for editor**, added footer speed pill (`#spdBtn`), seekable progress bar (`#tbar`), instant client-side `فا / EN` switching, anchored note popover with Save, sectioned `#morePop`, and gallery bulk actions + tile IDs.
+- Grouped the drawer menu into four sections (ناوبری و مرور / تولید و رسانه / خروجی و تحویل / سیستم و راهنما). Premiere XML export + check + subtitles + editor zip live together in **Export for editor** (`#pExport` only; no separate `#pSubs` panel). Added footer speed pill (`#spdBtn`; the speed panel remains in the drawer as `#pSpeed`), a progress bar (`#tbar`) that seeks within the current playing clip, instant client-side `فا / EN` switching, anchored note popover with Save, sectioned `#morePop`, and gallery bulk actions + tile IDs.
 - Added `#bRedo` ("needs rebuild"), synchronized `S.filter` / `S.q` across drawer and gallery with `#fltChip`, `inbox/` image previews + lightbox zoom, and "generate all stale voices" (`regen-all`) in Voices & Speakers.
+- `scene-00` (the thumbnail scene) cannot receive a new picture: `add_image_at` / `POST /api/addimage` are refused, and the image `⋯` menu no longer offers «تصویر جدید در این صحنه» there. Removed the unused `#pSubs` / `#subs` UI, `/api/scenefx`, and other dead page helpers (`stopPlayback`, `SMOOTH`, unused `stamp` icon and imports).
 - Fixed audio variant playback URLs (`_<rid>.mp3`), isolated migration test fixtures, and cleaned redundant legacy CSS.
 
 ## 2.6.0

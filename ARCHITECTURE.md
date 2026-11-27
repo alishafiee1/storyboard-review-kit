@@ -63,7 +63,7 @@ The full writing rules for AI assistants are in `skills/how-to-write-prompts-for
 ## Write API (`api.py`; all `POST`, JSON in, JSON out)
 
 `undo` (`.kit/history`), `image`, `voicepick`, `archive`, `restore`, `sceneoff`, `scenemove`, `addscene`, `addimage` (end of a scene, `{after}` / `{before}` a picture, or an existing `{id}`), `move` (`{ids, before | after | to_end_of_scene}`), `scenemark` (`op` = insert / remove / edit), `flag`, `line`, `add`, `speaker`, `ttsmodel`, `voicetest`,
-`delete`, `issue`, `scenefx`, `vprompt`, `refs`, `prompt` (each under `/api/`). Slow ones (`jobs.SLOW`, no file lock): `subtitles`, `voices/refresh`,
+`delete`, `issue`, `vprompt`, `refs`, `prompt` (each under `/api/`). Slow ones (`jobs.SLOW`, no file lock): `subtitles`, `voices/refresh`,
 `sample`, `regen`, `linevoice`. Reads: `GET /api/project`, `/api/job`, `/api/ping`. Line endpoints (`line`, `add`, `delete`, `issue`) address a line as `{image, index}` (counted from the `[IMG]` line) or the old `{scene, index}`; `voicepick`/`flag` use the line id; `regen` takes nothing (all stale lines), `image` or `scene`. Errors: 400 bad input, 409 the file changed outside the page (also: a picture or scene the request names is no longer in `story.txt`). Structural endpoints (add / delete line, addscene, addimage, move, scenemark, scenemove, sceneoff) keep a snapshot first. Picture ids have three or four digits (`IMG045`, `IMG1000`).
 
 ## The page (`tools/ui/`): the sketchbook shell (v2.0)
@@ -73,7 +73,7 @@ ES modules. `review.html` loads only `main.js`; every file lists what it needs w
 
 **What you see.** A slim top bar (hamburger, title + muted episode label, the navigator `‹ ۴۵ / ۵۰ ›` with a tick line, the outside icons note / image prompt / video prompt / flag, the `فا / EN` pill, `⋯`), then ONE picture at a time as a two-page spread (the still mounted on the right page with two washi-tape marks and its version arrows, the script on the left page), a footer under the pages (transport under the picture, «set aside» and the approve stamp under the text), and a paper drawer from the right (menu). The old text-tab toolbar is gone; the old tabs are panels of the drawer. Below 900px the same elements stack (picture above, text below).
 
-**How it works.** `render()` still draws every block (picture + its lines) into `#list` as `.scn > .bl > .blk`, so all the editors, `S.BL` indexes and the 409 / reload logic work as before; only `.blk.on` is shown (`player.js: show(i)`). The current block is kept in the address (`review.html#IMG045`, a block with no picture is `scene-02#0`), so a reload or a bookmark returns to it; `reload()` re-finds the block by that id. The filter and the search (`S.filter`, `S.q`) only hide blocks; the block on show is kept until you move on. Version arrows, the approve stamp and the footer act on `curImg()` (the picture on show); the image `⋯` popover (`#morePop`) is built from `moveTarget()` and the current scene each time it opens, and every item calls the same API as before (`move`, `addimage`, `scenemark`, `scenemove`, `sceneoff`, `image`, `archive`).
+**How it works.** `render()` still draws every block (picture + its lines) into `#list` as `.scn > .bl > .blk`, so all the editors, `S.BL` indexes and the 409 / reload logic work as before; only `.blk.on` is shown (`player.js: show(i)`). The current block is kept in the address (`review.html#IMG045`, a block with no picture is `scene-02#0`), so a reload or a bookmark returns to it; `reload()` re-finds the block by that id. The filter and the search (`S.filter`, `S.q`) only hide blocks; the block on show is kept until you move on. Version arrows, the approve stamp and the footer act on `curImg()` (the picture on show); the image `⋯` popover (`#morePop`) is built from `moveTarget()` and the current scene each time it opens, and every item calls the same API as before (`move`, `addimage`, `scenemark`, `scenemove`, `sceneoff`, `image`, `archive`). The thumbnail scene (`scene-00`) has no «add a picture» item, and `add_image_at` / `POST /api/addimage` refuse it. Subtitles are built only from **Export for editor** (`#pExport`); there is no separate `#pSubs` panel. The drawer has four groups: ناوبری و مرور، تولید و رسانه، خروجی و تحویل، سیستم و راهنما.
 
 | File | Job |
 |---|---|
@@ -104,8 +104,8 @@ To change a shared value from several files, put it in `S` (`S.P = ...`), not in
 
 | Command | What |
 |---|---|
-| `python -m unittest discover -s tools/tests -p "test_*.py"` | 172 unit tests (text rules, migration, Premiere export, ownership / voice keys / undo, imports/exports of the page modules, the sketchbook shell rules, old-import compatibility), in milliseconds |
-| `python tools/tests/run.py` | 55 browser tests (needs `pip install playwright`) on a temporary copy of `tools/tests/fixture/`; nothing is charged |
+| `python -m unittest discover -s tools/tests -p "test_*.py"` | 187 unit tests (text rules, migration, Premiere export, moves including a refused add to `scene-00`, ownership / voice keys / undo, imports/exports of the page modules, the sketchbook shell rules, old-import compatibility), in milliseconds |
+| `python tools/tests/run.py` | 66 browser tests (needs `pip install playwright`) on a temporary copy of `tools/tests/fixture/`; nothing is charged |
 | `python tools/tests/shots.py` | the screenshots of `docs/redesign/screens/` from the real page (not a test) |
 | `python tools/tests/run.py --update-baseline` | refresh the recorded page after a deliberate change; read the diff in `tools/tests/baseline/` |
 

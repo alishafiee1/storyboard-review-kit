@@ -27,7 +27,6 @@ import {
   curImg,
   show
 } from './player.js';
-import { openDrawer } from './drawer.js';
 import { openPicker } from './gallery.js';
 /* Picture versions, the image «⋯» menu, scene management and voice variants. Everything is written to story.txt; no file is renamed or deleted. */
 /* ---------- where we are */
@@ -230,8 +229,7 @@ function moreHtml() {
       out.push('<hr>');
     out.push('<div class="mhead">این صحنه</div>');
     out.push(item('data-smv="-1"', 'یک صحنه بالاتر', '', 'up'), item('data-smv="1"', 'یک صحنه پایین‌تر', '', 'down'), item(`data-addimg="${ sid }"`, 'تصویر جدید در انتهای صحنه', '', 'plus'), item(`data-addscene="${ sid }"`, 'صحنهٔ جدید بعد از این', '', 'list'), item('data-soff="1"', 'کنار گذاشتن این صحنه', 'title="متن و فایل‌ها پاک نمی‌شن"', 'tray'));
-  } else
-    out.push('<hr><div class="mhead">این صحنه</div>', item(`data-addimg="${ sid }"`, 'تصویر جدید در این صحنه', '', 'plus'));
+  }
   return out.join('');
 }
 function openMore() {

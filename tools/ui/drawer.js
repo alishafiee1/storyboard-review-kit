@@ -32,7 +32,6 @@ const PANELS = {
   scenes: '#pScenes',
   filter: '#pFilter',
   speed: '#pSpeed',
-  subs: '#pSubs',
   spk: '#spk',
   refs: '#refs',
   vers: '#pVers',
@@ -58,11 +57,6 @@ const ROWS = [
     'speed',
     'speed',
     'سرعت پخش'
-  ],
-  [
-    'subs',
-    'subs',
-    'زیرنویس'
   ],
   [
     'spk',
@@ -113,7 +107,7 @@ const ROWS = [
 const GROUPS = [
   ['ناوبری و مرور', ['scenes', 'filter', 'vers']],
   ['تولید و رسانه', ['spk', 'refs', 'batch', 'inbox']],
-  ['خروجی و تحویل', ['export', 'subs', 'speed']],
+  ['خروجی و تحویل', ['export', 'speed']],
   ['سیستم و راهنما', ['undo', 'settings', 'help']]
 ];
 const FILTERS = [

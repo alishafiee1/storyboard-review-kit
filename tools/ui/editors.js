@@ -111,7 +111,7 @@ const DK = {
   en: 'ترجمهٔ انگلیسی'
 };
 async function askDelete(scene, ln, kind, old, hasEn) {
-  const msg = `این ${ DK[kind] } حذف بشه؟\n«${ old.length > 60 ? old.slice(0, 60) + '…' : old }»` + (kind === 'say' && hasEn ? '\nترجمهٔ انگلیسی‌اش هم حذف می‌شه.' : '') + (kind === 'say' ? '\n(صدای این صحنه کهنه علامت می‌خوره)' : '');
+  const msg = `این ${ DK[kind] } حذف بشه؟\n«${ old.length > 60 ? old.slice(0, 60) + '…' : old }»` + (kind === 'say' && hasEn ? '\nترجمهٔ انگلیسی‌اش هم حذف می‌شه.' : '') + (kind === 'say' ? '\n(صدای این خط کهنه علامت می‌خوره)' : '');
   if (!(await askConfirm(msg, 'حذف')))
     return false;
   try {
@@ -140,7 +140,7 @@ export function openSayEditor(box, {scene, ln, focus}) {
   }
   const nmEl = box.querySelector('.nm'), tnEl = box.querySelector('.tn'), txEl = box.querySelector('.fa .v');
   if (!txEl) {
-    askAlert('برای ویرایش دیالوگ، تیک «متن فارسی» بالای صفحه باید روشن باشد.');
+    askAlert('برای ویرایش دیالوگ، زبان «فا» باید روشن باشد (دکمهٔ فا/EN بالای صفحه).');
     return;
   }
   const O = {
@@ -454,18 +454,6 @@ export function wire() {
   });
   $$('section[data-scene]').forEach(s => {
     const sid = s.dataset.scene;
-    s.querySelectorAll('[data-flag]').forEach(b => b.onclick = async () => {
-      try {
-        await api('/api/flag', {
-          scene: sid,
-          lang: b.dataset.flag,
-          value: false
-        });
-        await reload();
-      } catch (e) {
-        fail(e);
-      }
-    });
     s.querySelectorAll('[data-regen]').forEach(b => b.onclick = async () => {
       try {
         await api('/api/regen', { scene: sid });

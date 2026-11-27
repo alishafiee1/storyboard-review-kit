@@ -467,7 +467,7 @@ def format_issue_flag(proj, page):
 def drawer_panels_filter_search_jump(proj, page):
     """The drawer replaces the old tabs: references, scene list (jump), filter, search, speed, voices; ‹ goes back, Esc and the dimmed page close it."""
     drawer(page)
-    assert page.locator("#dmenu .drow").count() == 13 and page.is_hidden("#dback")
+    assert page.locator("#dmenu .drow").count() == 12 and page.is_hidden("#dback")
     labels = page.locator("#dmenu .rt").all_inner_texts()
     assert labels[:3] == ["فهرست صحنه‌ها", "فیلتر و جست‌وجو", "نسخه‌ها و آرشیو"] and "سرعت پخش" in labels and "کپی پرامپت‌های دسته" in labels
     drawer(page, "refs")
@@ -570,8 +570,8 @@ def line_audio_buttons(proj, page):
 
 @test
 def subtitles_button(proj, page):
-    drawer(page, "subs")
-    page.click("#subs")
+    drawer(page, "export")
+    page.click("#pExport [data-ex=subs]")
     for lg in ("fa", "en"):
         proj.wait("subtitles/%s.srt" % lg, "-->")
 
@@ -1874,14 +1874,14 @@ def gallery_open_tiles_drag_picker_batch(proj, page):
     page.wait_for_selector('#ggrid .tile[data-id="IMG011"]')
     assert order()[-1] == ("scene-01", "IMG011"), order()  # after the last picture (scene 2 is empty by now)
     u = page.locator('.gun .uit[data-uid="IMG010"]').bounding_box()
-    t = page.locator('#ggrid .tile[data-id="IMG000"]').bounding_box()
+    t = page.locator('#ggrid .tile[data-id="IMG011"]').bounding_box()
     page.mouse.move(u["x"] + 20, u["y"] + 10)
     page.mouse.down()
     page.mouse.move(u["x"] + 30, u["y"] - 20, steps=3)
     page.mouse.move(t["x"] + t["width"] * 0.2, t["y"] + t["height"] / 2, steps=8)
     page.mouse.up()
     page.wait_for_selector('#ggrid .tile[data-id="IMG010"]')
-    assert order()[1] == ("scene-00", "IMG010"), order()  # left half of the first tile = after it
+    assert order()[-1] == ("scene-01", "IMG010"), order()  # left half of IMG011 = after it; scene-00 does not take a new picture
     # the + tile: picker with a new empty slot
     n = len(order())
     page.click("#ggrid .tile.add")

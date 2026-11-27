@@ -3,7 +3,6 @@ import { reload } from './panels.js';
 import { redrawDialog } from './dialogs.js';
 import { openFromV } from './editors.js';
 /* Shared state and helpers: api calls, copy, auto-grow, the open-editor registry, dirty tracking. */
-export const SMOOTH = matchMedia('(prefers-reduced-motion:reduce)').matches ? 'auto' : 'smooth';
 export const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 export const audio = new Audio(), SILENT = 3.2;
 export const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({
