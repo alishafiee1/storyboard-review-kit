@@ -134,6 +134,28 @@
   display:inline-flex;
 }
 
+#apr.redo {
+  color:var(--accent);
+}
+
+.fltchip {
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  border:1px solid var(--accent);
+  border-radius:999px;
+  padding:0 10px;
+  height:28px;
+  font-size:12px;
+  color:var(--accent);
+  background:var(--paper-bright);
+  white-space:nowrap;
+}
+
+.fltchip:hover {
+  background:var(--wash-sand);
+}
+
 #apr .ic {
   width:14px;
   height:14px;
@@ -661,7 +683,7 @@
 
 body.gal #list,
 body.gal #foot,
-body.gal .be > :not(#lang):not(.gonly):not(#gq),
+body.gal .be > :not(#lang):not(.gonly):not(#gq):not(#fltChip),
 body.gal #galBtn {
   display:none;
 }
@@ -843,6 +865,10 @@ body.gal #gstat {
   background:var(--approve);
 }
 
+.tile.redo .dot {
+  background:var(--accent);
+}
+
 .tile.off .dot {
   background:transparent;
   box-shadow:0 0 0 2px var(--accent);
@@ -971,6 +997,11 @@ body.gdrag {
   object-fit:cover;
   background:var(--paper-shade);
   pointer-events:none;
+}
+
+.uit img[data-inbzoom] {
+  pointer-events:auto;
+  cursor:zoom-in;
 }
 
 dialog.gpick .opt {

@@ -139,6 +139,7 @@ const FILTERS = [
     'کهنه'
   ]
 ];
+export const filterLabel = k => (FILTERS.find(([x]) => x === k) || ['', ''])[1];
 const SPEEDS = [
   0.9,
   1,
@@ -203,6 +204,8 @@ function buildScenes() {
 }
 /* ---- filter and search */
 function paintFilter() {
+  if ($('#q') && $('#q').value !== S.q)
+    $('#q').value = S.q;
   const all = imgs(), count = k => k === 'all' ? all.length : all.filter(m => k === 'missing' ? !m.src : k === 'none' ? !m.status : k === 'note' ? !!m.note : k === 'stale' ? m.stale : m.status === k).length;
   $('#fopts').innerHTML = FILTERS.map(([k, t]) => `<button type="button" class="opt${ S.filter === k ? ' sel' : '' }" data-filter="${ k }" aria-pressed="${ S.filter === k }"><span>${ t }</span><span class="c">${ fa(count(k)) }</span></button>`).join('');
 }
@@ -526,6 +529,8 @@ export function boot_drawer() {
   });
   $('#q').addEventListener('input', e => {
     S.q = e.target.value.trim();
+    if ($('#gq'))
+      $('#gq').value = S.q;
     filt(true);
     drawerRefresh();
   });

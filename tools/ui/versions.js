@@ -215,6 +215,7 @@ function moreHtml() {
         out.push(item('data-imerge="1"', 'ادغام با صحنهٔ قبل', 'title="عنوان این صحنه برداشته می‌شه و تصویرهاش می‌رن توی صحنهٔ قبل"'));
     }
     out.push(item('data-ioff="1"', m.off ? 'برگردان تصویر' : 'کنار بگذار', 'title="فایلش پاک نمی‌شه"'));
+    out.push(item('data-iredo="1"', m.status === 'redo' ? 'برداشتن علامت بازسازی' : 'نیاز به بازسازی'));
     if (m.versions.length)
       out.push(item('data-iarch="1"', 'نسخهٔ نمایش‌داده‌شده به آرشیو', 'title="فایل پاک نمی‌شه"'));
     if (m.archived.length)
@@ -290,6 +291,14 @@ async function onItem(b) {
       });
       await reload();
     });
+  if (d.iredo !== undefined)
+    return run(async () => {
+      await api('/api/image', {
+        id: m.id,
+        status: m.status === 'redo' ? '' : 'redo'
+      });
+      await reload();
+    });
   if (d.iarch)
     return run(archiveShown);
   if (d.irest)
@@ -347,6 +356,16 @@ export const bringBack = sid => run(async () => {
 export function boot_versions() {
   $('#bArch').onclick = () => run(archiveShown);
   $('#bArchList').onclick = openArchive;
+  $('#bRedo').onclick = () => run(async () => {
+    const c = curImg();
+    if (!c)
+      return;
+    await api('/api/image', {
+      id: c.m.id,
+      status: c.m.status === 'redo' ? '' : 'redo'
+    });
+    await reload();
+  });
   document.addEventListener('click', e => {
     const b = e.target.closest('[data-vn]');
     if (b)

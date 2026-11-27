@@ -11,6 +11,7 @@ import {
   fail,
   modelById,
   modelOpts,
+  pollJob,
   sample,
   voiceOpts
 } from './core.js';
@@ -35,6 +36,7 @@ import {
   openSayEditor
 } from './editors.js';
 import { redrawPrompt } from './prompts.js';
+import { galleryFilter } from './gallery.js';
 /* Speakers tab, tone/label lists, references tab, lightbox, filter, stats and reload(). */
 export function speakersTab() {
   const used = {};
@@ -60,11 +62,13 @@ export function speakersTab() {
     return `<div class="tnrow"><div class="srow"><span class="st"><b>${ esc(tn.fa) }</b>${ tn.tag ? `<bdi class="tg" dir="ltr">${ esc(tn.tag) }</bdi>` : '<small class="muted">بدون برچسب (چیزی نمی‌فرسته)</small>' }</span>${ tn.tag ? st : '' }</div>
       <div class="srow act">${ tn.tag && haveVoices && toneVoice ? `<button type="button" class="outline" data-tsmp="${ esc(tn.id) }">نمونه</button><button type="button" class="quiet" data-tmark="${ esc(tn.id) }:good">کار می‌کنه</button><button type="button" class="quiet" data-tmark="${ esc(tn.id) }:bad">کار نمی‌کنه</button>` : '' }<button type="button" class="quiet" data-tdel="${ esc(tn.id) }">حذف</button></div></div>`;
   };
+  const staleAll = S.P.scenes.filter(s => !s.off).flatMap(s => s.blocks.flatMap(b => b.items)).filter(i => i.k === 'say' && i.vstale && i.vstale.length).length;
   $('#spk').innerHTML = `<section class="vsec"><h4>مدل پیش‌فرض</h4>
       <div class="srow"><select data-dm="1" aria-label="مدل پیش‌فرض">${ modelOpts(dm, false) }</select></div>
       <div class="srow"><span class="st"><small class="muted">فهرست صداها: ${ upd }</small></span><button type="button" class="outline" data-vrf="1" ${ t.has_key ? '' : 'disabled' }>رفرش لیست صداها</button></div>
       <small class="muted" id="vmsg" role="status"></small>
       ${ t.has_key ? '' : '<div class="vwarn">کلید API تنظیم نشده. <button type="button" class="quiet" data-gosettings="1">رفتن به تنظیمات</button></div>' }
+      ${ staleAll ? `<div class="srow"><span class="st"><small class="muted">${ fa(staleAll) } خط صدای کهنه دارد</small></span><button type="button" class="outline" data-regen-all="1">ساخت همهٔ صداهای کهنه</button></div><small class="muted" data-job=""></small>` : '' }
       <p class="muted vhint">صدای هر گوینده از فهرست این مدل میاد؛ عوض‌کردنش صدای اون گوینده رو «کهنه» می‌کنه.</p>
     </section>
     <section class="vsec"><h4>گوینده‌ها</h4>
@@ -82,6 +86,16 @@ export function speakersTab() {
       ${ ut0.size ? `<p class="muted vhint">لحن‌های بدون تعریف توی متن: ${ [...ut0.keys()].map(esc).join('، ') }</p>` : '' }
     </section>`;
   $$('#spk [data-gosettings]').forEach(b => b.onclick = () => openDrawer('settings'));
+  $$('#spk [data-regen-all]').forEach(b => b.onclick = async () => {
+    b.disabled = true;
+    try {
+      await api('/api/regen', {});
+      pollJob();
+    } catch (e) {
+      fail(e);
+      b.disabled = false;
+    }
+  });
   $$('#spk [data-addtone]').forEach(b => b.onclick = () => {
     $('#tnfa').value = b.dataset.addtone;
     $('#tnfa').scrollIntoView({ block: 'center' });
@@ -297,6 +311,7 @@ export function stats() {
 /* the filter and the search box decide which blocks can be reached; the block on show is kept until you move on, so choosing a version
    under a filter does not make the picture vanish under your hands (`force` = the filter itself just changed) */
 let FILTERING = false;
+export const matchFilter = (m, v) => v === 'all' || (v === 'missing' ? !m.src : v === 'none' ? !m.status : v === 'note' ? !!m.note : v === 'stale' ? m.stale : m.status === v);
 const matches = (b, m, q) => !q || [
   m ? m.id : '',
   m ? m.note : '',
@@ -314,14 +329,14 @@ export function filt(force) {
   const all = S.BL.flatMap(b => b.images);
   $$('figure.shot').forEach(f => {
     const m = all.find(x => x.id === f.dataset.id);
-    const show = v === 'all' || (v === 'missing' ? !m.src : v === 'none' ? !m.status : v === 'note' ? !!m.note : v === 'stale' ? m.stale : m.status === v);
-    f.classList.toggle('hide', !show);
+    f.classList.toggle('hide', !matchFilter(m, v));
   });
   S.BL.forEach((b, i) => {
     const hide = (v !== 'all' && !(b.images.length && $$('#b' + i + ' figure.shot:not(.hide)').length)) || !b.images.some(m => matches(b, m, q)) && !(!b.images.length && matches(b, null, q));
     $('#b' + i).classList.toggle('hide', hide && (force || i !== S.cur));
   });
   FILTERING = false;
+  galleryFilter();
   if (force && $('#b' + S.cur) && $('#b' + S.cur).classList.contains('hide'))
     showNear(S.cur);
   else if (S.BL.length)

@@ -117,8 +117,11 @@ def scan_inbox(limit=300):
                 continue
             p = os.path.join(d, f)
             ext = os.path.splitext(f)[1].lower()
-            out.append(dict(name=os.path.relpath(p, root).replace("\\", "/"), size=os.path.getsize(p),
-                            kind=next((k for k, e in INBOX_KINDS if ext in e), "other")))
+            kind = next((k for k, e in INBOX_KINDS if ext in e), "other")
+            item = dict(name=os.path.relpath(p, root).replace("\\", "/"), size=os.path.getsize(p), kind=kind)
+            if kind in ("image", "video"):
+                item["src"] = rel(p)
+            out.append(item)
     return out[:limit]
 
 

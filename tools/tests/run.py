@@ -1921,6 +1921,41 @@ def voice_rid_takes_play_from_srcs(proj, page):
     assert ab_src.startswith("audio/fa/b01/IMG001_1_a1b2c3d4.mp3?v="), ab_src
 
 
+@test
+def redo_gallery_filter_inbox_preview_and_regen_all(proj, page):
+    """#bRedo & #morePop mark status: redo; gallery tiles & filter sync with S.filter/S.q and #fltChip; inbox images show previews; #spk offers regen-all."""
+    at(page, "IMG001")
+    page.click("#bRedo")
+    proj.wait_in("[IMG001]", "status: redo")
+    page.wait_for_selector("#bRedo.has")
+    page.wait_for_selector("#apr.show.redo")
+    page.click("#bRedo")
+    proj.wait_in("[IMG001]", "status: redo", absent=True)
+    more(page)
+    page.click("#morePop [data-iredo]")
+    proj.wait_in("[IMG001]", "status: redo")
+    os.makedirs(os.path.join(proj.root, "inbox"), exist_ok=True)
+    open(os.path.join(proj.root, "inbox", "inb_pic.png"), "wb").write(png())
+    page.evaluate("location.hash = 'gallery'")
+    page.reload()
+    page.wait_for_selector('#ggrid .tile.redo[data-id="IMG001"]')
+    assert page.get_attribute('.uit img[data-inbzoom]', 'src') == 'inbox/inb_pic.png'
+    page.click('.uit img[data-inbzoom]')
+    page.wait_for_selector('#lb:not(.hide)')
+    page.keyboard.press('Escape')
+    page.wait_for_selector('#lb.hide', state='attached')
+    page.click("#gFilter")
+    page.click("[data-filter=redo]")
+    assert page.locator("#ggrid .tile[data-id]:visible").count() == 2  # IMG001 + IMG003 (already redo in fixture)
+    assert page.locator("#fltChip:visible").count() == 1
+    page.keyboard.press("Escape")
+    page.click("#fltChip")
+    assert page.locator("#ggrid .tile[data-id]:visible").count() == 4
+    assert page.locator("#fltChip").is_hidden()
+    drawer(page, "spk")
+    assert page.locator("#spk [data-regen-all]").count() == 1
+
+
 def main():
     global UPDATE
     ap = argparse.ArgumentParser()

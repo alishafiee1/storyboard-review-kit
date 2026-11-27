@@ -9,13 +9,22 @@ import {
   toast
 } from './core.js';
 import { ic } from './icons.js';
-import { reload } from './panels.js';
+import {
+  filt,
+  lightbox,
+  matchFilter,
+  reload
+} from './panels.js';
 import { sceneNo } from './render.js';
 import { blockByBid } from './player.js';
-import { copyBatch, openDrawer } from './drawer.js';
+import {
+  copyBatch,
+  drawerRefresh,
+  openDrawer
+} from './drawer.js';
 /* The gallery: the page the app opens on. A dense grid of 16:9 tiles (one per picture, in file order), drag to reorder, the strip of pictures that have no
    place yet, the "+" tile and its picker. The address is review.html#gallery; review.html#IMG045 is the spread of that picture. */
-let SEL = new Set(), LAST = null, PICK = false, D = null, SWALLOW = false, REORD = false, GQ = '';
+let SEL = new Set(), LAST = null, PICK = false, D = null, SWALLOW = false, REORD = false;
 const gal = () => document.body.classList.contains('gal');
 const rtl = () => getComputedStyle($('#gallery')).direction === 'rtl';
 const modeOf = h => {
@@ -43,11 +52,11 @@ const tiles = () => S.P.scenes.filter(s => !s.off).flatMap(sc => sc.blocks.flatM
   sc,
   b
 }))));
-/* the search of the gallery: the id, the scene title or any line of the picture's block */
-const hit = ({m, sc, b}) => !GQ || [m.id, sc.title, ...b.items.flatMap(i => [i.fa, i.en])].some(t => t && String(t).toLowerCase().includes(GQ));
+/* the search and filter of the gallery: status filter + id, scene title, note or any line of the picture's block */
+const hit = ({m, sc, b}, q = S.q.trim().toLowerCase()) => matchFilter(m, S.filter) && (!q || [m.id, sc.title, m.note, ...b.items.flatMap(i => [i.sp, i.fa, i.en])].some(t => t && String(t).toLowerCase().includes(q)));
 const tileHtml = (t, first) => {
   const {m, sc} = t;
-  const st = m.off ? 'off' : m.status === 'ok' ? 'ok' : 'pend', n = m.versions.length;
+  const st = m.off ? 'off' : m.status === 'redo' ? 'redo' : m.status === 'ok' ? 'ok' : 'pend', n = m.versions.length;
   return `<div class="tile ${ m.src ? '' : 'empty' } ${ st }${ first ? ' sb' : '' }${ SEL.has(m.id) ? ' sel' : '' }" ${ hit(t) ? '' : 'hidden' } data-id="${ m.id }" data-drag="tile" tabindex="0" role="button" aria-label="${ m.id }">${ m.src ? `<img src="${ esc(m.src) }" alt="" loading="lazy" decoding="async" draggable="false">` : `<span class="gid" dir="ltr">${ m.id }</span>` }${ sc.id === 'scene-00' ? '' : `<b class="no">${ fa(sceneNo(sc)) }</b>` }<i class="dot"></i>${ n > 1 ? `<u class="gvc">${ fa(n) }</u>` : '' }</div>`;
 };
 function paint() {
@@ -64,7 +73,7 @@ function paint() {
   }).join('') + `<button type="button" class="tile add" data-gadd="1" aria-label="افزودن تصویر" title="افزودن تصویر">${ ic('plus') }</button>`;
   const batches = [...new Set(all.map(t => t.m.batch).filter(Boolean))].sort();
   const un = S.P.unplaced || [], inbox = (S.P.inbox || []).filter(f => f.kind === 'image');
-  g.innerHTML = `<div class="gtools"><button type="button" class="quiet sm" id="gSel" aria-pressed="${ PICK }">انتخاب</button><button type="button" class="quiet sm" id="gMove" aria-pressed="${ REORD }" title="در حالت جابه‌جایی، با کشیدن انگشت تصویر جابه‌جا می‌شود و صفحه جابه‌جا نمی‌شود">جابه‌جایی</button><span class="gcount" id="gCount"></span><span class="gsp"></span>${ batches.map(b => `<button type="button" class="quiet sm" data-gbatch="${ b }" title="کپی پرامپت‌های این دسته">${ ic('image') }<bdi dir="ltr">${ b }</bdi></button>`).join('') }</div><div class="ggrid" id="ggrid">${ grid }<div class="gline" hidden></div></div>${ un.length || inbox.length ? `<div class="gun"><h4>جا نگرفته‌ها <small>(بکش توی گالری، یا + بزن)</small></h4><div class="gur">${ un.map(u => `<div class="uit" data-drag="un" data-uid="${ u.id }">${ u.src ? `<img src="${ esc(u.src) }" alt="" loading="lazy" draggable="false">` : '<span class="uph"></span>' }<bdi dir="ltr">${ u.id }</bdi><button type="button" class="ib sm" data-gun="${ u.id }" aria-label="جاگذاری ${ u.id }">${ ic('plus') }</button></div>`).join('') }${ inbox.map(f => `<div class="uit" data-drag="un" data-uid=""><span class="uph"></span><bdi dir="ltr">${ esc(f.name) }</bdi><button type="button" class="ib sm" data-gun="" aria-label="جای تازه">${ ic('plus') }</button></div>`).join('') }</div></div>` : '' }`;
+  g.innerHTML = `<div class="gtools"><button type="button" class="quiet sm" id="gSel" aria-pressed="${ PICK }">انتخاب</button><button type="button" class="quiet sm" id="gMove" aria-pressed="${ REORD }" title="در حالت جابه‌جایی، با کشیدن انگشت تصویر جابه‌جا می‌شود و صفحه جابه‌جا نمی‌شود">جابه‌جایی</button><span class="gcount" id="gCount"></span><span class="gsp"></span>${ batches.map(b => `<button type="button" class="quiet sm" data-gbatch="${ b }" title="کپی پرامپت‌های این دسته">${ ic('image') }<bdi dir="ltr">${ b }</bdi></button>`).join('') }</div><div class="ggrid" id="ggrid">${ grid }<div class="gline" hidden></div></div>${ un.length || inbox.length ? `<div class="gun"><h4>جا نگرفته‌ها <small>(بکش توی گالری، یا + بزن)</small></h4><div class="gur">${ un.map(u => `<div class="uit" data-drag="un" data-uid="${ u.id }">${ u.src ? `<img src="${ esc(u.src) }" alt="" loading="lazy" draggable="false">` : '<span class="uph"></span>' }<bdi dir="ltr">${ u.id }</bdi><button type="button" class="ib sm" data-gun="${ u.id }" aria-label="جاگذاری ${ u.id }">${ ic('plus') }</button></div>`).join('') }${ inbox.map(f => `<div class="uit" data-drag="un" data-uid="">${ f.src ? `<img src="${ esc(f.src) }" alt="" loading="lazy" draggable="false" data-inbzoom="${ esc(f.src) }" data-name="${ esc(f.name) }" title="بزرگ‌نمایی">` : '<span class="uph"></span>' }<bdi dir="ltr">${ esc(f.name) }</bdi><button type="button" class="ib sm" data-gun="" aria-label="جای تازه">${ ic('plus') }</button></div>`).join('') }</div></div>` : '' }`;
   g.classList.toggle('reorder', REORD);
   count();
 }
@@ -77,9 +86,27 @@ const stat = () => {
 const count = () => {
   stat();
   const c = $('#gCount');
-  if (c)
-    c.textContent = SEL.size ? `${ fa(SEL.size) } انتخاب‌شده` : `${ fa(tiles().length) } تصویر`;
+  if (c) {
+    const shown = $$('#ggrid .tile[data-id]:not([hidden])').length, total = tiles().length;
+    c.textContent = SEL.size ? `${ fa(SEL.size) } انتخاب‌شده` : shown < total ? `${ fa(shown) } از ${ fa(total) } تصویر` : `${ fa(total) } تصویر`;
+  }
 };
+export function galleryFilter() {
+  if (!S.P || !$('#ggrid'))
+    return;
+  const q = S.q.trim().toLowerCase(), byId = new Map(tiles().map(t => [t.m.id, t]));
+  $$('#ggrid .tile[data-id]').forEach(el => {
+    const t = byId.get(el.dataset.id);
+    el.hidden = !(t && hit(t, q));
+  });
+  const gq = $('#gq');
+  if (gq && gq.value !== S.q)
+    gq.value = S.q;
+  const gf = $('#gFilter');
+  if (gf)
+    gf.classList.toggle('has', S.filter !== 'all');
+  count();
+}
 export const galleryRefresh = () => {
   if (S.P)
     paint();
@@ -247,17 +274,24 @@ export function boot_gallery() {
   $('#gSearch').addEventListener('click', () => {
     q.hidden = !q.hidden;
     $('#gSearch').setAttribute('aria-expanded', String(!q.hidden));
-    if (q.hidden)
-      q.value = '', GQ = '', paint();
-    else
+    if (q.hidden) {
+      q.value = '';
+      S.q = '';
+      if ($('#q'))
+        $('#q').value = '';
+      filt(true);
+      drawerRefresh();
+    } else {
+      q.value = S.q;
       q.focus();
+    }
   });
   q.addEventListener('input', () => {
-    GQ = q.value.trim().toLowerCase();
-    $$('#ggrid .tile[data-id]').forEach(el => {
-      const t = tiles().find(x => x.m.id === el.dataset.id);
-      el.hidden = !(t && hit(t));
-    });
+    S.q = q.value.trim();
+    if ($('#q'))
+      $('#q').value = S.q;
+    filt(true);
+    drawerRefresh();
   });
   q.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
@@ -294,6 +328,9 @@ export function boot_gallery() {
       e.preventDefault();
       return;
     }
+    const iz = e.target.closest('[data-inbzoom]');
+    if (iz)
+      return lightbox(iz.dataset.inbzoom, iz.dataset.name);
     const b = e.target.closest('button');
     if (b && b.id === 'gMove') {
       REORD = !REORD;

@@ -25,6 +25,7 @@ import { stepVersion } from './versions.js';
 import {
   drawerOpen,
   drawerRefresh,
+  filterLabel,
   undo
 } from './drawer.js';
 /* The scrolling list of pictures: navigation, the top bar's numbers, the transport under the picture, auto-play, keyboard and start-up. */
@@ -68,19 +69,25 @@ export function chrome() {
   pr.style.setProperty('--step', step.toFixed(2) + 'px');
   $('#navPrev').disabled = $('#prev').disabled = p <= 0;
   $('#navNext').disabled = $('#next').disabled = p < 0 || p >= n - 1;
-  $('#apr').innerHTML = m && m.status === 'ok' ? ic('check') + 'تأیید شده' : '';
-  $('#apr').classList.toggle('show', !!(m && m.status === 'ok'));
+  const isRedo = m && m.status === 'redo', isOk = m && m.status === 'ok';
+  $('#apr').innerHTML = isRedo ? ic('redo') + 'نیاز به بازسازی' : isOk ? ic('check') + 'تأیید شده' : '';
+  $('#apr').classList.toggle('show', !!(isRedo || isOk));
+  $('#apr').classList.toggle('redo', !!isRedo);
   const acts = $('#picActs');
   const home = c ? c.f : $('.be');
   if (acts.parentElement !== home)
     home.appendChild(acts);
   [
     '#bNote',
+    '#bRedo',
     '#bPrompt',
     '#bVprompt',
     '#bFlag',
     '#more'
   ].forEach(s => $(s).disabled = !m);
+  $('#bRedo').classList.toggle('has', !!isRedo);
+  $('#bRedo').setAttribute('aria-pressed', isRedo ? 'true' : 'false');
+  $('#bRedo').title = isRedo ? 'برداشتن علامت «نیاز به بازسازی»' : 'علامت‌گذاری: نیاز به بازسازی';
   $('#bArch').disabled = !(m && m.versions && m.versions.length);
   $('#bArchList').disabled = !m;
   $('#bArchList').classList.toggle('has', !!(m && m.archived && m.archived.length));
@@ -88,6 +95,10 @@ export function chrome() {
   $('#bNote').classList.toggle('has', !!(m && (m.note || m.fx)));
   $('#bVprompt').classList.toggle('has', !!(m && m.vprompt));
   $('#bPrompt').classList.toggle('has', !!(m && m.stale));
+  const fc = $('#fltChip'), activeFlt = S.filter !== 'all' || !!S.q;
+  fc.hidden = !activeFlt;
+  if (activeFlt)
+    fc.textContent = (S.filter !== 'all' ? filterLabel(S.filter) : '') + (S.filter !== 'all' && S.q ? ' · ' : '') + (S.q ? `«${ S.q }»` : '') + ' ×';
   const a = $('#aside');
   a.disabled = !m;
   a.innerHTML = ic('tray') + `<span>${ m && m.off ? 'برگردان' : 'کنار بگذار' }</span>`;
@@ -370,6 +381,16 @@ export function boot_player() {
     }
   });
   $('#bUndo').onclick = () => undo(false);
+  $('#fltChip').onclick = () => {
+    S.filter = 'all';
+    S.q = '';
+    if ($('#q'))
+      $('#q').value = '';
+    if ($('#gq'))
+      $('#gq').value = '';
+    filt(true);
+    drawerRefresh();
+  };
   /* Ctrl+Z = undo the last structural change (code KeyZ, so it also works on the Persian keyboard); inside a text box it stays the browser's own text undo */
   document.addEventListener('keydown', e => {
     if (e.defaultPrevented || !(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey || e.code !== 'KeyZ')
