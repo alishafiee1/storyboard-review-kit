@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 2,
+  "projectSlug": "storyboard-review-kit",
+  "name": "Storyboard Review Kit",
+  "serverUrl": null,
+  "boardId": null,
+  "repoFingerprint": null,
+  "language": {
+    "simple": "fa",
+    "technical": "en"
+  },
+  "testCommand": "python -m unittest discover -s tools/tests -p 'test_*.py'",
+  "stepsDirs": []
+}

@@ -4,7 +4,7 @@
   prompts/prompts.txt    (one complete Flow prompt per image / reference)
 Run:  python tools/serve.py   (or double-click click-for-review.bat)  ->  http://127.0.0.1:8765/review.html
 Listens on 127.0.0.1 only and stops by itself ~90 s after the page is closed.
-This file is only the HTTP layer; the logic lives in kitcore / story / media / edits / jobs / project (see docs/ARCHITECTURE.md)."""
+This file is only the HTTP layer; the logic lives in kitcore / story / media / edits / jobs / project (see rodo/storyboard-review-kit/project/architecture.md)."""
 import functools, http.server, json, os, sys, threading, time, urllib.parse
 from kitcore import Conflict, HIDDEN, IDLE, LOCK, PORT, ROOT
 from api import handle

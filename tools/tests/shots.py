@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-"""Screenshots of the real review page, for the visual comparison with docs/redesign/mockups/ (phase 6).
-  python tools/tests/shots.py            writes docs/redesign/screens/{desktop-review,desktop-modal,desktop-drawer,mobile-review,mobile-drawer,mobile-modal,*-gallery}.png
-It builds a throw-away project (the test fixture plus a 50-picture story in the style of the mock-ups: scene 4 «غار», picture 45, two voices),
-starts its own server on a free port and drives the page like a user. The still is a crop of the painting in the mock-up (fixture/still-cave.png,
-made once from docs/redesign/mockups/desktop.png). Nothing in the page is faked: what you see is what the app draws."""
+"""Screenshots of the real review page.
+  python tools/tests/shots.py            writes tools/tests/screens/{desktop-review,desktop-modal,desktop-drawer,mobile-review,mobile-drawer,mobile-modal,*-gallery}.png
+It builds a throw-away project (the test fixture plus a 50-picture story: scene 4 «غار», picture 45, two voices),
+starts its own server on a free port and drives the page like a user. The still is fixture/still-cave.png.
+Nothing in the page is faked: what you see is what the app draws."""
 import os, shutil, subprocess, sys, time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -11,9 +11,8 @@ sys.path.insert(0, HERE)
 import run as T  # noqa: E402  (the tests' Proj helper: temp project + server)
 
 KIT = T.KIT
-OUT = os.path.join(KIT, "docs", "redesign", "screens")
+OUT = os.path.join(KIT, "tools", "tests", "screens")
 STILL = os.path.join(T.FIX, "still-cave.png")
-MOCK = os.path.join(KIT, "docs", "redesign", "mockups", "desktop.png")
 
 PROMPT = """STYLE LOCK: 16:9 widescreen. A richly detailed painterly oil-painted cave interior, cinematic firelight. MIMO is a 25-year-old slim stickman with a perfectly circular flat white head, short dark messy hair, oval dot eyes, short brows, a small mouth, NO nose, true single-line black limbs, a flat WHITE short-sleeved T-shirt and flat BLACK shorts. MIMO is a clean flat graphic character; do not paint him with the same brushy oil texture as the world.
 
@@ -50,13 +49,10 @@ def story():
 
 
 def make_still(browser):
-    """Crop the painting out of the mock-up (once) so the screenshots show a real picture instead of a flat colour."""
+    """Ensure the test still exists for screenshot generation."""
     if os.path.exists(STILL):
         return
-    page = browser.new_page(viewport={"width": 1376, "height": 768})
-    page.goto("file:///" + MOCK.replace("\\", "/").lstrip("/"))
-    page.screenshot(path=STILL, clip={"x": 748, "y": 214, "width": 570, "height": 321})
-    page.close()
+
 
 
 def build(proj):
