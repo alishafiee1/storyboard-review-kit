@@ -21,7 +21,7 @@ scope:
     - "بازنویسی فایل نسخه‌ای با rid متفاوت"
 ---
 
-بعد از تأیید تصویر در صفحهٔ بررسی، یک دستور فقط همان تصویرهای تأییدشده را در Flow به کیفیت بالاتر می‌برد، فایل را مستقیم می‌گیرد (حتی اگر چند تصویر در یک زیپ باشد)، و نسخهٔ باکیفیت را کنار پیش‌نویس می‌گذارد. تصویر تأییدنشده دست نمی‌خورد.
+بعد از تأیید تصویر در صفحهٔ بررسی (وابسته به چرخهٔ 016)، یک دستور فقط همان تصویرهای تأییدشده را در Flow به کیفیت بالاتر می‌برد، فایل را مستقیم می‌گیرد (حتی اگر چند تصویر در یک زیپ باشد)، و نسخهٔ باکیفیت را کنار پیش‌نویس می‌گذارد. تصویر تأییدنشده دست نمی‌خورد.
 
 ## Progress notes
 
@@ -35,7 +35,8 @@ scope:
 - [سند فنی](/rodo/storyboard-review-kit/cycles/002-flow-2k-final-and-zip/spec.md)
 - [طرح معماری](/rodo/storyboard-review-kit/cycles/002-flow-2k-final-and-zip/design.md)
 - [سناریوهای پذیرش](/rodo/storyboard-review-kit/cycles/002-flow-2k-final-and-zip/acceptance.feature)
-- [چرخهٔ پیش‌نویس ۱K](/rodo/storyboard-review-kit/cycles/001-flow-cdp-draft-sync/simple.md)
+- [چرخهٔ فاز A](/rodo/storyboard-review-kit/cycles/001-flow-sync-skeleton-dryrun/simple.md)
+- وابستگی: وابسته به چرخهٔ 016 (depends on cycle 016)
 
 ## Checklist: قدم‌ها
 

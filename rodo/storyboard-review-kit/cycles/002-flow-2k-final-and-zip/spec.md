@@ -5,6 +5,8 @@
 
 ## 1. Summary
 
+> **Dependency:** This cycle depends on cycle 016 (Phase D: Review kit UI panel and self-healing).
+
 Extend `tools/flow_sync.py` with `--mode final` so only approved (`pick:`) images that do not yet have a verified 2K file are upscaled/downloaded at 2K from the open Flow tab. Browser downloads are intercepted — both single files and multi-image `.zip` bundles, which are extracted and mapped to the exact `[OUTPUT NAME]` / `IMG###` path. A WebP preview is never accepted as 2K. The 2K file is written as a quality sibling (`_2K`) beside the 1K draft; existing files are not renamed. `.kit/flow-state.json` is updated. Zero LLM tokens.
 
 ## 2. Rules
