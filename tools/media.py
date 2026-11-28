@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """What is on disk next to the text: picture versions, references, videos, voice variants, and the archive folders (nothing here deletes a file)."""
 import glob, os, re, time
-from kitcore import IMG_EXT, LANGS, ROOT, VID_EXT, replace_file
-from flowname import LEGACY_IMG, audio_parse, batch_of, find_version, group, parse, settings, walk
+from kitcore import BOOK_RULES, IMG_EXT, LANGS, ROOT, VID_EXT, book_path, replace_file
+from flowname import LEGACY_IMG, REF_KINDS, audio_parse, batch_of, find_version, group, parse, settings, walk
 
 
 def rel(p):
@@ -20,17 +20,29 @@ def _version(v):
     return dict(name=os.path.basename(v["best"]), src=rel(v["best"]), id=v["id"], q=v["q"], files=[rel(f) for f in v["files"]])
 
 
-def scan_images():
-    """{IMG###: {versions: [{name, src, id, q, files}] oldest first, rejected: [src]}}. One version = one random id; its 2K / 4K files are one version (name / src = the best one)."""
+def ref_kind_of(id_):
+    """images/refs/<KIND>/ subfolder: using flowname.REF_KINDS, and STYLE_ANCHOR -> STYLE."""
+    if id_ == "STYLE_ANCHOR" or id_.startswith("STYLE_"):
+        return "STYLE"
+    head = id_.split("_")[0]
+    return head if head in REF_KINDS else ""
+
+
+def scan_images(book="story"):
+    """{ID: {versions: [{name, src, id, q, files}] oldest first, rejected: [src]}}. One version = one random id; its 2K / 4K files are one version (name / src = the best one)."""
     cfg = settings()
     cur, rej = {}, {}
-    for f in walk(os.path.join(ROOT, "images", "scenes"), skip=("archive", "inbox")):
+    rules = BOOK_RULES.get(book, BOOK_RULES["story"])
+    folder = os.path.join(ROOT, rules["images_rel"])
+    rel_pfx = rules["images_rel"] + "/"
+    item_re = rules["item_re"]
+    for f in walk(folder, skip=("archive", "inbox")):
         if not f.lower().endswith(IMG_EXT):
             continue
         name = os.path.basename(f)
-        p = parse(name, cfg) or _legacy(name)
-        if p and re.fullmatch(r"IMG\d{3,4}", p["base"]):
-            (rej if "_rejected" in rel(f)[len("images/scenes/"):] else cur).setdefault(p["base"], []).append((f, p))
+        p = parse(name, cfg) or (dict(base=os.path.splitext(name)[0], slug="", rid="", q="", dup=False, key=(os.path.splitext(name)[0], ""), name=name) if book == "refs" else _legacy(name))
+        if p and item_re.fullmatch(p["base"]):
+            (rej if "_rejected" in rel(f)[len(rel_pfx):] else cur).setdefault(p["base"], []).append((f, p))
     out = {}
     for id_ in set(cur) | set(rej):
         out[id_] = dict(versions=[_version(v) for v in group(cur.get(id_, []), cfg)],
@@ -53,14 +65,18 @@ def image_state(im, scan):
                 status=im["status"] or ("ok" if picked else ""), batch=batch_of(im["id"]))
 
 
-def resolve(kind, id_, pick="", lang="", scan=None, idx=None):
+def resolve(kind, id_, pick="", lang="", scan=None, idx=None, book=None):
     """The one answer to «which file is this?», shared by the page, the subtitles, pack.py and the Premiere export.
     kind 'image': the picked version (pick: value from story.txt, rid or old file name; none = the newest) at its best quality.
     kind 'voice': the chosen voice file of a line in `lang` (pick = the variant name; none = the old default, else the oldest).
     `scan` (scan_images()) / `idx` (audio_index(lang)) save a second disk walk when you ask many times.
     Returns dict(path, src, name, ...) or None when there is no file."""
     if kind == "image":
-        vs = (scan if scan is not None else scan_images()).get(id_, {}).get("versions", [])
+        if scan is None:
+            if book is None:
+                book = "refs" if not re.fullmatch(r"IMG\d{3,4}", id_) else "story"
+            scan = scan_images(book=book)
+        vs = scan.get(id_, {}).get("versions", [])
         if not vs:
             return None
         vi, v = shown_version(vs, pick)
@@ -203,15 +219,17 @@ def archive_move(src, dest_dir):
 
 
 def archived_images(id_):
-    """The archive of one picture: images/archive/ and, from older projects, the files of a `_rejected/` folder under images/scenes/
-    («rejected» and «archived» are one idea now: out of the versions, nothing deleted, brought back from the page)."""
+    """The archive of one picture or ref: images/archive/ and, from older projects, the files of a `_rejected/` folder."""
     cfg = settings()
+    is_ref = not re.fullmatch(r"IMG\d{3,4}", id_)
     files = list(walk(archive_dir("image"), skip=()))
-    files += [f for f in walk(os.path.join(ROOT, "images", "scenes"), skip=("archive", "inbox")) if "_rejected" in rel(f)[len("images/scenes/"):]]
+    sub = os.path.join(ROOT, "images", "refs" if is_ref else "scenes")
+    pfx = "images/refs/" if is_ref else "images/scenes/"
+    files += [f for f in walk(sub, skip=("archive", "inbox")) if "_rejected" in rel(f)[len(pfx):]]
     out = []
     for f in sorted(files, key=os.path.getmtime):
         name = os.path.basename(f)
-        p = parse(name, cfg) or _legacy(name)
+        p = parse(name, cfg) or (dict(base=os.path.splitext(name)[0], slug="", rid="", q="", dup=False, key=(os.path.splitext(name)[0], ""), name=name) if is_ref else _legacy(name))
         if f.lower().endswith(IMG_EXT) and p and p["base"] == id_:
             out.append(dict(name=name, src=rel(f)))
     return out
@@ -229,19 +247,25 @@ def archived_voices(lang, id_):
 def archive_item(kind, id_, name, lang="", back=False):
     """Archive (or bring back) one picture version or one voice variant. Returns the new path."""
     if kind == "image":
-        if not re.fullmatch(r"IMG\d{3,4}", id_):
+        is_ref = bool(BOOK_RULES["refs"]["item_re"].fullmatch(id_))
+        if not re.fullmatch(r"IMG\d{3,4}", id_) and not is_ref:
             raise ValueError("bad id")
+        book = "refs" if is_ref else "story"
         if back:
             f = next((x for x in archived_images(id_) if x["name"] == name), None)
             if not f:
                 raise ValueError("not in the archive")
-            dst = os.path.join(ROOT, "images", "scenes", name)
+            if is_ref:
+                kdir = ref_kind_of(id_)
+                dst = os.path.join(ROOT, "images", "refs", kdir, name) if kdir else os.path.join(ROOT, "images", "refs", name)
+            else:
+                dst = os.path.join(ROOT, "images", "scenes", name)
             if os.path.exists(dst):
                 raise ValueError("a file with this name already exists")
             os.makedirs(os.path.dirname(dst), exist_ok=True)
             replace_file(os.path.join(ROOT, f["src"]), dst)
             return dst
-        v = find_version(scan_images().get(id_, {}).get("versions", []), name)
+        v = find_version(scan_images(book=book).get(id_, {}).get("versions", []), name)
         if not v:
             raise ValueError("no such picture file")
         moved = [archive_move(os.path.join(ROOT, f), archive_dir("image")) for f in v["files"]]  # every quality of the version goes together

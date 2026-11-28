@@ -222,6 +222,40 @@ class StableLineIds(unittest.TestCase):
     def test_next_id_skips_numbers_already_used(self):
         self.assertEqual(lineedits.next_line_id(["id: L003", "voice-pick: L007.fa=x"]), "L008")
 
+    def test_moving_line_within_picture_preserves_chunk_and_id(self):
+        ls = lines()
+        say1_idx = next(i for i, l in enumerate(ls) if "این علیه" in l)
+        ls.insert(say1_idx + 1, "id: IMG001-custom")
+        ls.insert(say1_idx + 2, "voice: fa=take1")
+        ls.insert(say1_idx + 3, "voice-stale: fa")
+        ls.insert(say1_idx + 4, "format-issue: مشکل لحن")
+        say2_idx = next(i for i, l in enumerate(ls) if "این دیگه از کجا" in l)
+        lineedits.move_line(ls, say1_idx, after=say2_idx)
+        say_idx = next(i for i, l in enumerate(ls) if "این علیه" in l)
+        self.assertEqual(ls[say_idx + 1].strip(), "id: IMG001-custom")
+        self.assertEqual(ls[say_idx + 2].strip(), "voice: fa=take1")
+        self.assertEqual(ls[say_idx + 3].strip(), "voice-stale: fa")
+        self.assertEqual(ls[say_idx + 4].strip(), "format-issue: مشکل لحن")
+        self.assertEqual(ls[say_idx + 5].strip(), "en: This is Ali. He is not a person before coffee.")
+
+    def test_moving_line_to_neighboring_picture_and_onto_image(self):
+        ls = lines()
+        lineedits.move_line(ls, {"image": "IMG001", "index": 4}, to_image="IMG002")
+        sc = scene(ls, "scene-01")
+        b2_items = sc["blocks"][1]["items"]
+        self.assertTrue(any("این علیه" in it["fa"] for it in b2_items))
+        moved_it = next(it for it in b2_items if "این علیه" in it["fa"])
+        self.assertEqual(moved_it["id"], "IMG001_1")
+
+    def test_moving_line_refuses_invalid_targets(self):
+        ls = lines()
+        with self.assertRaises(ValueError):
+            lineedits.move_line(ls, {"image": "IMG001", "index": 3}, to_image="IMG003")
+        with self.assertRaises(ValueError):
+            lineedits.move_line(ls, {"image": "IMG001", "index": 3}, to_image="IMG000")
+        with self.assertRaises(ValueError):
+            lineedits.move_line(ls, {"image": "IMG001", "index": 3}, before={"image": "IMG001", "index": 3})
+
 
 class OldFormatHint(unittest.TestCase):
     def check(self, story, audio=()):
@@ -412,10 +446,153 @@ class SketchbookShell(unittest.TestCase):
 
     def test_the_shell_has_no_text_tabs_and_has_the_drawer(self):
         html = self.text("review.html")
-        for gone in ("tabR", "tabF", "tabS", 'id="filter"', 'id="speed"', 'id="jump"', 'id="fab"'):
+        for gone in ("tabR", "tabF", "tabS", 'id="filter"', 'id="speed"', 'id="jump"', 'id="fab"', 'id="pSpeed"'):
             self.assertNotIn(gone, html)
-        for need in ('id="menuBtn"', 'id="drawer"', 'id="nav"', 'id="lang"', 'id="more"', 'id="bPrompt"', 'id="bVprompt"', 'id="bNote"', 'id="bFlag"', 'dir="rtl"'):
+        for need in ('id="menuBtn"', 'id="drawer"', 'id="nav"', 'id="lang"', 'dir="rtl"'):
             self.assertIn(need, html)
+
+    def test_speeds_list_shared_and_no_drawer_speed_panel(self):
+        js = self.text("tools", "ui", "player.js")
+        self.assertIn("export const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];", js)
+        drawer_js = self.text("tools", "ui", "drawer.js")
+        self.assertNotIn("paintSpeed", drawer_js)
+        self.assertNotIn("data-speed", drawer_js)
+        self.assertNotIn("#pSpeed", drawer_js)
+        self.assertNotIn("SPEEDS", drawer_js)
+
+
+class RefsModeTests(unittest.TestCase):
+    def setUp(self):
+        import shutil, tempfile
+        self.tmp = tempfile.mkdtemp()
+        self.scen_dir = os.path.join(self.tmp, "scenario")
+        self.prompt_dir = os.path.join(self.tmp, "prompts")
+        self.refs_img_dir = os.path.join(self.tmp, "images", "refs", "CH")
+        self.scenes_img_dir = os.path.join(self.tmp, "images", "scenes", "b01")
+        self.prem_dir = os.path.join(self.tmp, "premiere")
+        self.subs_dir = os.path.join(self.tmp, "subtitles")
+        for d in (self.scen_dir, self.prompt_dir, self.refs_img_dir, self.scenes_img_dir, self.prem_dir, self.subs_dir):
+            os.makedirs(d, exist_ok=True)
+        self.story_file = os.path.join(self.scen_dir, "story.txt")
+        self.refs_file = os.path.join(self.scen_dir, "reference.txt")
+        self.prompts_file = os.path.join(self.prompt_dir, "prompts.txt")
+        open(self.story_file, "w", encoding="utf-8").write(
+            "speaker: علی | #ef6c00 | charlie\n\n=== scene-01 | صحنه اول | - ===\n[IMG001]\nsay: علی | سلام\nid: IMG001-1\n"
+        )
+        open(self.prompts_file, "w", encoding="utf-8").write(
+            "=== IMG001 ===\n[OUTPUT NAME: IMG001_first]\na shot\n\n=== CH_ALICE ===\n[OUTPUT NAME: CH_ALICE_take1]\nAlice ref\n\n=== LOC_GARDEN ===\n[OUTPUT NAME: LOC_GARDEN_take1]\nGarden ref\n"
+        )
+        fake_img = os.path.join(self.refs_img_dir, "CH_ALICE_take1_abcd1234.jpg")
+        open(fake_img, "wb").write(b"fake image data")
+        fake_scene_img = os.path.join(self.scenes_img_dir, "IMG001_first_12345678.jpg")
+        open(fake_scene_img, "wb").write(b"fake image data")
+        import api, history, kitcore, lineedits, media, premiere_export, project, story, subtitles
+        self.old_modules = (
+            kitcore.ROOT, kitcore.STORY, kitcore.REFS_FILE, kitcore.PROMPTS,
+            api.STORY, api.REFS_FILE,
+            history.ROOT, history.STORY, history.DIR, history.UNDONE,
+            history.DIR_REFS, history.UNDONE_REFS, history.REFS_FILE,
+            lineedits.STORY, story.PROMPTS, story.STORY,
+            media.ROOT, project.ROOT, premiere_export.ROOT, premiere_export.STORY,
+            subtitles.ROOT, subtitles.OUT
+        )
+        kitcore.ROOT = self.tmp
+        kitcore.STORY = api.STORY = history.STORY = lineedits.STORY = story.STORY = premiere_export.STORY = self.story_file
+        kitcore.REFS_FILE = api.REFS_FILE = history.REFS_FILE = self.refs_file
+        kitcore.PROMPTS = story.PROMPTS = self.prompts_file
+        history.ROOT = media.ROOT = project.ROOT = premiere_export.ROOT = subtitles.ROOT = self.tmp
+        history.DIR = os.path.join(self.tmp, ".kit", "history")
+        history.DIR_REFS = os.path.join(self.tmp, ".kit", "history-refs")
+        history.UNDONE = os.path.join(self.tmp, ".kit", "undone")
+        history.UNDONE_REFS = os.path.join(self.tmp, ".kit", "undone-refs")
+        subtitles.OUT = self.subs_dir
+
+    def tearDown(self):
+        import api, history, kitcore, lineedits, media, premiere_export, project, shutil, story, subtitles
+        (
+            kitcore.ROOT, kitcore.STORY, kitcore.REFS_FILE, kitcore.PROMPTS,
+            api.STORY, api.REFS_FILE,
+            history.ROOT, history.STORY, history.DIR, history.UNDONE,
+            history.DIR_REFS, history.UNDONE_REFS, history.REFS_FILE,
+            lineedits.STORY, story.PROMPTS, story.STORY,
+            media.ROOT, project.ROOT, premiere_export.ROOT, premiere_export.STORY,
+            subtitles.ROOT, subtitles.OUT
+        ) = self.old_modules
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_unplaced_ref_discovery_and_lazy_reference_txt_creation(self):
+        import api, project
+        self.assertFalse(os.path.exists(self.refs_file))
+        p = project.project(book="refs")
+        self.assertEqual(p["scenes"], [])
+        unplaced_ids = [u["id"] for u in p["unplaced"]]
+        self.assertIn("CH_ALICE", unplaced_ids)
+        self.assertIn("LOC_GARDEN", unplaced_ids)
+        self.assertNotIn("IMG001", unplaced_ids)
+        self.assertFalse(os.path.exists(self.refs_file))
+        api.handle("/api/addscene", {"book": "refs", "title": "کاراکترها"})
+        self.assertTrue(os.path.exists(self.refs_file))
+        api.handle("/api/addimage", {"book": "refs", "scene": "ref-01", "id": "CH_ALICE"})
+        p2 = project.project(book="refs")
+        self.assertEqual(len(p2["scenes"]), 1)
+        self.assertEqual(p2["scenes"][0]["id"], "ref-01")
+        self.assertEqual(p2["scenes"][0]["blocks"][0]["images"][0]["id"], "CH_ALICE")
+        self.assertNotIn("CH_ALICE", [u["id"] for u in p2["unplaced"]])
+
+    def test_edit_and_archive_ref(self):
+        import api, kitcore, media
+        api.handle("/api/addscene", {"book": "refs", "title": "کاراکترها"})
+        api.handle("/api/addimage", {"book": "refs", "scene": "ref-01", "id": "CH_ALICE"})
+        api.handle("/api/image", {"book": "refs", "id": "CH_ALICE", "note": "یادداشت تست", "fx": "ادیت رنگ"})
+        lines = kitcore.read_lines(self.refs_file)
+        self.assertTrue(any("note: یادداشت تست" in l for l in lines))
+        self.assertTrue(any("fx: ادیت رنگ" in l for l in lines))
+        api.handle("/api/archive", {"book": "refs", "kind": "image", "id": "CH_ALICE", "name": "CH_ALICE_take1_abcd1234.jpg"})
+        arch = media.archived_images("CH_ALICE")
+        self.assertEqual(len(arch), 1)
+        api.handle("/api/restore", {"book": "refs", "kind": "image", "id": "CH_ALICE", "name": "CH_ALICE_take1_abcd1234.jpg"})
+        restored = os.path.join(self.refs_img_dir, "CH_ALICE_take1_abcd1234.jpg")
+        self.assertTrue(os.path.exists(restored))
+
+    def test_add_say_on_ch_registers_speaker_in_story_not_refs(self):
+        import api, kitcore
+        api.handle("/api/addscene", {"book": "refs", "title": "کاراکترها"})
+        api.handle("/api/addimage", {"book": "refs", "scene": "ref-01", "id": "CH_ALICE"})
+        api.handle("/api/add", {"book": "refs", "image": "CH_ALICE", "after": 0, "kind": "say", "speaker": "سارا", "text": "سلام این صدای تستی است"})
+        ref_lines = kitcore.read_lines(self.refs_file)
+        story_lines = kitcore.read_lines(self.story_file)
+        self.assertTrue(any("say: سارا | سلام این صدای تستی است" in l for l in ref_lines))
+        self.assertTrue(any("speaker: سارا" in l for l in story_lines))
+        self.assertFalse(any(l.startswith("speaker:") for l in ref_lines))
+
+    def test_undo_in_refs_does_not_touch_story(self):
+        import api, history
+        api.handle("/api/addscene", {"book": "refs", "title": "بخش ۱"})
+        story_before = open(self.story_file, "rb").read()
+        api.handle("/api/addscene", {"book": "refs", "title": "بخش ۲"})
+        refs_history = history.entries(book="refs")
+        self.assertTrue(len(refs_history) >= 1)
+        story_history = history.entries(book="story")
+        self.assertEqual(len(story_history), 0)
+        api.handle("/api/undo", {"book": "refs"})
+        story_after = open(self.story_file, "rb").read()
+        self.assertEqual(story_before, story_after)
+
+    def test_premiere_export_and_subtitles_ignore_reference_txt(self):
+        import api, premiere_export, subtitles
+        api.handle("/api/addscene", {"book": "refs", "title": "کاراکترها"})
+        api.handle("/api/addimage", {"book": "refs", "scene": "ref-01", "id": "CH_ALICE"})
+        api.handle("/api/add", {"book": "refs", "image": "CH_ALICE", "after": 0, "kind": "say", "speaker": "سارا", "text": "متن تستی رفرنس"})
+        xml_out = os.path.join(self.prem_dir, "test_fa.xml")
+        path, warns = premiere_export.build(lang="fa", out=xml_out)
+        xml_content = open(path, "r", encoding="utf-8").read()
+        self.assertIn("IMG001", xml_content)
+        self.assertNotIn("CH_ALICE", xml_content)
+        self.assertNotIn("ref-01", xml_content)
+        sub_res = subtitles.make_all()
+        fa_srt = open(os.path.join(self.subs_dir, "fa.srt"), "r", encoding="utf-8").read()
+        self.assertIn("سلام", fa_srt)
+        self.assertNotIn("متن تستی رفرنس", fa_srt)
 
 
 if __name__ == "__main__":

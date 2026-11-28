@@ -331,6 +331,15 @@ class AddImage(unittest.TestCase):
         self.assertEqual(layout(ls)[1][1][0], "IMG1000")
         self.assertEqual(layout(ls)[2][1][-2:], ["IMG999", "IMG1001"])
 
+    def test_adding_to_scene_00_is_refused(self):
+        ls = modern()
+        before = "\n".join(ls)
+        with self.assertRaises(ValueError):
+            moves.add_image_at(ls, scene="scene-00")
+        with self.assertRaises(ValueError):
+            moves.add_image_at(ls, after="IMG000")
+        self.assertEqual("\n".join(ls), before)
+
 
 class Endpoints(unittest.TestCase):
     """The API functions: a snapshot before each edit, undo gives the very same bytes back, a stale page gets 409 and leaves no snapshot."""
@@ -392,7 +401,84 @@ class Endpoints(unittest.TestCase):
         self.assertEqual(layout(open(self.story, encoding="utf-8").read().split("\n"))[3], ("scene-03", ["IMG006", "IMG001"]))
 
     def test_the_endpoints_are_structural(self):
-        self.assertLessEqual({"/api/move", "/api/scenemark", "/api/addimage"}, api.STRUCTURAL)
+        self.assertLessEqual({"/api/move", "/api/scenemark", "/api/addimage", "/api/imagebulk"}, api.STRUCTURAL)
+
+    def test_picture_set_aside_is_undoable(self):
+        orig = self.raw()
+        # ordinary edit (note) keeps no snapshot
+        self.call("/api/image", dict(id="IMG001", note="یادداشت تازه"))
+        self.assertEqual(history.entries(), [])
+        # setting aside keeps a snapshot
+        r = self.call("/api/image", dict(id="IMG001", off=True))
+        self.assertTrue(r["ok"])
+        self.assertIn(b"[IMG001]\npick: aaaa1111\noff: yes", self.raw())
+        self.assertEqual(len(history.entries()), 1)
+        self.assertEqual(history.entries()[-1]["label"], "image")
+        # bringing back also keeps a snapshot
+        r = self.call("/api/image", dict(id="IMG001", off=False))
+        self.assertTrue(r["ok"])
+        self.assertNotIn(b"[IMG001]\npick: aaaa1111\noff: yes", self.raw())
+        self.assertEqual(len(history.entries()), 2)
+        self.assertEqual(history.entries()[-1]["label"], "image")
+        # undo brings back the set-aside state
+        history.undo()
+        self.assertIn(b"[IMG001]\npick: aaaa1111\noff: yes", self.raw())
+        # next undo restores original state (with the note, before off=True)
+        history.undo()
+        self.assertNotIn(b"[IMG001]\npick: aaaa1111\noff: yes", self.raw())
+        self.assertIn(b"[IMG001]\npick: aaaa1111\nnote: \xdb\x8c\xd8\xa7\xd8\xaf\xd8\xaf\xd8\xa7\xd8\xb4\xd8\xaa \xd8\xaa\xd8\xa7\xd8\xb2\xd9\x87", self.raw())
+
+    def test_bulk_actions_are_one_snapshot_and_undoable(self):
+        orig = self.raw()
+        # bulk redo produces exactly one snapshot
+        r = self.call("/api/imagebulk", dict(ids=["IMG001", "IMG002"], status="redo"))
+        self.assertTrue(r["ok"])
+        self.assertIn(b"[IMG001]\nstatus: redo", self.raw())
+        self.assertIn(b"[IMG002]\nstatus: redo", self.raw())
+        self.assertEqual(len(history.entries()), 1)
+        self.assertEqual(history.entries()[-1]["label"], "imagebulk")
+        # one undo restores both
+        history.undo()
+        self.assertEqual(self.raw(), orig)
+        self.assertEqual(history.entries(), [])
+
+        # bulk set aside produces one snapshot
+        r = self.call("/api/imagebulk", dict(ids=["IMG001", "IMG002"], off=True))
+        self.assertTrue(r["ok"])
+        self.assertIn(b"[IMG001]\npick: aaaa1111\noff: yes", self.raw())
+        self.assertIn(b"[IMG002]\nstatus: redo\noff: yes", self.raw())
+        self.assertEqual(len(history.entries()), 1)
+        self.assertEqual(history.entries()[-1]["label"], "imagebulk")
+        # bulk bring back produces one snapshot
+        r = self.call("/api/imagebulk", dict(ids=["IMG001", "IMG002"], off=False))
+        self.assertTrue(r["ok"])
+        self.assertNotIn(b"[IMG001]\npick: aaaa1111\noff: yes", self.raw())
+        self.assertNotIn(b"[IMG002]\nstatus: redo\noff: yes", self.raw())
+        self.assertEqual(len(history.entries()), 2)
+        # undo bulk bring back
+        history.undo()
+        self.assertIn(b"[IMG001]\npick: aaaa1111\noff: yes", self.raw())
+        self.assertIn(b"[IMG002]\nstatus: redo\noff: yes", self.raw())
+        # undo bulk set aside restores all
+        history.undo()
+        self.assertEqual(self.raw(), orig)
+        self.assertEqual(history.entries(), [])
+
+        # bulk clear redo
+        self.call("/api/imagebulk", dict(ids=["IMG001", "IMG002"], action="redo"))
+        self.call("/api/imagebulk", dict(ids=["IMG001", "IMG002"], action="clear_redo"))
+        self.assertNotIn(b"status: redo", self.raw())
+        history.undo()
+        self.assertIn(b"[IMG001]\nstatus: redo", self.raw())
+        self.assertIn(b"[IMG002]\nstatus: redo", self.raw())
+        history.undo()
+        self.assertEqual(self.raw(), orig)
+
+        # bad requests raise ValueError and leave no snapshot
+        for bad in (dict(ids=[]), dict(ids=["bad"]), dict(ids=["IMG001"]), dict(ids=["IMG001"], status="junk")):
+            with self.assertRaises(ValueError):
+                self.call("/api/imagebulk", bad)
+        self.assertEqual(history.entries(), [])
 
     def test_the_old_forms_of_addimage_still_work(self):
         self.assertEqual(self.call("/api/addimage", dict(scene="scene-01"))["id"], "IMG007")

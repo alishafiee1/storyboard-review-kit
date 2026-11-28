@@ -13,28 +13,18 @@
   <button id="gSearch" class="ib gonly" type="button" aria-label="جست‌وجو" title="جست‌وجو" data-ic="search"></button>
   <button id="gFilter" class="ib gonly" type="button" aria-label="فیلتر" title="فیلتر" data-ic="sliders"></button>
   <button id="galBtn" class="ib" type="button" aria-label="گالری تصویرها" title="گالری تصویرها" data-ic="grid"></button>
-  <span class="mw"><button id="more" class="ib" type="button" aria-label="منوی تصویر" aria-haspopup="menu" aria-expanded="false" title="منوی تصویر" data-ic="dots"></button>
-   <div id="morePop" class="pop menu" role="menu" hidden></div></span>
+  <button id="bookPill" class="pill" type="button" aria-label="منبع: داستان یا رفرنس‌ها" title="داستان | رفرنس‌ها" aria-pressed="false"><span data-b="story">داستان</span> | <span data-b="refs">رفرنس‌ها</span></button>
   <button id="lang" class="pill" type="button" dir="ltr" aria-label="زبان متن و صدا" title="روشن = متن انگلیسی دیده شود و صدا انگلیسی پخش شود؛ خاموش = فقط فارسی"><span data-l="fa">فا</span> / <span data-l="en">EN</span></button>
   <input type="checkbox" id="showEN" hidden>
   <button id="bUndo" class="ib" type="button" aria-label="برگردان آخرین تغییر" title="برگردان آخرین تغییر ساختاری (Ctrl+Z)" data-ic="undo" disabled></button>
-  <span id="picActs" class="pacts">
-   <button id="bArch" class="ib" type="button" aria-label="آرشیو کردن این نسخه" title="این نسخه بره توی آرشیو (فایل پاک نمی‌شه)" data-ic="archive"></button>
-   <button id="bArchList" class="ib" type="button" aria-label="آرشیو این تصویر" title="آرشیو این تصویر: نسخه‌های آرشیوشده و بازگردانی" data-ic="restore"></button>
-   <button id="bVprompt" class="ib" type="button" aria-label="پرامپت ویدیو" title="پرامپت ویدیو" data-ic="clapper"></button>
-   <button id="bPrompt" class="ib" type="button" aria-label="پرامپت تصویر" title="پرامپت تصویر" data-ic="image"></button>
-   <button id="bNote" class="ib" type="button" aria-label="یادداشت و ادیت" title="یادداشت و توصیهٔ ادیت" data-ic="pencil"></button>
-   <button id="bRedo" class="ib" type="button" aria-label="نیاز به بازسازی" title="علامت‌گذاری: نیاز به بازسازی" data-ic="redo"></button>
-   <button id="bFlag" class="ib" type="button" aria-label="نشانه‌گذاری مشکل" title="نشانه‌گذاری (ثبت مشکل برای هوش مصنوعی)" data-ic="flag"></button>
-  </span>
  </div>
 </header>
 <main id="gallery" hidden></main>
 <main id="list"></main>
 <footer id="foot">
  <div class="ftp" dir="ltr"><button id="prev" class="ib" type="button" aria-label="تصویر قبلی" data-ic="skipPrev"></button><button id="play" class="playb" type="button" aria-label="پخش خودکار" title="پخش خودکار (Space)"><span class="pi" data-ic="play"></span><span class="pp" data-ic="pause"></span></button><button id="next" class="ib" type="button" aria-label="تصویر بعدی" data-ic="skipNext"></button><button id="playS" class="ib monly" type="button" data-fwd="play" aria-label="پخش خودکار" data-ic="play"></button>
-  <span id="ttime" dir="ltr">۰:۰۰ / ۰:۰۰</span><button id="spdBtn" class="quiet sm" type="button" dir="ltr" title="سرعت پخش (کلیک برای تغییر)">۱×</button><span id="tbar" aria-label="نوار پیشرفت صدا"><i style="width:0%"></i></span></div>
- <div class="mact monly"><button class="ib" type="button" data-fwd="bNote" aria-label="یادداشت و ادیت" data-ic="pencil"></button><button class="ib" type="button" data-fwd="bPrompt" aria-label="پرامپت تصویر" data-ic="image"></button><button class="ib" type="button" data-fwd="bVprompt" aria-label="پرامپت ویدیو" data-ic="clapper"></button><button class="ib" type="button" data-fwd="bFlag" aria-label="نشانه‌گذاری مشکل" data-ic="flag"></button></div>
+  <span id="ttime" dir="ltr">۰:۰۰ / ۰:۰۰</span><span class="spdc" dir="ltr"><button class="spdb spdm" type="button" data-spd="dec" aria-label="کاهش سرعت پخش" title="کاهش سرعت پخش">−</button><button class="spdl" type="button" data-spd="reset" aria-label="تنظیم سرعت پخش به ۱" title="سرعت پخش (کلیک برای بازنشانی به ۱)">۱×</button><button class="spdb spdp" type="button" data-spd="inc" aria-label="افزایش سرعت پخش" title="افزایش سرعت پخش">+</button></span><span id="tbar" aria-label="نوار پیشرفت صدا"><i style="width:0%"></i></span></div>
+ <div class="mact monly"><button class="ib" type="button" data-fwd="bNote" aria-label="یادداشت و ادیت" data-ic="pencil"></button><button class="ib" type="button" data-fwd="bPrompt" aria-label="پرامپت تصویر" data-ic="image"></button><button class="ib" type="button" data-fwd="bVprompt" aria-label="پرامپت ویدیو" data-ic="clapper"></button><button class="ib" type="button" data-fwd="bFlag" aria-label="نشانه‌گذاری مشکل" data-ic="flag"></button><span class="spdc" dir="ltr"><button class="spdb spdm" type="button" data-spd="dec" aria-label="کاهش سرعت پخش" title="کاهش سرعت پخش">−</button><button class="spdl" type="button" data-spd="reset" aria-label="تنظیم سرعت پخش به ۱" title="سرعت پخش (کلیک برای بازنشانی به ۱)">۱×</button><button class="spdb spdp" type="button" data-spd="inc" aria-label="افزایش سرعت پخش" title="افزایش سرعت پخش">+</button></span></div>
  <div class="ftt"><button id="aside" class="quiet" type="button" data-ioff="1"></button></div>
 </footer>
 <div id="scrim" hidden></div>
@@ -44,9 +34,7 @@
   <nav id="dmenu"></nav>
   <section class="dpanel" id="pScenes" data-title="فهرست صحنه‌ها" hidden></section>
   <section class="dpanel" id="pFilter" data-title="فیلتر و جست‌وجو" hidden></section>
-  <section class="dpanel" id="pSpeed" data-title="سرعت پخش" hidden></section>
-  <section class="dpanel" id="pSubs" data-title="زیرنویس" hidden><p>فایل زیرنویس فارسی و انگلیسی (<bdi dir="ltr">subtitles/fa.srt</bdi> و <bdi dir="ltr">en.srt</bdi>) از روی سناریو ساخته می‌شه؛ زمان‌ها از طول فایل‌های صدا حساب می‌شن.</p><button id="subs" class="outline" type="button">ساخت فایل زیرنویس</button></section>
-  <section class="dpanel wide" id="spk" data-title="صداها و گوینده‌ها" hidden></section>
+    <section class="dpanel wide" id="spk" data-title="صداها و گوینده‌ها" hidden></section>
   <section class="dpanel wide" id="refs" data-title="رفرنس‌ها" hidden></section>
   <section class="dpanel" id="pVers" data-title="نسخه‌ها و آرشیو" hidden></section>
   <section class="dpanel" id="pUndo" data-title="برگردان آخرین تغییر" hidden></section>

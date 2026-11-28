@@ -1,6 +1,5 @@
 import {
   $,
-  $$,
   TT,
   audio,
   esc,
@@ -30,12 +29,13 @@ import { galleryRefresh } from './gallery.js';
 /* ---------- render */
 let NUM = {};
 /* scene number shown = its place among the scenes that are on (so moving or setting aside never needs renaming) */
-export const sceneNo = s => s.id === 'scene-00' ? 0 : NUM[s.id] || 0;
-export const sceneLabel = s => s.id === 'scene-00' ? 'تامبنیل' : `صحنه ${ fa(NUM[s.id] || '–') } · ${ s.title }`;
+export const sceneNo = s => (S.book === 'story' && s.id === 'scene-00') ? 0 : NUM[s.id] || 0;
+export const sceneLabel = s => (S.book === 'story' && s.id === 'scene-00') ? 'تامبنیل' : S.book === 'refs' ? `بخش ${ fa(NUM[s.id] || '–') } · ${ s.title }` : `صحنه ${ fa(NUM[s.id] || '–') } · ${ s.title }`;
 const issHtml = a => (a || []).map(x => `<div class="issue">فرمت: ${ esc(x.msg) } <button class="b" data-clr="${ x.ln }">حل شد</button></div>`).join('');
 const flagBtn = ln => `<button class="lt-b flag" data-fl="${ ln }" aria-label="ثبت مشکل فرمت" title="ثبت مشکل فرمت این قسمت برای هوش مصنوعی">${ ic('flag') }</button>`;
 const val = (txt, ln, key, x = '') => `<span class="v" data-ln="${ ln }" data-k="${ key }" data-old="${ esc(txt) }" ${ x } title="کلیک برای ویرایش">${ fmt(txt) }</span>`;
 const delBtn = (ln, k, txt, hasEn) => `<button class="lt-b flag del" data-del="${ ln }" data-dk="${ k }" data-old="${ esc(txt) }" data-hasen="${ hasEn ? 1 : 0 }" aria-label="حذف" title="حذف">${ ic('close') }</button>`;
+const gripBtn = ln => `<span class="mw lmw"><button class="lt-b grip" data-lgrip="${ ln }" draggable="true" aria-label="جابه‌جایی" aria-haspopup="menu" aria-expanded="false" title="جابه‌جایی خط (درگ یا کلیک)">${ ic('grip') }</button><div class="pop menu" role="menu" hidden></div></span>`;
 export const SPK = () => Object.fromEntries((S.P.speakers || []).map(s => [
   s.name,
   s
@@ -48,7 +48,7 @@ const FALLBACK = [
   '#558b2f'
 ];
 const colorOf = n => (SPK()[n] || {}).color || FALLBACK[[...String(n)].reduce((a, c) => a + c.charCodeAt(0), 0) % FALLBACK.length];
-const addBar = ln => `<div class="addbar" data-after="${ ln }"><button data-add="say">+ دیالوگ</button><button data-add="act">+ توضیح صحنه</button></div>`;
+const addBar = ln => `<div class="addbar" data-after="${ ln }"><button data-add="say">+ دیالوگ</button><button data-add="act">+ توضیح تصویر</button></div>`;
 const defTone = n => (SPK()[n] || {}).tone || '';
 export const toneKnown = t => !String(t || '').trim() || (S.P.tts.tones || []).some(x => x.words.some(w => String(t).includes(w)));
 export const unknownTones = () => {
@@ -77,7 +77,8 @@ const lineBtns = (it, sc) => [
   const vv = v.names.length > 1 ? `<button class="vv" data-vv="${ lg }" data-sc="${ sc.id }" data-iid="${ it.id }" aria-label="صدای بعدی" title="${ lg === 'fa' ? 'صدای فارسی' : 'English voice' }: ${ esc(v.chosen) } · کلیک = صدای بعدی (همونی که آخر می‌ذاری، صدای نهایی می‌شه)">‹${ fa(v.names.indexOf(v.chosen) + 1) }/${ fa(v.names.length) }›</button>` : '';
   return `<button class="ab" data-lg="${ lg }" data-src="${ esc(it.audio[lg]) }" title="${ lg === 'fa' ? 'پخش صدای فارسی این دیالوگ' : 'Play the English voice of this line' }">${ ic('speaker') }<small>${ lg.toUpperCase() }</small></button>${ vv }`;
 }).join('');
-let LA = null, LB = null;
+export let LA = null;
+let LB = null;
 export function stopLine() {
   if (LA) {
     LA.pause();
@@ -90,10 +91,10 @@ export function stopLine() {
 }
 function itemHtml(it, sc, i, j) {
   if (it.k === 'act')
-    return `<div class="itw"><div class="it act${ it.label === 'گگ' ? ' gag' : '' }" id="i${ i }_${ j }">${ it.label ? `<span class="v alab" data-ln="${ it.ln }" data-k="label" data-old="${ esc(it.label) }" title="کلیک برای عوض‌کردن یا پاک‌کردن برچسب">${ esc(it.label) }</span>` : '' }${ val(it.fa, it.ln, 'act') }<span class="lt">${ flagBtn(it.ln) }${ delBtn(it.ln, 'act', it.fa, false) }</span>${ issHtml(it.issues) }</div></div>`;
+    return `<div class="itw"><div class="it act${ it.label === 'گگ' ? ' gag' : '' }" id="i${ i }_${ j }" data-ln="${ it.ln }">${ it.label ? `<span class="v alab" data-ln="${ it.ln }" data-k="label" data-old="${ esc(it.label) }" title="کلیک برای عوض‌کردن یا پاک‌کردن برچسب">${ esc(it.label) }</span>` : '' }${ val(it.fa, it.ln, 'act') }<span class="lt">${ gripBtn(it.ln) }${ flagBtn(it.ln) }${ delBtn(it.ln, 'act', it.fa, false) }</span>${ issHtml(it.issues) }</div></div>`;
   const faL = `<div class="fa">${ val(it.fa, it.ln, 'say', it.en != null ? 'data-hasen="1"' : '') }</div>`;
   const en = $('#showEN').checked ? it.en != null ? `<div class="en" dir="ltr">${ val(it.en, it.en_ln, 'en') }${ delBtn(it.en_ln, 'en', it.en, false) }</div>` : `<div class="en none"><button class="enp" data-aden="${ it.ln }" title="افزودن ترجمهٔ انگلیسی">EN+</button></div>` : '';
-  return `<div class="itw"><div class="it sp${ it.vstale && it.vstale.length ? ' vstale' : '' }" style="--c:${ colorOf(it.sp) }" id="i${ i }_${ j }"><div class="who"><span class="v nm" data-ln="${ it.ln }" data-k="speaker" data-old="${ esc(it.sp) }" title="کلیک برای عوض‌کردن گوینده">${ esc(it.sp) }</span>${ toneHtml(it) }${ lineBtns(it, sc) }<span class="lt">${ it.id ? `<button class="lt-b vgen" data-vgen="${ it.id }" data-sc="${ sc.id }" aria-label="مدیریت و ساخت صدا" title="ساخت صدای تازه یا انتخاب بین صداهای این خط">${ ic('mic') }</button>` : '' }${ flagBtn(it.ln) }${ delBtn(it.ln, 'say', it.fa, it.en != null) }</span></div>${ faL }${ en }${ issHtml(it.issues) }</div></div>`;
+  return `<div class="itw"><div class="it sp${ it.vstale && it.vstale.length ? ' vstale' : '' }" style="--c:${ colorOf(it.sp) }" id="i${ i }_${ j }" data-ln="${ it.ln }"><div class="who"><span class="v nm" data-ln="${ it.ln }" data-k="speaker" data-old="${ esc(it.sp) }" title="کلیک برای عوض‌کردن گوینده">${ esc(it.sp) }</span>${ toneHtml(it) }${ lineBtns(it, sc) }<span class="lt">${ gripBtn(it.ln) }${ it.id ? `<button class="lt-b vgen" data-vgen="${ it.id }" data-sc="${ sc.id }" aria-label="مدیریت و ساخت صدا" title="ساخت صدای تازه یا انتخاب بین صداهای این خط">${ ic('mic') }</button>` : '' }${ flagBtn(it.ln) }${ delBtn(it.ln, 'say', it.fa, it.en != null) }</span></div>${ faL }${ en }${ issHtml(it.issues) }</div></div>`;
 }
 const FX_PH = 'توصیهٔ ادیت (زوم، پن، فید، لرزش، نور، ذرات، صدا...) · Enter = ذخیره · Shift+Enter = خط بعد · Esc = برگشت';
 /* the edit-advice box of a picture: saves on Enter or when the focus leaves (the note box does the same, see editors.js) */
@@ -136,14 +137,14 @@ export function wireFx(t, save) {
 export function moveTarget(id, step) {
   const vis = S.P.scenes.filter(s => !s.off), imgs = sc => sc.blocks.flatMap(b => b.images.map(i => i.id));
   const si = vis.findIndex(s => imgs(s).includes(id));
-  if (si < 0 || vis[si].id === 'scene-00')
+  if (si < 0 || (S.book === 'story' && vis[si].id === 'scene-00'))
     return null;
   const list = imgs(vis[si]), k = list.indexOf(id);
   if (step < 0) {
     if (k > 0)
       return { ids: [id], before: list[k - 1] };
     const prev = vis[si - 1];
-    return prev && prev.id !== 'scene-00' ? { ids: [id], to_end_of_scene: prev.id } : null;
+    return prev && (S.book !== 'story' || prev.id !== 'scene-00') ? { ids: [id], to_end_of_scene: prev.id } : null;
   }
   if (k < list.length - 1)
     return { ids: [id], after: list[k + 1] };
@@ -159,6 +160,7 @@ function figHtml(m, sc) {
   const n = (m.versions || []).length;
   const pic = m.src ? `<img src="${ m.src }" alt="" draggable="false">` : `<div class="ph"><b>${ m.id }</b><span>هنوز ساخته نشده</span></div>`;
   const arrows = n > 1 ? `<button class="va l" data-vn="-1" aria-label="نسخهٔ قبلی" title="نسخهٔ قبلی (↑)">${ ic('chevL') }</button><button class="va r" data-vn="1" aria-label="نسخهٔ بعدی" title="نسخهٔ بعدی (↓)">${ ic('chevR') }</button>` : '';
+  const acts = `<span class="pacts"><button class="ib${ m.note || m.fx ? ' has' : '' }" type="button" data-pact="note" aria-label="یادداشت و ادیت" title="یادداشت و توصیهٔ ادیت">${ ic('pencil') }</button><button class="ib${ m.stale ? ' has' : '' }" type="button" data-pact="prompt" aria-label="پرامپت تصویر" title="پرامپت تصویر">${ ic('image') }</button><button class="ib${ m.vprompt ? ' has' : '' }" type="button" data-pact="vprompt" aria-label="پرامپت ویدیو" title="پرامپت ویدیو">${ ic('clapper') }</button><button class="ib" type="button" data-pact="flag" aria-label="نشانه‌گذاری مشکل" title="نشانه‌گذاری (ثبت مشکل برای هوش مصنوعی)">${ ic('flag') }</button><button class="ib${ m.status === 'redo' ? ' has' : '' }" type="button" data-pact="redo" aria-pressed="${ m.status === 'redo' ? 'true' : 'false' }" aria-label="نیاز به بازسازی" title="${ m.status === 'redo' ? 'برداشتن علامت «نیاز به بازسازی»' : 'علامت‌گذاری: نیاز به بازسازی' }">${ ic('redo') }</button><button class="ib" type="button" data-pact="arch" ${ !(m.versions && m.versions.length) ? 'disabled ' : '' }aria-label="آرشیو کردن این نسخه" title="این نسخه بره توی آرشیو (فایل پاک نمی‌شه)">${ ic('archive') }</button><button class="ib${ m.archived && m.archived.length ? ' has' : '' }" type="button" data-pact="archlist" aria-label="آرشیو این تصویر" title="${ m.archived && m.archived.length ? `آرشیو این تصویر (${ m.archived.length } مورد): بازگردانی` : 'آرشیو این تصویر: هنوز چیزی توش نیست' }">${ ic('restore') }</button><span class="mw"><button class="ib" type="button" data-pact="more" aria-label="منوی تصویر" aria-haspopup="menu" aria-expanded="false" title="منوی تصویر">${ ic('dots') }</button><div class="pop menu" role="menu" hidden></div></span></span>`;
   return `<figure class="shot${ m.off ? ' off' : '' }" data-id="${ m.id }" data-m="${ m.status }"><div class="mount"><i class="tape a"></i><i class="tape b"></i><div class="frame">${ pic }${ arrows }<span class="vmeta">${ vmetaHtml(m) }</span></div></div>
    <div class="idrow"><bdi class="iid" dir="ltr">${ m.id }</bdi>${ m.off ? '<span class="offl">کنار گذاشته شده</span>' : '' }${ m.video ? `<button class="quiet sm vid" data-vid="${ esc(m.video) }" data-name="${ m.id }" title="پخش ویدیوی این تصویر">${ ic('play') }ویدیو</button>` : '' }</div>
    ${ m.stale ? `<div class="stalebox">پرامپت عوض شده؛ تصویر کهنه است <button class="quiet sm" data-clrimg="1">تصویر به‌روز شد</button></div>` : '' }${ issHtml(m.issues) }
@@ -166,7 +168,7 @@ function figHtml(m, sc) {
      <textarea class="nt" rows="2" data-key="note:${ m.id }" data-orig="${ esc(m.note) }" placeholder="یادداشت برای این صحنه... (Enter = ذخیره · Shift+Enter = خط بعد)">${ esc(m.note) }</textarea>
      <div class="phead"><b>ادیت</b></div>
      <textarea class="fx" rows="1" data-key="fx:${ m.id }" data-orig="${ esc(m.fx || '') }" placeholder="${ FX_PH }">${ esc(m.fx || '') }</textarea>
-     <div class="btns"><button class="b pri" type="button" data-sn="1">ذخیره</button><button class="quiet sm" type="button" data-nclose="1">بستن</button></div></div></figure>`;
+     <div class="btns"><button class="b pri" type="button" data-sn="1">ذخیره</button><button class="quiet sm" type="button" data-nclose="1">بستن</button></div></div>${ acts }</figure>`;
 }
 /* the voice button of a scene: «make voices» for lines that are out of date */
 function sceneModel(sc) {
@@ -190,14 +192,12 @@ const nameParts = () => {
 };
 export function render() {
   const list = $('#list');
-  if ($('#picActs').closest('#list'))
-    $('.be').appendChild($('#picActs'));
   list.innerHTML = '';
   S.BL = [];
   NUM = {};
   let nn = 0;
   S.P.scenes.forEach(sc => {
-    if (sc.id !== 'scene-00' && !sc.off)
+    if ((S.book !== 'story' || sc.id !== 'scene-00') && !sc.off)
       NUM[sc.id] = ++nn;
   });
   S.P.scenes.forEach(sc => {
@@ -214,8 +214,12 @@ export function render() {
       d.id = 'b' + i;
       d.dataset.bid = b.images.length ? b.images[0].id : sc.id + '#' + holder.children.length;
       const first = !holder.children.length;
-      const head = `<div class="pghead"><button class="slabel" type="button" data-sedit="${ sc.id }" title="ویرایش عنوان، محیط و ادیت صحنه">${ esc(sceneLabel(sc)) }${ sc.time && sc.time !== '-' ? `<small dir="ltr">${ esc(sc.time) }</small>` : '' }</button><span class="cnt" aria-live="polite"></span></div>`;
-      d.innerHTML = `<div class="imgs">${ b.images.length ? b.images.map(im => figHtml(im, sc)).join('') : '<div class="mount"><div class="frame"><div class="ph"><span>این متن به تصویری وصل نیست</span></div></div></div>' }</div><div class="txt">${ head }${ sc.env.map(e => `<div class="env">${ val(e.text, e.ln, 'env') }<span class="lt">${ flagBtn(e.ln) }</span>${ issHtml(e.issues) }</div>`).join('') }${ first ? warns : '' }${ b.items.map((t, j) => itemHtml(t, sc, i, j)).join('') }${ addBar(b.items.length ? b.items[b.items.length - 1].ln : b.images[b.images.length - 1].ln) }${ b.items.some(x => x.vstale && x.vstale.length) ? `<div class="vstrip">${ sceneModel(sc) }</div>` : '' }</div>`;
+      const head = `<div class="pghead"><button class="slabel" type="button" data-sedit="${ sc.id }" title="ویرایش عنوان، محیط و ادیت صحنه">${ esc(sceneLabel(sc)) }${ sc.time && sc.time !== '-' ? `<small dir="ltr">${ esc(sc.time) }</small>` : '' }</button><span class="mw smore-w"><button class="ib sm" type="button" data-smore="${ sc.id }" aria-label="منوی صحنه" aria-haspopup="menu" aria-expanded="false" title="منوی صحنه">${ ic('dots') }</button><div class="pop menu" role="menu" hidden></div></span><span class="cnt" aria-live="polite"></span></div>`;
+      const imgLn = b.images.length ? b.images[0].ln : 0;
+      const linesHtml = b.items.length ?
+        addBar(imgLn) + b.items.map((t, j) => itemHtml(t, sc, i, j) + addBar(t.ln)).join('') :
+        addBar(imgLn);
+      d.innerHTML = `<div class="imgs">${ b.images.length ? b.images.map(im => figHtml(im, sc)).join('') : '<div class="mount"><div class="frame"><div class="ph"><span>این متن به تصویری وصل نیست</span></div></div></div>' }</div><div class="txt">${ head }${ sc.env.map(e => `<div class="env">${ val(e.text, e.ln, 'env') }<span class="lt">${ flagBtn(e.ln) }</span>${ issHtml(e.issues) }</div>`).join('') }${ first ? warns : '' }${ linesHtml }${ b.items.some(x => x.vstale && x.vstale.length) ? `<div class="vstrip">${ sceneModel(sc) }</div>` : '' }</div>`;
       holder.appendChild(d);
     });
   });

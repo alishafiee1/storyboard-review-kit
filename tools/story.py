@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """Reading story.txt and prompts.txt: scenes, dialogue lines, speakers, prompts. Pure text in, plain dicts out (no network, no file writes except through kitcore)."""
-import colorsys, random, re
-from kitcore import VARIANT, LINE_ID, CONTENT, DEFAULT_MODEL, HEADER, KEYLINE, LANGS, MARKER, MARKS, PALETTE, PHEADER, PROMPTS, SPEECH, SPK, STORY, VOICE_LIST, read_lines
+import colorsys, os, random, re
+import kitcore
+from kitcore import BOOK_RULES, CONTENT, DEFAULT_MODEL, HEADER, KEYLINE, LANGS, LINE_ID, MARKER, MARKS, PALETTE, PHEADER, PROMPTS, SPEECH, SPK, STORY, VARIANT, VOICE_LIST, book_path, read_lines
 
 
 def clean_spoken(t):
@@ -13,9 +14,10 @@ def clean_spoken(t):
     return t if re.search(r"[؀-ۿA-Za-z0-9]", t) else ""
 
 
-def scene_ranges(lines):
+def scene_ranges(lines, book="story"):
     """[(id, start, end)] with end exclusive (next header or end of file)."""
-    hs = [(i, HEADER.match(l.strip())) for i, l in enumerate(lines)]
+    hr = BOOK_RULES.get(book, BOOK_RULES["story"])["header_re"]
+    hs = [(i, hr.match(l.strip())) for i, l in enumerate(lines)]
     hs = [(i, m) for i, m in hs if m]
     return [(m.group(1), i, hs[k + 1][0] if k + 1 < len(hs) else len(lines)) for k, (i, m) in enumerate(hs)]
 
@@ -74,13 +76,14 @@ def parse_langs(val):
     return {x.strip() for x in val.split(",") if x.strip() in LANGS}
 
 
-def parse_scene(raw_lines):
+def parse_scene(raw_lines, book="story"):
     """raw_lines = the scene block (header first). ln = line index inside the block. Every part can carry format-issue notes.
     Ownership: every act / say line belongs to the nearest [IMG] marker above it (one block per picture: blocks[i]["images"] has exactly that
     picture). Lines before the first marker are scene-level (a block without a picture; they are reported in warnings). Voice choices and
     out-of-date flags belong to the dialogue line («voice:» / «voice-stale:» under it); the old scene-level «voice-pick:» / «voice-stale:»
     lines are still read and mapped onto the lines (sc["legacy_pick"], sc["legacy_stale"])."""
-    m = HEADER.match(raw_lines[0].strip())
+    rules = BOOK_RULES.get(book, BOOK_RULES["story"])
+    m = rules["header_re"].match(raw_lines[0].strip())
     sc = dict(id=m.group(1), title=m.group(2), time=m.group(3), env=[], model="", fx="", voice_stale=set(), blocks=[], warnings=[], issues=[],
               off=False, voice_pick={}, legacy_pick={}, legacy_stale=set(), legacy_ln={"voice-pick": [], "voice-stale": []})
     last_img = last_speech = last_obj = cur = grp = None
@@ -92,11 +95,12 @@ def parse_scene(raw_lines):
         last_obj = dict(text=text[:80], ln=i, issues=[])
         sc["warnings"].append(last_obj)
 
+    mr = rules["marker_re"]
     for i in range(1, len(raw_lines)):
         s = raw_lines[i].strip()
         if not s or s.startswith("#"):
             continue
-        mk = MARKER.match(s)
+        mk = mr.match(s)
         if mk:
             last_img = last_obj = dict(id=mk.group(1), status="", note="", fx="", stale=False, pick="", off=False, ln=i, end=len(raw_lines), issues=[])
             if sc["blocks"] and sc["blocks"][-1]["images"]:
@@ -208,15 +212,23 @@ def parse_scene(raw_lines):
     return sc
 
 
-def story_scenes(lines=None):
-    lines = read_lines(STORY) if lines is None else lines
-    return [parse_scene(lines[s:e]) for _, s, e in scene_ranges(lines)]
+def _story_file():
+    if STORY != os.path.join(kitcore.ROOT, "scenario", "story.txt"):
+        return STORY
+    return getattr(kitcore, "STORY", STORY)
 
 
-def default_model(lines):
+def story_scenes(lines=None, book="story"):
+    path = _story_file() if book == "story" else kitcore.book_path(book)
+    lines = read_lines(path) if lines is None else lines
+    return [parse_scene(lines[s:e], book=book) for _, s, e in scene_ranges(lines, book=book)]
+
+
+def default_model(lines=None):
     """The «tts-model:» line at the top of story.txt (model used by scenes that have no «model:» line)."""
+    lines = read_lines(_story_file()) if lines is None else lines
     for l in lines:
-        if HEADER.match(l.strip()):
+        if BOOK_RULES["story"]["header_re"].match(l.strip()):
             break
         m = re.match(r"^tts-model:\s*(\S+)", l.strip())
         if m:
@@ -224,13 +236,14 @@ def default_model(lines):
     return DEFAULT_MODEL
 
 
-def spoken_lines(lang="fa"):
+def spoken_lines(lang="fa", book="story"):
     """[{id, scene, speaker, voice, model, spoken, tone}] for every dialogue line that has text in this language (used by tools/tts.py)."""
-    lines = read_lines(STORY)
-    spk = {s["name"]: s for s in parse_speakers(lines)}
-    dm = default_model(lines)
+    path = _story_file() if book == "story" else kitcore.book_path(book)
+    lines = read_lines(path)
+    spk = {s["name"]: s for s in parse_speakers(read_lines(_story_file()))}
+    dm = default_model()
     out = []
-    for sc in story_scenes(lines):
+    for sc in story_scenes(lines, book=book):
         if sc["off"]:  # a scene that is set aside gets no new voice
             continue
         for b in sc["blocks"]:
@@ -302,7 +315,8 @@ def prompt_ranges(lines):
 
 
 def parse_prompts(lines=None):
-    lines = read_lines(PROMPTS) if lines is None else lines
+    prompt_file = getattr(kitcore, "PROMPTS", PROMPTS)
+    lines = read_lines(prompt_file) if lines is None else lines
     out = {}
     for id_, (s, e) in prompt_ranges(lines).items():
         body = "\n".join(lines[s + 1:e]).strip()
@@ -320,8 +334,8 @@ def clean_line(s):
     return s
 
 
-def scene_span(lines, scene_id):
-    s, e = next(((s, e) for i, s, e in scene_ranges(lines) if i == scene_id), (None, None))
+def scene_span(lines, scene_id, book="story"):
+    s, e = next(((s, e) for i, s, e in scene_ranges(lines, book=book) if i == scene_id), (None, None))
     if s is None:
         raise ValueError("scene not found")
     return s, e

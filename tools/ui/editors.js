@@ -36,19 +36,9 @@ export function openEditor(host, {scene, ln, key, old, op}) {
   w.className = 'ie';
   const field = op === 'speaker' || op === 'label' || op === 'tone' ? `<input data-key="${ k }" data-orig="${ esc(old) }" ${ op === 'speaker' ? 'list="spkl"' : op === 'tone' ? 'list="tonel" maxlength="40" placeholder="لحن این خط (خالی = لحن پیش‌فرض گوینده)"' : 'list="lbll" maxlength="15" placeholder="خالی = بدون برچسب"' } autocomplete="off">` : `<textarea rows="2" data-key="${ k }" data-orig="${ esc(old) }"></textarea>`;
   w.innerHTML = `${ field }<div class="bar"><button class="b pri sv" hidden title="ذخیره (Enter) · خط بعد: Shift+Enter">ذخیره</button><button class="b cx" hidden title="انصراف (Esc)">انصراف</button></div>`;
-  if (op === 'edit' && key !== 'env')
-    w.querySelector('.bar').insertAdjacentHTML('beforeend', '<span class="sp1"></span><button class="b ghost ad" data-ad="say" title="یک دیالوگ درست بعد از همین خط">دیالوگ بعدی</button><button class="b ghost ad" data-ad="act" title="یک توضیح صحنه درست بعد از همین خط">توضیح بعدی</button>');
   const ta = w.querySelector('textarea,input'), sv = w.querySelector('.sv'), cx = w.querySelector('.cx');
   ta.value = op === 'tone' && !old ? host.dataset.def || '' : old;
   const init = ta.value;
-  w.querySelectorAll('.ad').forEach(b => b.onclick = () => {
-    w._keep = true;
-    openComposer(host.closest('.it') || w, {
-      scene,
-      after: ln,
-      kind: b.dataset.ad
-    });
-  });
   host.style.display = 'none';
   host.after(w);
   track(ta, sv);
@@ -106,12 +96,12 @@ export function openEditor(host, {scene, ln, key, old, op}) {
   return ta;
 }
 const DK = {
-  act: 'توضیح صحنه',
+  act: 'توضیح تصویر',
   say: 'دیالوگ',
   en: 'ترجمهٔ انگلیسی'
 };
 async function askDelete(scene, ln, kind, old, hasEn) {
-  const msg = `این ${ DK[kind] } حذف بشه؟\n«${ old.length > 60 ? old.slice(0, 60) + '…' : old }»` + (kind === 'say' && hasEn ? '\nترجمهٔ انگلیسی‌اش هم حذف می‌شه.' : '') + (kind === 'say' ? '\n(صدای این صحنه کهنه علامت می‌خوره)' : '');
+  const msg = `این ${ DK[kind] } حذف بشه؟\n«${ old.length > 60 ? old.slice(0, 60) + '…' : old }»` + (kind === 'say' && hasEn ? '\nترجمهٔ انگلیسی‌اش هم حذف می‌شه.' : '') + (kind === 'say' ? '\n(صدای این خط کهنه علامت می‌خوره)' : '');
   if (!(await askConfirm(msg, 'حذف')))
     return false;
   try {
@@ -140,7 +130,7 @@ export function openSayEditor(box, {scene, ln, focus}) {
   }
   const nmEl = box.querySelector('.nm'), tnEl = box.querySelector('.tn'), txEl = box.querySelector('.fa .v');
   if (!txEl) {
-    askAlert('برای ویرایش دیالوگ، تیک «متن فارسی» بالای صفحه باید روشن باشد.');
+    askAlert('برای ویرایش دیالوگ، زبان «فا» باید روشن باشد (دکمهٔ فا/EN بالای صفحه).');
     return;
   }
   const O = {
@@ -152,7 +142,7 @@ export function openSayEditor(box, {scene, ln, focus}) {
   w.className = 'ie say';
   w.innerHTML = `<div class="row"><input class="nm" list="spkl" autocomplete="off" data-key="sayn:${ scene }:${ ln }" data-orig="${ esc(O.name) }" placeholder="گوینده"><input class="tn" list="tonel" maxlength="40" autocomplete="off" data-key="sayt:${ scene }:${ ln }" data-orig="${ esc(O.tone) }" placeholder="${ esc(def ? 'لحن (خالی = ' + def + ')' : 'لحن (اختیاری)') }"></div>
     <textarea rows="3" data-key="saytx:${ scene }:${ ln }" data-orig="${ esc(O.text) }"></textarea>
-    <div class="bar"><button class="b pri sv" hidden title="ذخیره (Enter) · خط بعد: Shift+Enter">ذخیره</button><button class="b cx" hidden title="انصراف (Esc)">انصراف</button><span class="sp1"></span><button class="b ghost ad" data-ad="say" title="یک دیالوگ درست بعد از همین">دیالوگ بعدی</button><button class="b ghost ad" data-ad="act" title="یک توضیح صحنه درست بعد از همین">توضیح بعدی</button></div>`;
+    <div class="bar"><button class="b pri sv" hidden title="ذخیره (Enter) · خط بعد: Shift+Enter">ذخیره</button><button class="b cx" hidden title="انصراف (Esc)">انصراف</button></div>`;
   const nm = w.querySelector('input.nm'), tn = w.querySelector('input.tn'), tx = w.querySelector('textarea'), sv = w.querySelector('.sv'), cx = w.querySelector('.cx');
   nm.value = O.name;
   tn.value = O.tone;
@@ -185,14 +175,6 @@ export function openSayEditor(box, {scene, ln, focus}) {
     box.classList.remove('ed');
   };
   cx.onclick = close;
-  w.querySelectorAll('.ad').forEach(b => b.onclick = () => {
-    w._keep = true;
-    openComposer(box, {
-      scene,
-      after: ln,
-      kind: b.dataset.ad
-    });
-  });
   sv.onclick = async () => {
     w._keep = true;
     try {
@@ -278,7 +260,7 @@ export function openComposer(bar, {scene, after, kind}) {
     return;
   const w = document.createElement('div');
   w.className = 'cmp';
-  w.innerHTML = (kind === 'say' ? `<input class="nm" list="spkl" autocomplete="off" data-key="addname:${ scene }:${ after }:${ kind }" data-orig="" placeholder="گوینده (اسمش رو تایپ کن؛ Tab = تکمیل)"><input class="tn" list="tonel" maxlength="40" autocomplete="off" data-key="addtone:${ scene }:${ after }:${ kind }" data-orig="" placeholder="لحن (اختیاری؛ خالی = لحن پیش‌فرض گوینده)">` : `<input class="lb" list="lbll" maxlength="15" autocomplete="off" data-key="addlabel:${ scene }:${ after }:${ kind }" data-orig="" placeholder="برچسب (اختیاری، مثلاً گگ)">`) + `<textarea rows="2" data-key="${ k }" data-orig="" placeholder="${ kind === 'say' ? 'متن دیالوگ... (Enter = ثبت · Shift+Enter = خط بعد · Esc = انصراف)' : 'توضیح وضعیت جدید صحنه... (Enter = ثبت · Shift+Enter = خط بعد · Esc = انصراف)' }"></textarea><div class="btns" hidden><button class="b sv">افزودن</button><button class="b cx">انصراف</button></div>`;
+  w.innerHTML = (kind === 'say' ? `<input class="nm" list="spkl" autocomplete="off" data-key="addname:${ scene }:${ after }:${ kind }" data-orig="" placeholder="گوینده (اسمش رو تایپ کن؛ Tab = تکمیل)"><input class="tn" list="tonel" maxlength="40" autocomplete="off" data-key="addtone:${ scene }:${ after }:${ kind }" data-orig="" placeholder="لحن (اختیاری؛ خالی = لحن پیش‌فرض گوینده)">` : `<input class="lb" list="lbll" maxlength="15" autocomplete="off" data-key="addlabel:${ scene }:${ after }:${ kind }" data-orig="" placeholder="برچسب (اختیاری، مثلاً گگ)">`) + `<textarea rows="2" data-key="${ k }" data-orig="" placeholder="${ kind === 'say' ? 'متن دیالوگ... (Enter = ثبت · Shift+Enter = خط بعد · Esc = انصراف)' : 'توضیح تصویر... (Enter = ثبت · Shift+Enter = خط بعد · Esc = انصراف)' }"></textarea><div class="btns" hidden><button class="b sv">افزودن</button><button class="b cx">انصراف</button></div>`;
   bar.after(w);
   autoGrow(w.querySelector('textarea'));
   const ta = w.querySelector('textarea'), nm = w.querySelector('input.nm'), lb = w.querySelector('input.lb'), tn = w.querySelector('input.tn'), sv = w.querySelector('.sv'), cx = w.querySelector('.cx');
@@ -454,18 +436,6 @@ export function wire() {
   });
   $$('section[data-scene]').forEach(s => {
     const sid = s.dataset.scene;
-    s.querySelectorAll('[data-flag]').forEach(b => b.onclick = async () => {
-      try {
-        await api('/api/flag', {
-          scene: sid,
-          lang: b.dataset.flag,
-          value: false
-        });
-        await reload();
-      } catch (e) {
-        fail(e);
-      }
-    });
     s.querySelectorAll('[data-regen]').forEach(b => b.onclick = async () => {
       try {
         await api('/api/regen', { scene: sid });

@@ -3,7 +3,6 @@ import { reload } from './panels.js';
 import { redrawDialog } from './dialogs.js';
 import { openFromV } from './editors.js';
 /* Shared state and helpers: api calls, copy, auto-grow, the open-editor registry, dirty tracking. */
-export const SMOOTH = matchMedia('(prefers-reduced-motion:reduce)').matches ? 'auto' : 'smooth';
 export const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 export const audio = new Audio(), SILENT = 3.2;
 export const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({
@@ -19,10 +18,13 @@ export function fmt(t) {
   return t.replace(/`(.+?)`/g, '<code>$1</code>');
 }
 export async function api(path, body) {
+  const payload = body && typeof body === 'object' && !Array.isArray(body)
+    ? { book: S.book || 'story', ...body }
+    : body;
   const r = await fetch(path, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
+    body: JSON.stringify(payload)
   });
   const j = await r.json().catch(() => ({}));
   if (!r.ok)
@@ -90,12 +92,45 @@ export const fa = n => String(n).replace(/\d/g, d => '۰۱۲۳۴۵۶۷۸۹'[d]);
 /* a one-line note at the bottom of the page that goes away by itself */
 let TOAST_T = 0;
 export function toast(msg) {
+  showToast(msg);
+}
+export function toastAct(msg, label, fn) {
+  showToast(msg, label, fn);
+}
+function showToast(msg, label, fn) {
   const t = $('#toast');
-  t.textContent = msg;
+  if (!t)
+    return;
+  t.textContent = msg + (label ? ' ' : '');
+  if (label && fn) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'quiet';
+    b.textContent = label;
+    b.onclick = () => {
+      t.hidden = true;
+      fn();
+    };
+    t.append(b);
+  }
   t.hidden = false;
   clearTimeout(TOAST_T);
-  TOAST_T = setTimeout(() => t.hidden = true, 2600);
+  TOAST_T = setTimeout(() => t.hidden = true, label ? 7000 : 2600);
 }
+export const voiceUrl = (v, lg, id, name) => (v && v.srcs && v.srcs[name]) || (name === 'default' ? `audio/${ lg }/${ id }.mp3` : /^[0-9a-f]{8}$/.test(name) ? `audio/${ lg }/${ id }_${ name }.mp3` : `audio/${ lg }/${ id }.${ name }.mp3`);
+export const matchFilter = (m, v = S.filter) => !m ? false : v === 'all' || (v === 'missing' ? !m.src : v === 'none' ? !m.status : v === 'note' ? !!m.note : v === 'stale' ? m.stale : m.status === v);
+export const matchSearch = ({ m, b, sc }, q = S.q) => {
+  q = (q || '').trim().toLowerCase();
+  if (!q)
+    return true;
+  return [
+    m?.id,
+    sc?.title,
+    m?.note,
+    ...(b?.items || []).flatMap(i => [i.sp, i.fa, i.en])
+  ].some(t => t && String(t).toLowerCase().includes(q));
+};
+export const matchItem = (target, v = S.filter, q = S.q) => matchFilter(target.m, v) && matchSearch(target, q);
 /* How a line is addressed to the server: by its picture (index counted from the picture's own [IMG] line, so it survives moving the
    picture), or by the scene for lines above the first picture. `key` is the name of the number ('index', or 'after' when adding). */
 export function lineRef(scene, ln, key = 'index') {
@@ -265,14 +300,15 @@ export function boot_core() {
     }
     /* the note / edit-advice popover: a click outside saves what changed and closes it */
     document.querySelectorAll('.nbox:not(.hide)').forEach(nb => {
-      if (nb.contains(t) || t.closest && t.closest('#bNote'))
+      if (nb.contains(t) || t.closest && (t.closest('#bNote') || t.closest('[data-pact="note"]')))
         return;
       nb.querySelectorAll('textarea').forEach(x => {
         if (x.value !== x.dataset.orig && x._save)
           x._save();
       });
       nb.classList.add('hide');
-      $('#bNote').classList.remove('open');
+      nb.closest('figure.shot')?.querySelector('[data-pact="note"]')?.classList.remove('open');
+      $('#bNote')?.classList.remove('open');
     });
     if (ran && S.RELOADS !== r0 && pend) {
       const sec = document.querySelector(`section[data-scene="${ pend.scene }"]`);

@@ -270,8 +270,15 @@ class Snapshots(unittest.TestCase):
 
     def test_structural_endpoints_are_the_ones_that_keep_a_snapshot(self):
         import api
-        self.assertEqual(api.STRUCTURAL, {"/api/add", "/api/delete", "/api/addimage", "/api/addscene", "/api/scenemove", "/api/sceneoff", "/api/move", "/api/scenemark"})
+        self.assertEqual(api.STRUCTURAL, {"/api/add", "/api/delete", "/api/addimage", "/api/addscene", "/api/scenemove", "/api/sceneoff", "/api/move", "/api/scenemark", "/api/moveline", "/api/imagebulk"})
         self.assertIn("/api/undo", api.ROUTES)
+
+    def test_moveline_joins_structural_snapshots(self):
+        open(self.story, "wb").write(b"a\n")
+        snap = self.edit("moveline", b"b\n")
+        self.assertIsNotNone(snap)
+        history.undo()
+        self.assertEqual(open(self.story, "rb").read(), b"a\n")
 
 
 class StaleScope(unittest.TestCase):

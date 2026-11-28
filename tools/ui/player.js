@@ -14,7 +14,8 @@ import {
   defaultActive,
   render,
   setActive,
-  stopLine
+  stopLine,
+  LA
 } from './render.js';
 import {
   filt,
@@ -31,6 +32,26 @@ import {
   undo
 } from './drawer.js';
 /* The scrolling list of pictures: navigation, the top bar's numbers, the transport under the picture, auto-play, keyboard and start-up. */
+export const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
+export const spdFmt = v => fa(String(v).replace('.', '٫')) + '×';
+export function setSpeed(v) {
+  const s = Math.max(0.5, Math.min(2, Math.round(v * 100) / 100));
+  S.speed = s;
+  try {
+    localStorage.setItem('speed', String(s));
+  } catch (e) {}
+  audio.playbackRate = s;
+  if (LA)
+    LA.playbackRate = s;
+  speedUI();
+  preTime(S.cur);
+}
+export function speedUI() {
+  const txt = spdFmt(S.speed);
+  $$('.spdl').forEach(el => el.textContent = txt);
+  $$('[data-spd="dec"]').forEach(el => el.disabled = S.speed <= 0.5);
+  $$('[data-spd="inc"]').forEach(el => el.disabled = S.speed >= 2);
+}
 /* ---------- which block is shown */
 export const vis = () => S.BL.map((_, i) => i).filter(i => {
   const el = $('#b' + i);
@@ -75,28 +96,28 @@ export function chrome() {
   $('#apr').innerHTML = isRedo ? ic('redo') + 'نیاز به بازسازی' : isOk ? ic('check') + 'تأیید شده' : '';
   $('#apr').classList.toggle('show', !!(isRedo || isOk));
   $('#apr').classList.toggle('redo', !!isRedo);
-  const acts = $('#picActs');
-  const home = c ? c.f : $('.be');
-  if (acts.parentElement !== home)
-    home.appendChild(acts);
-  [
-    '#bNote',
-    '#bRedo',
-    '#bPrompt',
-    '#bVprompt',
-    '#bFlag',
-    '#more'
-  ].forEach(s => $(s).disabled = !m);
-  $('#bRedo').classList.toggle('has', !!isRedo);
-  $('#bRedo').setAttribute('aria-pressed', isRedo ? 'true' : 'false');
-  $('#bRedo').title = isRedo ? 'برداشتن علامت «نیاز به بازسازی»' : 'علامت‌گذاری: نیاز به بازسازی';
-  $('#bArch').disabled = !(m && m.versions && m.versions.length);
-  $('#bArchList').disabled = !m;
-  $('#bArchList').classList.toggle('has', !!(m && m.archived && m.archived.length));
-  $('#bArchList').title = m && m.archived && m.archived.length ? `آرشیو این تصویر (${ m.archived.length } مورد): بازگردانی` : 'آرشیو این تصویر: هنوز چیزی توش نیست';
-  $('#bNote').classList.toggle('has', !!(m && (m.note || m.fx)));
-  $('#bVprompt').classList.toggle('has', !!(m && m.vprompt));
-  $('#bPrompt').classList.toggle('has', !!(m && m.stale));
+  $$('.pacts button[id]').forEach(b => b.removeAttribute('id'));
+  if (c && c.f) {
+    const pacts = c.f.querySelector('.pacts');
+    if (pacts) {
+      pacts.querySelector('[data-pact="note"]')?.setAttribute('id', 'bNote');
+      pacts.querySelector('[data-pact="prompt"]')?.setAttribute('id', 'bPrompt');
+      pacts.querySelector('[data-pact="vprompt"]')?.setAttribute('id', 'bVprompt');
+      pacts.querySelector('[data-pact="flag"]')?.setAttribute('id', 'bFlag');
+      pacts.querySelector('[data-pact="redo"]')?.setAttribute('id', 'bRedo');
+      pacts.querySelector('[data-pact="arch"]')?.setAttribute('id', 'bArch');
+      pacts.querySelector('[data-pact="archlist"]')?.setAttribute('id', 'bArchList');
+      pacts.querySelector('[data-pact="redo"]')?.classList.toggle('has', !!isRedo);
+      pacts.querySelector('[data-pact="redo"]')?.setAttribute('aria-pressed', isRedo ? 'true' : 'false');
+      pacts.querySelector('[data-pact="redo"]')?.setAttribute('title', isRedo ? 'برداشتن علامت «نیاز به بازسازی»' : 'علامت‌گذاری: نیاز به بازسازی');
+      pacts.querySelector('[data-pact="arch"]')?.toggleAttribute('disabled', !(m && m.versions && m.versions.length));
+      pacts.querySelector('[data-pact="archlist"]')?.classList.toggle('has', !!(m && m.archived && m.archived.length));
+      pacts.querySelector('[data-pact="archlist"]')?.setAttribute('title', m && m.archived && m.archived.length ? `آرشیو این تصویر (${ m.archived.length } مورد): بازگردانی` : 'آرشیو این تصویر: هنوز چیزی توش نیست');
+      pacts.querySelector('[data-pact="note"]')?.classList.toggle('has', !!(m && (m.note || m.fx)));
+      pacts.querySelector('[data-pact="vprompt"]')?.classList.toggle('has', !!(m && m.vprompt));
+      pacts.querySelector('[data-pact="prompt"]')?.classList.toggle('has', !!(m && m.stale));
+    }
+  }
   const fc = $('#fltChip'), activeFlt = S.filter !== 'all' || !!S.q;
   fc.hidden = !activeFlt;
   if (activeFlt)
@@ -107,9 +128,16 @@ export function chrome() {
   const en = $('#showEN').checked;
   $('#lang').setAttribute('aria-pressed', en ? 'true' : 'false');
   $('#lang').classList.toggle('en', en);
-  const sb = $('#spdBtn');
-  if (sb)
-    sb.textContent = fa(String(S.speed).replace('.', '٫')) + '×';
+  const b = S.BL[S.cur];
+  const isRefs = S.book === 'refs';
+  const hasSay = b && b.items && b.items.some(it => it.k === 'say');
+  $('#foot').classList.toggle('no-say', isRefs && !hasSay);
+  const bp = $('#bookPill');
+  if (bp) {
+    bp.classList.toggle('refs', isRefs);
+    bp.setAttribute('aria-pressed', isRefs ? 'true' : 'false');
+  }
+  speedUI();
 }
 /* the list scrolls: a jump from a button moves the list to that page (smooth when near); while it moves, the scroll watcher stays quiet */
 let SCROLLING = 0, FIRST = true;
@@ -178,11 +206,14 @@ export function show(i, keepJ, fromScroll) {
   if (!fromScroll)
     scrollToBlock(el);
   if (!document.body.classList.contains('gal'))
-    history.replaceState(null, '', '#' + el.dataset.bid);
+    history.replaceState(null, '', '#' + (S.book === 'refs' ? 'refs/' : '') + el.dataset.bid);
 }
 /* the block of a picture / the block the page was showing (after a reload the numbers may have moved) */
 export const blockOf = id => S.BL.findIndex(b => b.images.some(m => m.id === id));
-export const blockByBid = bid => $$('.blk').findIndex(el => el.dataset.bid === bid);
+export const blockByBid = bid => {
+  const id = String(bid || '').replace(/^refs\//, '');
+  return $$('.blk').findIndex(el => el.dataset.bid === id);
+};
 export function showNear(i) {
   const v = vis();
   if (!v.length)
@@ -326,9 +357,6 @@ function step(d) {
   if (k != null && k !== S.cur)
     go(k, S.playing);
 }
-export function stopPlayback() {
-  stop();
-}
 export function boot_player() {
   let tick = 0;
   $('#list').addEventListener('scroll', () => {
@@ -341,8 +369,17 @@ export function boot_player() {
   }, { passive: true });
   document.addEventListener('click', e => {
     const f = e.target.closest('[data-fwd]');
-    if (f)
-      document.getElementById(f.dataset.fwd).click();
+    if (f) {
+      const a = f.dataset.fwd;
+      if (a === 'play')
+        $('#play').click();
+      else {
+        const act = a.replace(/^b/, '').toLowerCase();
+        const target = document.querySelector(`.blk.on [data-pact="${ act }"]`) || document.getElementById(a);
+        if (target)
+          target.click();
+      }
+    }
   });
   $('#play').onclick = () => {
     stopLine();
@@ -352,18 +389,6 @@ export function boot_player() {
       run(S.START.n, S.START.lg, S.START.j);
     else
       run(S.cur);
-  };
-  $('#subs').onclick = async () => {
-    const b = $('#subs');
-    b.disabled = true;
-    try {
-      const r = await api('/api/subtitles', {});
-      toast(r.message);
-    } catch (e) {
-      fail(e);
-    } finally {
-      b.disabled = false;
-    }
   };
   if ($('#jobPill'))
     $('#jobPill').onclick = () => openDrawer('spk');
@@ -379,16 +404,28 @@ export function boot_player() {
     S.START = null;
     reload(true);
   };
-  const SPDS = [0.9, 1, 1.15, 1.3], spdFmt = v => fa(String(v).replace('.', '٫')) + '×';
-  if ($('#spdBtn'))
-    $('#spdBtn').onclick = () => {
-      const i = (SPDS.indexOf(S.speed) + 1) % SPDS.length;
-      S.speed = SPDS[i];
-      audio.playbackRate = S.speed;
-      $('#spdBtn').textContent = spdFmt(S.speed);
-      preTime(S.cur);
-      drawerRefresh();
-    };
+  try {
+    const saved = parseFloat(localStorage.getItem('speed'));
+    if (SPEEDS.includes(saved))
+      S.speed = saved;
+  } catch (e) {}
+  audio.playbackRate = S.speed;
+  speedUI();
+  $('#foot').addEventListener('click', e => {
+    const btn = e.target.closest('[data-spd]');
+    if (!btn)
+      return;
+    const act = btn.dataset.spd;
+    if (act === 'dec') {
+      if (S.speed > 0.5)
+        setSpeed(S.speed - 0.25);
+    } else if (act === 'inc') {
+      if (S.speed < 2)
+        setSpeed(S.speed + 0.25);
+    } else if (act === 'reset') {
+      setSpeed(1);
+    }
+  });
   $('#tbar').onclick = e => {
     if (!S.playing || !isFinite(audio.duration) || audio.duration <= 0)
       return;
@@ -439,7 +476,7 @@ export function boot_player() {
         'INPUT'
       ].includes(tag) && e.target.id !== 'prog' || e.target.isContentEditable)
       return;
-    if (document.querySelector('dialog[open]') || document.body.classList.contains('gal') || drawerOpen() || !$('#morePop').hidden)
+    if (document.querySelector('dialog[open]') || document.body.classList.contains('gal') || drawerOpen() || document.querySelector('.pop.menu:not([hidden])'))
       return;
     if (e.code === 'Space' && tag !== 'BUTTON') {
       e.preventDefault();
@@ -452,15 +489,47 @@ export function boot_player() {
       stepVersion(e.key === 'ArrowUp' ? -1 : 1);
     }
   });
+  const bp = $('#bookPill');
+  if (bp) {
+    bp.addEventListener('click', () => {
+      const next = S.book === 'refs' ? 'story' : 'refs';
+      const isGal = document.body.classList.contains('gal');
+      location.hash = next === 'refs' ? (isGal ? 'refs/gallery' : 'refs') : (isGal ? 'gallery' : '');
+    });
+  }
   /* a link like review.html#IMG045 (or a change of the address) shows that picture */
-  window.addEventListener('hashchange', () => {
-    const at = blockByBid(decodeURIComponent(location.hash.slice(1)));
+  window.addEventListener('hashchange', async () => {
+    const raw = decodeURIComponent(location.hash.slice(1));
+    const isRefs = raw.startsWith('refs/') || raw === 'refs';
+    const newBook = isRefs ? 'refs' : 'story';
+    if (newBook !== S.book) {
+      S.book = newBook;
+      const p = $('#bookPill');
+      if (p) {
+        p.classList.toggle('refs', isRefs);
+        p.setAttribute('aria-pressed', isRefs ? 'true' : 'false');
+      }
+      await reload();
+      startMode(location.hash);
+      const at = blockByBid(raw);
+      show(at >= 0 ? at : 0);
+      return;
+    }
+    const at = blockByBid(raw);
     if (at >= 0 && at !== S.cur)
       go(at, S.playing);
   });
   (async () => {
+    const raw0 = decodeURIComponent(location.hash.slice(1));
+    if (raw0.startsWith('refs/') || raw0 === 'refs')
+      S.book = 'refs';
+    const p = $('#bookPill');
+    if (p) {
+      p.classList.toggle('refs', S.book === 'refs');
+      p.setAttribute('aria-pressed', S.book === 'refs' ? 'true' : 'false');
+    }
     try {
-      const r = await fetch('/api/project');
+      const r = await fetch(`/api/project?book=${ S.book || 'story' }`);
       if (!r.ok)
         throw 0;
       S.P = await r.json();

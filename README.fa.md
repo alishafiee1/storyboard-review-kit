@@ -2,7 +2,7 @@
 
 **یه ابزار رایگان و تک‌صفحه‌ای برای برنامه‌ریزی و بازبینی ویدئو و انیمیشن‌هایی که با هوش مصنوعی ساخته می‌شن.** سناریو، پرامپت تصویرها، عکس‌های ساخته‌شده و صدای گوینده همه توی فایل‌های متنی ساده‌ان؛ همه‌شون رو توی یه صفحه می‌بینی، همون‌جا ویرایش می‌کنی و صدای هر گوینده رو می‌سازی. بدون دیتابیس و نصب پیچیده: فقط Python و مرورگر.
 
-[English](README.md) · [وب‌سایت](https://alishafiee1.github.io/storyboard-review-kit/) · [چرخهٔ کار](WORKFLOW.fa.md) · [تغییرات](CHANGELOG.md) · لایسنس: MIT (رایگان)
+[English](README.md) · [وب‌سایت](https://alishafiee1.github.io/storyboard-review-kit/) · [چرخهٔ کار](WORKFLOW.fa.md) · [تغییرات](rodo/storyboard-review-kit/CHANGELOG.md) · لایسنس: MIT (رایگان)
 
 ## چرخهٔ کار در یک نگاه
 کیت کل مسیر ساخت یه ویدیوی هوش‌مصنوعی رو مرتب می‌کنه، و دستیار هوش مصنوعی (مثل Claude Code) خودش از راهنمای داخل پروژه یاد می‌گیره چطور باهاش کار کنه:
@@ -70,7 +70,7 @@ python tools/update.py --check  # فقط می‌گه نسخهٔ جدیدتری �
 | `.kit/` | تاریخچهٔ برگردان و لاگ ورود فایل‌ها (دست نزن) |
 
 ## توسعه
-نقشهٔ کد، قالب فایل‌ها، API و چک‌لیست قابلیت جدید توی [ARCHITECTURE.md](ARCHITECTURE.md) هست. تست واحد: `python -m unittest discover -s tools/tests -p "test_*.py"`. تست مرورگر: `pip install playwright` و بعد `python tools/tests/run.py`.
+نقشهٔ کد، قالب فایل‌ها، API و چک‌لیست قابلیت جدید توی [rodo/storyboard-review-kit/project/architecture.md](rodo/storyboard-review-kit/project/architecture.md) هست. تست واحد: `python -m unittest discover -s tools/tests -p "test_*.py"`. تست مرورگر: `pip install playwright` و بعد `python tools/tests/run.py`.
 
 ## لایسنس
 [MIT](LICENSE): استفادهٔ شخصی و تجاری رایگان.

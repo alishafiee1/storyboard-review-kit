@@ -141,6 +141,7 @@ def at(page, bid):
     """Show one picture. The page shows one at a time; a link like review.html#IMG002 (the address) is how a test (or a bookmark) goes to it."""
     page.evaluate("id => { location.hash = id }", bid)
     page.wait_for_selector('.blk.on[data-bid="%s"]' % bid)
+    page.wait_for_timeout(200)
 
 
 def atb(page, n):
@@ -173,9 +174,15 @@ def undrawer(page):
 
 
 def more(page):
-    """Open the image «⋯» menu of the picture on show."""
-    page.click("#more")
-    page.wait_for_selector("#morePop:not([hidden])")
+    """Open the picture «⋯» menu of the picture on show."""
+    page.click(".blk.on figure.shot [data-pact='more']")
+    page.wait_for_selector(".blk.on figure.shot .pop.menu:not([hidden])")
+
+
+def smore(page):
+    """Open the scene «⋯» menu of the current block."""
+    page.click(".blk.on .pghead [data-smore]")
+    page.wait_for_selector(".blk.on .pghead .pop.menu:not([hidden])")
 
 
 def ask_ok(page, needle=None):
@@ -323,7 +330,7 @@ def edit_env_and_act(proj, page):
 @test
 def add_and_delete_dialogue(proj, page):
     atb(page, 2)
-    page.click("#b2 .addbar button[data-add=say]")
+    page.click("#b2 .addbar button[data-add=say] >> nth=-1")
     page.fill(".cmp input.nm", "علی")
     page.fill(".cmp textarea", "دیالوگ اضافه‌شده")
     page.press(".cmp textarea", "Enter")
@@ -333,6 +340,63 @@ def add_and_delete_dialogue(proj, page):
     page.locator(".it.sp", has_text="دیالوگ اضافه‌شده").locator("[data-del]").click()
     ask_ok(page, "حذف")
     proj.wait("scenario/story.txt", "دیالوگ اضافه‌شده", absent=True)
+
+
+@test
+def move_line_and_voice_resolves(proj, page):
+    """Moving a line with ↑/↓ or drag keeps its id: so voice still resolves/plays, and Ctrl+Z restores."""
+    at(page, "IMG001")
+    settle(page)
+    say1 = page.locator("#b1 .it.sp", has_text="این علیه")
+    say2 = page.locator("#b1 .it.sp", has_text="این دیگه از کجا")
+    assert say1.count() == 1 and say2.count() == 1
+    ab1 = say1.locator(".ab[data-lg=fa]")
+    orig_src = ab1.get_attribute("data-src")
+    assert orig_src and "IMG001" in orig_src
+
+    # 1. Move second line UP using ↑ button in grip menu
+    say2.locator(".grip").click()
+    page.wait_for_selector(".pop.menu:not([hidden]) [data-lmv='-1']")
+    page.click(".pop.menu:not([hidden]) [data-lmv='-1']")
+
+    proj.wait_in("[IMG001]", "این دیگه از کجا")
+    settle(page)
+    st = proj.story()
+    assert st.index("این دیگه از کجا") < st.index("این علیه"), "second line moved before first line"
+
+    # Voice button still resolves and matches the line
+    say1_after = page.locator("#b1 .it.sp", has_text="این علیه")
+    assert say1_after.locator(".ab[data-lg=fa]").get_attribute("data-src") == orig_src
+
+    # 2. Move line DOWN past end of picture onto neighbor picture (IMG002)
+    say1_after.locator(".grip").click()
+    page.wait_for_selector(".pop.menu:not([hidden]) [data-lmv='1']")
+    page.click(".pop.menu:not([hidden]) [data-lmv='1']")
+
+    proj.wait_in("[IMG002]", "این علیه")
+    settle(page)
+    st2 = proj.story()
+    assert st2.index("[IMG002]") < st2.index("این علیه")
+
+    # Voice still resolves in the new picture!
+    at(page, "IMG002")
+    settle(page)
+    say1_in_b2 = page.locator("#b2 .it.sp", has_text="این علیه")
+    assert say1_in_b2.locator(".ab[data-lg=fa]").get_attribute("data-src") == orig_src
+
+    # 3. Ctrl+Z undo restores previous file bytes
+    page.keyboard.press("Control+z")
+    proj.wait_in("[IMG002]", "این علیه", absent=True)
+    proj.wait_in("[IMG001]", "این علیه")
+    settle(page)
+    st3 = proj.story()
+    assert st3.index("این دیگه از کجا") < st3.index("این علیه")
+
+    # Second undo restores initial order
+    page.keyboard.press("Control+z")
+    settle(page)
+    st4 = proj.story()
+    assert st4.index("این علیه") < st4.index("این دیگه از کجا")
 
 
 @test
@@ -467,9 +531,9 @@ def format_issue_flag(proj, page):
 def drawer_panels_filter_search_jump(proj, page):
     """The drawer replaces the old tabs: references, scene list (jump), filter, search, speed, voices; ‹ goes back, Esc and the dimmed page close it."""
     drawer(page)
-    assert page.locator("#dmenu .drow").count() == 13 and page.is_hidden("#dback")
+    assert page.locator("#dmenu .drow").count() == 11 and page.is_hidden("#dback")
     labels = page.locator("#dmenu .rt").all_inner_texts()
-    assert labels[:3] == ["فهرست صحنه‌ها", "فیلتر و جست‌وجو", "نسخه‌ها و آرشیو"] and "سرعت پخش" in labels and "کپی پرامپت‌های دسته" in labels
+    assert labels[:3] == ["فهرست صحنه‌ها", "فیلتر و جست‌وجو", "نسخه‌ها و آرشیو"] and "کپی پرامپت‌های دسته" in labels
     drawer(page, "refs")
     assert page.locator("#refs .card").count() == 1 and page.is_visible("#dback") and page.is_hidden("#dmenu")
     page.click("#refs [data-img] >> nth=0")  # jump to a picture that uses the reference: the drawer closes
@@ -492,11 +556,6 @@ def drawer_panels_filter_search_jump(proj, page):
     page.fill("#q", "")
     assert page.locator(".blk:not(.hide)").count() == 4
     page.click("#dback")
-    page.click("[data-panel=speed]")
-    page.click("[data-speed='1.3']")
-    assert page.evaluate("window.__kit.S.speed") == 1.3
-    page.click("#dback")
-    assert "۱٫۳" in page.inner_text("[data-panel=speed] .trail")
     page.click("[data-panel=spk]")
     assert page.locator("#spk .spcard").count() == 3
     page.click("#dback")
@@ -570,8 +629,8 @@ def line_audio_buttons(proj, page):
 
 @test
 def subtitles_button(proj, page):
-    drawer(page, "subs")
-    page.click("#subs")
+    drawer(page, "export")
+    page.click("#pExport [data-ex=subs]")
     for lg in ("fa", "en"):
         proj.wait("subtitles/%s.srt" % lg, "-->")
 
@@ -747,8 +806,8 @@ def scene_off_and_back(proj, page):
     """A scene set aside keeps its text, pictures and audio; it just leaves the final order (off: yes). Bringing it back is in the scene list of the drawer."""
     before = proj.story()
     at(page, "IMG003")
-    more(page)
-    page.click("#morePop [data-soff]")
+    smore(page)
+    page.click(".blk.on .pghead [data-soff]")
     ask_ok(page, "کنار گذاشته")
     proj.wait("scenario/story.txt", "off: yes")
     assert "و روز تمام شد." in proj.story() and "[IMG003]" in proj.story()
@@ -775,11 +834,23 @@ def picture_set_aside(proj, page):
     page.wait_for_selector(f + ".off")
     assert os.path.exists(os.path.join(proj.root, "images", "scenes", "IMG003_sea.png"))
     assert "برگردان" in page.inner_text("#aside")
+    # Ctrl+Z brings the picture back
+    page.keyboard.press("Control+z")
+    proj.wait_in("[IMG003]", "off: yes", absent=True)
+    page.wait_for_selector(f + ":not(.off)")
+    assert "کنار بگذار" in page.inner_text("#aside")
+    # Setting aside again and using drawer undo brings it back too
     page.click("#aside")
+    proj.wait_in("[IMG003]", "off: yes")
+    settle(page)
+    drawer(page, "undo")
+    assert page.locator("#pUndo .hist li").count() >= 1 and "تصویر" in page.inner_text("#pUndo .hist")
+    page.click("#pUndo [data-undo]")
+    undrawer(page)
     proj.wait_in("[IMG003]", "off: yes", absent=True)
     settle(page)
     more(page)  # the image menu has it too
-    page.click("#morePop [data-ioff]")
+    page.click(".blk.on figure.shot [data-ioff]")
     proj.wait_in("[IMG003]", "off: yes")
     settle(page)
     page.click("#aside")
@@ -791,8 +862,8 @@ def move_scenes(proj, page):
     """Reordering moves whole blocks; ids and file names never change, the shown scene numbers follow the order."""
     at(page, "IMG003")
     assert label(page).startswith("صحنه ۲ · پایان")
-    more(page)
-    page.click("#morePop [data-smv='-1']")
+    smore(page)
+    page.click(".blk.on .pghead [data-smv='-1']")
     page.wait_for_function("document.querySelector('.blk.on .slabel').textContent.startsWith('صحنه ۱')")
     st = proj.story()
     assert st.index("=== scene-02") < st.index("=== scene-01") and "\n\n=== scene-01" in st
@@ -801,8 +872,8 @@ def move_scenes(proj, page):
     for needle in ("[IMG001]", "[IMG002]", "[IMG003]", "say: تست | یک خط"):
         assert needle in st
     at(page, "IMG003")
-    more(page)
-    page.click("#morePop [data-smv='1']")
+    smore(page)
+    page.click(".blk.on .pghead [data-smv='1']")
     page.wait_for_function("document.querySelector('.blk.on .slabel').textContent.startsWith('صحنه ۲')")
     assert proj.story().index("=== scene-01") < proj.story().index("=== scene-02")
     assert proj.api("/api/scenemove", {"scene": "scene-01", "step": -1})[0] == 400  # the thumbnail stays first
@@ -813,16 +884,16 @@ def move_scenes(proj, page):
 def scene_menu_and_add_image(proj, page):
     """One «⋯» popover on the page; Esc and outside clicks close it; «new picture» appends an empty slot to the scene and shows it."""
     at(page, "IMG001")
-    pop = "#morePop"
+    pop = ".blk.on .pghead .pop.menu"
     assert page.locator(pop).is_hidden()
-    more(page)
-    assert page.get_attribute("#more", "aria-expanded") == "true" and page.locator(pop + " [role=menuitem]").count() >= 8
+    smore(page)
+    assert page.get_attribute(".blk.on .pghead [data-smore]", "aria-expanded") == "true" and page.locator(pop + " [role=menuitem]").count() >= 5
     page.keyboard.press("Escape")
-    assert page.locator(pop).is_hidden() and page.get_attribute("#more", "aria-expanded") == "false"
-    more(page)
+    assert page.locator(pop).is_hidden() and page.get_attribute(".blk.on .pghead [data-smore]", "aria-expanded") == "false"
+    smore(page)
     page.click("#title")
     assert page.locator(pop).is_hidden()
-    more(page)
+    smore(page)
     page.click(pop + " [data-addimg=scene-01]")
     proj.wait("scenario/story.txt", "[IMG004]")
     st = proj.story()
@@ -836,8 +907,8 @@ def scene_menu_and_add_image(proj, page):
 @test
 def add_scene(proj, page):
     at(page, "IMG001")
-    more(page)
-    page.click("#morePop [data-addscene=scene-01]")  # unified paper dialog for title + image count
+    smore(page)
+    page.click(".blk.on .pghead [data-addscene=scene-01]")  # unified paper dialog for title + image count
     ask_ok(page)
     proj.wait("scenario/story.txt", "=== scene-03 | صحنهٔ جدید | - ===")
     st = proj.story()
@@ -917,15 +988,13 @@ def picture_archive_and_back(proj, page):
     proj.wait_in("[IMG001]", "pick: IMG001_start.png")
     page.click(f + " [data-vn='1']")
     proj.wait_in("[IMG001]", "pick: IMG001_start_a1b2c3.png")
-    more(page)
-    assert page.locator("#morePop [data-irest]").count() == 0
-    page.click("#morePop [data-iarch]")  # archiving the chosen picture clears the pick
+    assert page.locator(f + " [data-pact=archlist].has").count() == 0
+    page.click(f + " [data-pact=arch]")  # archiving the chosen picture clears the pick
     proj.wait_in("[IMG001]", "pick:", absent=True)
     page.wait_for_function("document.querySelectorAll('figure.shot[data-id=IMG001] [data-vn]').length===0")  # one version left
     assert os.path.exists(os.path.join(proj.root, "images", "archive", "IMG001_start_a1b2c3.png"))
     assert not os.path.exists(os.path.join(proj.root, "images", "scenes", "IMG001_start_a1b2c3.png"))
-    more(page)
-    page.click("#morePop [data-irest]")  # «archive (1)» opens the archive popup: a grid, then one picture with «bring back»
+    page.click(f + " [data-pact=archlist]")  # «archive (1)» opens the archive popup: a grid, then one picture with «bring back»
     page.wait_for_selector("dialog.archdlg .atile")
     assert page.locator("dialog.archdlg .atile").count() == 1
     page.click("dialog.archdlg .atile")
@@ -1238,10 +1307,10 @@ def image_menu_moves_and_scene_marks(proj, page):
     use_story(proj, page, "story.txt")
     orig = story_bytes(proj)
     fig = lambda i: "figure.shot[data-id=%s]" % i
-    pop = "#morePop"
+    pop = ".blk.on figure.shot .pop.menu"
     at(page, "IMG001")
     more(page)
-    assert page.get_attribute("#more", "aria-expanded") == "true"
+    assert page.get_attribute(".blk.on figure.shot [data-pact='more']", "aria-expanded") == "true"
     assert not page.locator(pop + " [data-imv='-1']").count(), "nothing above the first picture (the thumbnail scene is closed)"
     assert not page.locator(pop + " [data-imerge]").count()
     page.keyboard.press("Escape")
@@ -1300,9 +1369,10 @@ def image_menu_moves_and_scene_marks(proj, page):
     at(page, "IMG003")
     assert label(page).startswith("صحنه ۳ · پایان")
     at(page, "IMG002")
-    more(page)
-    assert page.locator(pop + " [data-imerge]").count() == 1
-    page.click(pop + " [data-imerge]")  # join the scene above: only the header goes
+    smore(page)
+    spop = ".blk.on .pghead .pop.menu"
+    assert page.locator(spop + " [data-imerge]").count() == 1
+    page.click(spop + " [data-imerge]")  # join the scene above: only the header goes
     ask_ok(page, "ادغام")
     page.wait_for_function("document.querySelectorAll('section[data-scene=scene-01] figure.shot').length===2")
     assert page.locator("section[data-scene=scene-03]").count() == 0
@@ -1310,8 +1380,8 @@ def image_menu_moves_and_scene_marks(proj, page):
     assert "=== scene-03" not in st and "id: IMG001_1" in st and "id: IMG002_1" in st, "the old line ids were written out before the scene header moved"
     assert [h["label"] for h in proj.api("/api/project")[1]["history"]] == ["scenemark", "scenemark"]
     at(page, "IMG003")  # the first picture of the scene below: it can be joined to the one above (that scene has env text: asked)
-    more(page)
-    page.click(pop + " [data-imerge]")
+    smore(page)
+    page.click(spop + " [data-imerge]")
     ask_ok(page, "ادغام")
     page.wait_for_function("document.querySelectorAll('section[data-scene=scene-01] figure.shot').length===3")
     st = proj.story()
@@ -1568,15 +1638,15 @@ def archive_buttons_under_the_picture_and_the_old_rejected_folder(proj, page):
     page.reload()
     page.wait_for_selector(f)
     assert page.locator(f + " .rj").count() == 0  # no more «ردشده‌ها» link
-    assert page.locator("#picActs #bArch").is_visible() and page.locator("#picActs #bArchList").is_visible()
-    assert page.evaluate("document.querySelector('#picActs').parentElement.matches('figure.shot')")  # the icons sit under the picture they act on
-    page.click("#bArch")
+    assert page.locator(f + " [data-pact=arch]").is_visible() and page.locator(f + " [data-pact=archlist]").is_visible()
+    assert page.evaluate("document.querySelector('figure.shot[data-id=IMG001] .pacts').parentElement.matches('figure.shot')")  # the icons sit under the picture they act on
+    page.click(f + " [data-pact=arch]")
     page.wait_for_selector("#toast button")
     assert os.path.exists(os.path.join(proj.root, "images", "archive", "IMG001_start_a1b2c3.png")) or os.path.exists(os.path.join(proj.root, "images", "archive", "IMG001_start.png"))
     page.click("#toast button")  # «بازگردانی» puts it back
     page.wait_for_function("document.querySelectorAll('figure.shot[data-id=IMG001] [data-vn]').length > 0")
     assert not os.path.exists(os.path.join(proj.root, "images", "archive", "IMG001_start_a1b2c3.png"))
-    page.click("#bArchList")
+    page.click(f + " [data-pact=archlist]")
     page.wait_for_selector("dialog.archdlg .atile")
     assert page.locator("dialog.archdlg .atile").count() == 1  # the file of the old _rejected folder
     page.click("dialog.archdlg .atile")
@@ -1584,7 +1654,7 @@ def archive_buttons_under_the_picture_and_the_old_rejected_folder(proj, page):
     page.click("dialog.archdlg [data-ar=list]")
     page.wait_for_selector("dialog.archdlg .agrid")
     page.click("dialog.archdlg [data-ar=close]")
-    page.click("#bArchList")
+    page.click(f + " [data-pact=archlist]")
     page.click("dialog.archdlg .atile")
     page.click("dialog.archdlg [data-ar=restore]")  # an old rejected file comes back as a version
     page.wait_for_function("document.querySelectorAll('figure.shot[data-id=IMG001] [data-vn]').length > 0")
@@ -1718,13 +1788,14 @@ def noimg_block_and_icons_need_a_picture(proj, page):
     use_story(proj, page)
     noimg = page.evaluate("document.querySelector('.blk.noimg').dataset.bid")
     at(page, noimg)
-    for sel in ("#bNote", "#bPrompt", "#bVprompt", "#bFlag", "#more", "#aside"):
-        assert page.is_disabled(sel), sel
+    assert page.locator(".blk.on figure.shot").count() == 0
+    assert page.is_disabled("#aside")
     assert page.locator(".blk.on .it.act").count() == 1 and page.locator(".blk.on .ph").count() == 1
     assert page.locator("#apr.show").count() == 0
     page.keyboard.press("ArrowRight")
     page.wait_for_function("!document.querySelector('.blk.on').classList.contains('noimg')")
-    assert not page.is_disabled("#bPrompt")
+    assert page.locator(".blk.on figure.shot").count() == 1
+    assert not page.is_disabled("#aside")
 
 
 @test
@@ -1874,19 +1945,19 @@ def gallery_open_tiles_drag_picker_batch(proj, page):
     page.wait_for_selector('#ggrid .tile[data-id="IMG011"]')
     assert order()[-1] == ("scene-01", "IMG011"), order()  # after the last picture (scene 2 is empty by now)
     u = page.locator('.gun .uit[data-uid="IMG010"]').bounding_box()
-    t = page.locator('#ggrid .tile[data-id="IMG000"]').bounding_box()
+    t = page.locator('#ggrid .tile[data-id="IMG011"]').bounding_box()
     page.mouse.move(u["x"] + 20, u["y"] + 10)
     page.mouse.down()
     page.mouse.move(u["x"] + 30, u["y"] - 20, steps=3)
     page.mouse.move(t["x"] + t["width"] * 0.2, t["y"] + t["height"] / 2, steps=8)
     page.mouse.up()
     page.wait_for_selector('#ggrid .tile[data-id="IMG010"]')
-    assert order()[1] == ("scene-00", "IMG010"), order()  # left half of the first tile = after it
+    assert order()[-1] == ("scene-01", "IMG010"), order()  # left half of IMG011 = after it; scene-00 does not take a new picture
     # the + tile: picker with a new empty slot
     n = len(order())
-    page.click("#ggrid .tile.add")
+    page.locator("#ggrid [data-gdrop='scene-01']").click()
     page.wait_for_selector("dialog.gpick[open]")
-    assert page.locator("dialog.gpick [data-pk=new]").count() == 1 and page.locator("#pkAll option").count() == n
+    assert page.locator("dialog.gpick [data-pk=new]").count() == 1 and page.locator("dialog.gpick .pktile").count() == n
     page.click("dialog.gpick [data-pk=new]")
     page.wait_for_function("document.querySelectorAll('#ggrid .tile[data-id]').length == %d" % (n + 1))
     assert len(order()) == n + 1 and order()[-1][0] == "scene-01"
@@ -1894,7 +1965,7 @@ def gallery_open_tiles_drag_picker_batch(proj, page):
     page.click('#ggrid .tile[data-id="IMG001"]')
     page.wait_for_selector(".blk.on")
     more(page)
-    page.click("#morePop [data-ipick]")
+    page.click(".blk.on figure.shot .pop.menu [data-ipick]")
     page.wait_for_selector("dialog.gpick[open]")
     page.click("dialog.gpick [data-pk=new]")
     page.wait_for_function("window.__kit.S.P.scenes.flatMap(s => s.blocks).flatMap(b => b.images).length == %d" % (n + 2))
@@ -1906,6 +1977,47 @@ def gallery_open_tiles_drag_picker_batch(proj, page):
     page.click("[data-gbatch=b01]")
     page.wait_for_function("document.querySelector('#toast') && !document.querySelector('#toast').hidden && document.querySelector('#toast').textContent.includes('b01')")
     assert "=== IMG001 ===" in page.evaluate("navigator.clipboard.readText()")
+
+
+@test
+def gallery_scene_end_drop_and_keyboard_reorder(proj, page):
+    """Gallery grouped by scene: drop zone at the end of each scene places picture via to_end_of_scene (/api/move);
+    keyboard reorder with Alt+←/→ moves the focused/selected tile."""
+    page.goto(proj.url + "/review.html#gallery")
+    page.wait_for_selector("#ggrid .tile[data-id]")
+    assert page.locator("#ggrid .gsec").count() >= 2
+    assert page.locator('#ggrid .gsec[data-scene="scene-01"] .gshead .gstitle').is_visible()
+    assert page.locator('#ggrid .gsec[data-scene="scene-01"] [data-smore="scene-01"]').is_visible()
+    assert page.locator('#ggrid [data-gdrop="scene-00"]').count() == 0
+    assert page.locator('#ggrid [data-gdrop="scene-02"]').count() == 1
+
+    def order():
+        P = proj.api("/api/project")[1]
+        return [(sc["id"], im["id"]) for sc in P["scenes"] for b in sc["blocks"] for im in b["images"]]
+
+    a = page.locator('#ggrid .tile[data-id="IMG001"]').bounding_box()
+    dz = page.locator('#ggrid [data-gdrop="scene-02"]').bounding_box()
+    page.mouse.move(a["x"] + a["width"] / 2, a["y"] + a["height"] / 2)
+    page.mouse.down()
+    page.mouse.move(a["x"] + a["width"] / 2 + 10, a["y"] + a["height"] / 2 + 10, steps=3)
+    page.mouse.move(dz["x"] + dz["width"] / 2, dz["y"] + dz["height"] / 2, steps=8)
+    page.mouse.up()
+    page.wait_for_timeout(600)
+    cur = order()
+    assert ("scene-02", "IMG001") in cur, cur
+    assert cur[-1] == ("scene-02", "IMG001"), cur
+
+    page.focus('#ggrid .tile[data-id="IMG001"]')
+    page.keyboard.press("Alt+ArrowRight")
+    page.wait_for_timeout(600)
+    cur = order()
+    s2_imgs = [i for sc, i in cur if sc == "scene-02"]
+    assert s2_imgs == ["IMG001", "IMG003"], s2_imgs
+    page.keyboard.press("Alt+ArrowLeft")
+    page.wait_for_timeout(600)
+    cur = order()
+    s2_imgs = [i for sc, i in cur if sc == "scene-02"]
+    assert s2_imgs == ["IMG003", "IMG001"], s2_imgs
 
 
 @test
@@ -1929,6 +2041,7 @@ def voice_rid_takes_play_from_srcs(proj, page):
     btn = "#b1 .vv[data-vv=fa] >> nth=0"
     for _ in range(4):
         page.click(btn)
+        page.wait_for_timeout(200)
         if "a1b2c3d4" in proj.story():
             break
     proj.wait("scenario/story.txt", "voice: fa=a1b2c3d4")
@@ -1940,14 +2053,13 @@ def voice_rid_takes_play_from_srcs(proj, page):
 def redo_gallery_filter_inbox_preview_and_regen_all(proj, page):
     """#bRedo & #morePop mark status: redo; gallery tiles & filter sync with S.filter/S.q and #fltChip; inbox images show previews; #spk offers regen-all."""
     at(page, "IMG001")
-    page.click("#bRedo")
+    page.click(".blk.on [data-pact=redo]")
     proj.wait_in("[IMG001]", "status: redo")
-    page.wait_for_selector("#bRedo.has")
+    page.wait_for_selector(".blk.on [data-pact=redo].has")
     page.wait_for_selector("#apr.show.redo")
-    page.click("#bRedo")
+    page.click(".blk.on [data-pact=redo]")
     proj.wait_in("[IMG001]", "status: redo", absent=True)
-    more(page)
-    page.click("#morePop [data-iredo]")
+    page.click(".blk.on [data-pact=redo]")
     proj.wait_in("[IMG001]", "status: redo")
     os.makedirs(os.path.join(proj.root, "inbox"), exist_ok=True)
     open(os.path.join(proj.root, "inbox", "inb_pic.png"), "wb").write(png())
@@ -1973,14 +2085,20 @@ def redo_gallery_filter_inbox_preview_and_regen_all(proj, page):
 
 @test
 def workspace_speed_premiere_export_and_bulk_gallery(proj, page):
-    """Footer #spdBtn cycles playback speed; #pExport builds & checks Premiere XML; #morePop has section headers; gallery bulk redo works."""
+    """Footer speed control [−] label [+]; #pExport builds & checks Premiere XML; #morePop has section headers; gallery bulk redo works."""
     at(page, "IMG001")
-    assert page.inner_text("#spdBtn").strip() == "۱×"
-    page.click("#spdBtn")
-    assert page.inner_text("#spdBtn").strip() == "۱٫۱۵×"
-    assert page.evaluate("window.__kit.S.speed") == 1.15
+    assert page.inner_text(".ftp .spdl").strip() == "۱×"
+    page.click(".ftp [data-spd='inc']")
+    assert page.inner_text(".ftp .spdl").strip() == "۱٫۲۵×"
+    assert page.evaluate("window.__kit.S.speed") == 1.25
+    page.click(".ftp [data-spd='dec']")
+    assert page.inner_text(".ftp .spdl").strip() == "۱×"
+    assert page.evaluate("window.__kit.S.speed") == 1.0
     more(page)
-    assert page.locator("#morePop .mhead").count() == 2
+    assert page.locator(".blk.on figure.shot .pop.menu .mhead").count() == 1
+    page.keyboard.press("Escape")
+    smore(page)
+    assert page.locator(".blk.on .pghead .pop.menu .mhead").count() == 1
     page.keyboard.press("Escape")
     drawer(page, "export")
     page.click("[data-ex=px-fa]")
@@ -1997,6 +2115,116 @@ def workspace_speed_premiere_export_and_bulk_gallery(proj, page):
     page.click('[data-gbulk="redo"]')
     proj.wait_in("[IMG001]", "status: redo")
     proj.wait_in("[IMG002]", "status: redo")
+    settle(page)
+    # Both are redo: button offers clear redo (لغو بازسازی)
+    page.click('#ggrid .tile[data-id="IMG001"]')
+    page.click('#ggrid .tile[data-id="IMG002"]')
+    assert page.inner_text('[data-gbulk="unredo"]').strip() == "لغو بازسازی"
+    page.click('[data-gbulk="unredo"]')
+    proj.wait_in("[IMG001]", "status: redo", absent=True)
+    proj.wait_in("[IMG002]", "status: redo", absent=True)
+    settle(page)
+    # Ctrl+Z undo restores redo status
+    page.keyboard.press("Control+z")
+    proj.wait_in("[IMG001]", "status: redo")
+    proj.wait_in("[IMG002]", "status: redo")
+    settle(page)
+    # Next Ctrl+Z undo restores state before the bulk redo
+    page.keyboard.press("Control+z")
+    proj.wait_in("[IMG001]", "status: redo", absent=True)
+    proj.wait_in("[IMG002]", "status: redo", absent=True)
+    settle(page)
+    # Bulk set-aside in gallery and bring back
+    page.click('#ggrid .tile[data-id="IMG001"]')
+    page.click('#ggrid .tile[data-id="IMG002"]')
+    page.click('[data-gbulk="off"]')
+    proj.wait_in("[IMG001]", "off: yes")
+    proj.wait_in("[IMG002]", "off: yes")
+    settle(page)
+    # Both are off: button offers bring back (برگردان)
+    page.click('#ggrid .tile[data-id="IMG001"]')
+    page.click('#ggrid .tile[data-id="IMG002"]')
+    assert page.inner_text('[data-gbulk="on"]').strip() == "برگردان"
+    page.click('[data-gbulk="on"]')
+    proj.wait_in("[IMG001]", "off: yes", absent=True)
+    proj.wait_in("[IMG002]", "off: yes", absent=True)
+    settle(page)
+    # Ctrl+Z undo restores set-aside
+    page.keyboard.press("Control+z")
+    proj.wait_in("[IMG001]", "off: yes")
+    proj.wait_in("[IMG002]", "off: yes")
+    settle(page)
+    # Next Ctrl+Z undo restores original non-off state
+    page.keyboard.press("Control+z")
+    proj.wait_in("[IMG001]", "off: yes", absent=True)
+    proj.wait_in("[IMG002]", "off: yes", absent=True)
+    settle(page)
+
+
+@test
+def speed_control_stepper_clamp_reset_persistence_and_audio_rates(proj, page):
+    """Speed control next to footer: + and − steps of 0.25, clamps at 0.5 and 2.0, label click resets to 1, localStorage persistence, and audio/LA playbackRate sync."""
+    at(page, "IMG001")
+    assert page.inner_text(".ftp .spdl").strip() == "۱×"
+    assert page.evaluate("window.__kit.S.speed") == 1.0
+
+    # Start a line audio clip so LA is active
+    page.click(".blk.on .ab[data-lg=fa] >> nth=0")
+    page.wait_for_function("window.__kit.LA !== null")
+
+    # + increment by 0.25: 1.0 -> 1.25
+    page.click(".ftp [data-spd='inc']")
+    assert page.inner_text(".ftp .spdl").strip() == "۱٫۲۵×"
+    assert page.evaluate("window.__kit.S.speed") == 1.25
+    assert page.evaluate("window.__kit.audio.playbackRate") == 1.25
+    assert page.evaluate("window.__kit.LA.playbackRate") == 1.25
+
+    # - decrement by 0.25: 1.25 -> 1.0
+    page.click(".ftp [data-spd='dec']")
+    assert page.inner_text(".ftp .spdl").strip() == "۱×"
+    assert page.evaluate("window.__kit.S.speed") == 1.0
+    assert page.evaluate("window.__kit.audio.playbackRate") == 1.0
+    assert page.evaluate("window.__kit.LA.playbackRate") == 1.0
+
+    # Step down to 0.75 then 0.5 (bound clamp at 0.5)
+    page.click(".ftp [data-spd='dec']")
+    assert page.evaluate("window.__kit.S.speed") == 0.75
+    page.click(".ftp [data-spd='dec']")
+    assert page.evaluate("window.__kit.S.speed") == 0.5
+    assert page.inner_text(".ftp .spdl").strip() == "۰٫۵×"
+    assert page.is_disabled(".ftp [data-spd='dec']")
+    page.click(".ftp [data-spd='dec']", force=True)
+    assert page.evaluate("window.__kit.S.speed") == 0.5
+
+    # Step up to 2.0 (bound clamp at 2.0)
+    for _ in range(6):
+        page.click(".ftp [data-spd='inc']")
+    assert page.evaluate("window.__kit.S.speed") == 2.0
+    assert page.inner_text(".ftp .spdl").strip() == "۲×"
+    assert page.is_disabled(".ftp [data-spd='inc']")
+    page.click(".ftp [data-spd='inc']", force=True)
+    assert page.evaluate("window.__kit.S.speed") == 2.0
+
+    # Clicking label resets to 1x
+    page.click(".ftp .spdl")
+    assert page.evaluate("window.__kit.S.speed") == 1.0
+    assert page.inner_text(".ftp .spdl").strip() == "۱×"
+    assert page.evaluate("window.__kit.audio.playbackRate") == 1.0
+    assert page.evaluate("window.__kit.LA.playbackRate") == 1.0
+
+    # Persistence across reload via localStorage
+    page.click(".ftp [data-spd='inc']")
+    assert page.evaluate("window.__kit.S.speed") == 1.25
+    assert page.evaluate("localStorage.getItem('speed')") == "1.25"
+    page.reload()
+    page.wait_for_selector(".blk.on")
+    assert page.evaluate("window.__kit.S.speed") == 1.25
+    assert page.inner_text(".ftp .spdl").strip() == "۱٫۲۵×"
+    assert page.evaluate("window.__kit.audio.playbackRate") == 1.25
+
+    # Reset back to 1.0
+    page.click(".ftp .spdl")
+    assert page.evaluate("window.__kit.S.speed") == 1.0
 
 
 @test
@@ -2011,6 +2239,54 @@ def paper_dialogs_no_native_alerts_and_chips(proj, page):
     page.click("dialog.ask [data-ask=ok]")
     proj.wait_in("[IMG001]", "format-issue: " + chip_text)
     assert not page._dialogs, page._dialogs
+
+
+@test
+def scene_actions_on_no_picture_block(proj, page):
+    """The per-scene menu works on blocks with no picture: title/env edit, new picture at end, new scene, set aside."""
+    use_story(proj, page)
+    noimg = page.evaluate("document.querySelector('.blk.noimg').dataset.bid")
+    at(page, noimg)
+    assert page.locator(".blk.on.noimg").count() == 1
+    smore(page)
+    spop = ".blk.on .pghead .pop.menu"
+    assert page.locator(spop + " [data-sedit]").count() == 1
+    assert page.locator(spop + " [data-addimg]").count() == 1
+    assert page.locator(spop + " [data-addscene]").count() == 1
+    assert page.locator(spop + " [data-soff]").count() == 1
+    page.click(spop + " [data-addimg]")
+    page.wait_for_selector(".blk.on figure.shot")
+    assert not page.evaluate("document.querySelector('.blk.on').classList.contains('noimg')")
+
+
+@test
+def refs_mode_browser(proj, page):
+    """Toggle between story and refs mode via #bookPill; unplaced ref discovery; no-say footer; add/undo in refs."""
+    assert page.evaluate("window.__kit.S.book") == "story"
+    assert page.locator("#bookPill:not(.refs)").count() == 1
+    page.click("#bookPill")
+    page.wait_for_function("window.__kit.S.book === 'refs' && window.__kit.S.P && window.__kit.S.P.unplaced && window.__kit.S.P.unplaced.length > 0")
+    assert page.locator("#bookPill.refs").count() == 1
+    assert "refs" in page.evaluate("location.hash")
+    unplaced = page.evaluate("[...(window.__kit.S.P ? window.__kit.S.P.unplaced : [])].map(x => x.id)")
+    assert "CH_ALI" in unplaced
+    assert proj.api("/api/addscene", {"book": "refs", "title": "کاراکترها"})[0] == 200
+    assert proj.api("/api/addimage", {"book": "refs", "scene": "ref-01", "id": "CH_ALI"})[0] == 200
+    page.goto(page.url.split("#")[0] + "#refs/CH_ALI")
+    page.reload()
+    page.wait_for_selector(".blk.on")
+    assert page.locator("#foot.no-say").count() == 1
+    assert proj.api("/api/add", {"book": "refs", "image": "CH_ALI", "after": 0, "kind": "say", "speaker": "سارا", "text": "تست صدا"})[0] == 200
+    page.reload()
+    page.wait_for_selector(".blk.on")
+    assert page.locator("#foot:not(.no-say)").count() == 1
+    orig_story = proj.story()
+    page.click("#bUndo")
+    page.wait_for_timeout(300)
+    assert proj.story() == orig_story
+    page.click("#bookPill")
+    page.wait_for_function("window.__kit.S.book === 'story'")
+    assert page.locator("#bookPill:not(.refs)").count() == 1
 
 
 def main():
@@ -2052,7 +2328,7 @@ def main():
                     print("   dialogs shown by the page:", page._dialogs)
                 if errors:
                     print("   browser errors:", errors[:3])
-                print("FAIL %s\n%s" % (t.__name__, "".join(traceback.format_exc().splitlines(True)[-14:])))
+                print("FAIL %s\n%s" % (t.__name__, traceback.format_exc()))
             finally:
                 proj.close()
         browser.close()

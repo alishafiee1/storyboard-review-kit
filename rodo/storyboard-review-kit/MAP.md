@@ -9,9 +9,21 @@
 
 ## الان کجاییم
 
-نسخهٔ جاری کیت `2.7.0` است و بازطراحی صفحه و مرحله‌های بعدی تا این نسخه در مخزن آمده‌اند. اتوماسیون ساخت تصویر در Google Flow هنوز در خود کیت پیاده نشده؛ دو چرخهٔ زیر آن را مشخص می‌کنند. یک آزمایش دستی روی لپ‌تاپ علی (۲۷ نوامبر ۲۰۲۶) نشان داد ساخت `STYLE_ANCHOR` و بعد `CH_NIBBLES` با همان تصویر به‌عنوان مرجع موفق است، اما ذخیره از پیش‌نمایش WebP بود نه دانلود واقعی ۱K/۲K.
+نسخهٔ جاری کیت `2.7.0` است. بازطراحی صفحه، حالت مرجع‌ها (`refs`)، کنترل سرعت، نوار ابزار تصویر، جابه‌جایی خط، عملیات گروهی گالری و پذیرش rodo-spec به‌عنوان منبع حقیقت توسعه تا این نسخه آمده‌اند. اتوماسیون ساخت تصویر در Google Flow هنوز در خود کیت پیاده نشده؛ دو چرخهٔ زیر آن را مشخص می‌کنند. یک آزمایش دستی روی لپ‌تاپ علی (۲۷ نوامبر ۲۰۲۶) نشان داد ساخت `STYLE_ANCHOR` و بعد `CH_NIBBLES` با همان تصویر به‌عنوان مرجع موفق است، اما ذخیره از پیش‌نمایش WebP بود نه دانلود واقعی ۱K/۲K.
 
 ## انجام‌شده
+
+- [003-foundation-plain-text](cycles/003-foundation-plain-text/card.rodo.md) — پایهٔ کیت محلی بازبینی مبتنی بر متن ساده
+- [004-versions-voices-intake](cycles/004-versions-voices-intake/card.rodo.md) — نسخه‌ها، برداشت‌های صوتی و دریافت فایل‌های Flow
+- [005-sketchbook-redesign](cycles/005-sketchbook-redesign/card.rodo.md) — پوستهٔ دفتر نقاشی، گالری و بهبودهای موبایل تا نسخهٔ 2.7.0
+- [006-dead-code-cleanup](cycles/006-dead-code-cleanup/card.rodo.md) — مرحلهٔ ۱: پاکسازی کدهای مرده، رد افزودن به scene-00 و هماهنگی تست‌ها
+- [007-speed-control](cycles/007-speed-control/card.rodo.md) — مرحلهٔ ۲: کنترل سرعت یکپارچه کنار نوار پخش
+- [008-picture-toolbar-scene-menu](cycles/008-picture-toolbar-scene-menu/card.rodo.md) — مرحلهٔ ۳: نوار ابزار روی هر تصویر و منوی صحنه
+- [009-line-move-and-insert-bar](cycles/009-line-move-and-insert-bar/card.rodo.md) — مرحلهٔ ۴: جابه‌جایی خط با /api/moveline و نوار افزودن دیالوگ
+- [010-undo-consistency](cycles/010-undo-consistency/card.rodo.md) — مرحلهٔ ۵: برگشت‌پذیری کنار گذاشتن تصویر و عملیات گروهی گالری (/api/imagebulk)
+- [011-scene-grouped-gallery](cycles/011-scene-grouped-gallery/card.rodo.md) — مرحلهٔ ۶: گروه‌بندی گالری با هدر صحنه و انتخاب‌گر بندانگشتی
+- [012-references-mode](cycles/012-references-mode/card.rodo.md) — مرحلهٔ ۷: حالت مرجع‌ها (refs) با قوانین متمرکز، گوینده‌های مشترک و تاریخچهٔ جدا
+- [013-rodo-spec-migration](cycles/013-rodo-spec-migration/card.rodo.md) — مرحلهٔ ۸: پذیرش rodo-spec به‌عنوان تنها منبع حقیقت توسعه و حذف اسناد قدیمی
 
 ## لغوشده
 

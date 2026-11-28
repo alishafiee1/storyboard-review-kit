@@ -11,7 +11,8 @@ import {
   fa,
   fail,
   modelOpts,
-  pollJob
+  pollJob,
+  voiceUrl
 } from './core.js';
 /* Pop-up dialogs: the voice manager of one line (choose, listen, archive, make another), the reference attacher and the scene editor.
    Nothing is deleted: «archive» moves a file into an archive folder and «restore» moves it back. */
@@ -23,7 +24,6 @@ export const redrawDialog = () => {
 };
 const findItem = id => S.BL.flatMap(b => b.items).find(x => x.id === id);
 const findImage = id => S.BL.flatMap(b => b.images).find(x => x.id === id);
-const voiceUrl = (v, lg, id, name) => (v && v.srcs && v.srcs[name]) || (name === 'default' ? `audio/${ lg }/${ id }.mp3` : /^[0-9a-f]{8}$/.test(name) ? `audio/${ lg }/${ id }_${ name }.mp3` : `audio/${ lg }/${ id }.${ name }.mp3`);
 const dlgAudio = new Audio();
 /* closing asks the dialog first (a «cancel» it may refuse, like Esc does), so unsaved edits are not lost by a click outside or on «close» */
 const tryClose = el => {

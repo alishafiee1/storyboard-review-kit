@@ -4,11 +4,11 @@ import {
   $$,
   api,
   askConfirm,
-  audio,
   copyText,
   esc,
   fa,
   fail,
+  matchFilter,
   toast
 } from './core.js';
 import { ic } from './icons.js';
@@ -31,8 +31,6 @@ import { sceneNo } from './render.js';
 const PANELS = {
   scenes: '#pScenes',
   filter: '#pFilter',
-  speed: '#pSpeed',
-  subs: '#pSubs',
   spk: '#spk',
   refs: '#refs',
   vers: '#pVers',
@@ -53,16 +51,6 @@ const ROWS = [
     'filter',
     'sliders',
     'فیلتر و جست‌وجو'
-  ],
-  [
-    'speed',
-    'speed',
-    'سرعت پخش'
-  ],
-  [
-    'subs',
-    'subs',
-    'زیرنویس'
   ],
   [
     'spk',
@@ -113,7 +101,7 @@ const ROWS = [
 const GROUPS = [
   ['ناوبری و مرور', ['scenes', 'filter', 'vers']],
   ['تولید و رسانه', ['spk', 'refs', 'batch', 'inbox']],
-  ['خروجی و تحویل', ['export', 'subs', 'speed']],
+  ['خروجی و تحویل', ['export']],
   ['سیستم و راهنما', ['undo', 'settings', 'help']]
 ];
 const FILTERS = [
@@ -147,12 +135,6 @@ const FILTERS = [
   ]
 ];
 export const filterLabel = k => (FILTERS.find(([x]) => x === k) || ['', ''])[1];
-const SPEEDS = [
-  0.9,
-  1,
-  1.15,
-  1.3
-];
 const HLABEL = {
   addimage: 'افزودن تصویر',
   addscene: 'افزودن صحنه',
@@ -161,9 +143,11 @@ const HLABEL = {
   scenemark: 'ویرایش نشانهٔ صحنه',
   move: 'جابه‌جایی تصویر',
   add: 'افزودن خط',
-  delete: 'حذف خط'
+  delete: 'حذف خط',
+  moveline: 'جابه‌جایی خط',
+  image: 'کنار گذاشتن یا برگرداندن تصویر',
+  imagebulk: 'تغییر گروهی تصویرها'
 };
-const speedText = v => fa(String(v).replace('.', '٫')) + '×';
 let PANEL = null;
 export const drawerOpen = () => document.body.classList.contains('dopen');
 export function openDrawer(panel) {
@@ -213,12 +197,8 @@ function buildScenes() {
 function paintFilter() {
   if ($('#q') && $('#q').value !== S.q)
     $('#q').value = S.q;
-  const all = imgs(), count = k => k === 'all' ? all.length : all.filter(m => k === 'missing' ? !m.src : k === 'none' ? !m.status : k === 'note' ? !!m.note : k === 'stale' ? m.stale : m.status === k).length;
+  const all = imgs(), count = k => k === 'all' ? all.length : all.filter(m => matchFilter(m, k)).length;
   $('#fopts').innerHTML = FILTERS.map(([k, t]) => `<button type="button" class="opt${ S.filter === k ? ' sel' : '' }" data-filter="${ k }" aria-pressed="${ S.filter === k }"><span>${ t }</span><span class="c">${ fa(count(k)) }</span></button>`).join('');
-}
-/* ---- speed */
-function paintSpeed() {
-  $('#pSpeed').innerHTML = SPEEDS.map(v => `<button type="button" class="opt${ S.speed === v ? ' sel' : '' }" data-speed="${ v }" aria-pressed="${ S.speed === v }"><span>${ speedText(v) }</span></button>`).join('');
 }
 /* ---- versions and archive of the picture on show */
 function buildVers() {
@@ -258,12 +238,14 @@ export async function undo(force) {
 }
 /* ---- batch prompts */
 function buildBatch() {
+  const isRefs = S.book === 'refs';
+  const notice = isRefs ? `<p class="muted" style="color:var(--accent,#b55a42);margin-bottom:8px">توجه: دسته‌ها مربوط به تصویرهای داستان (story.txt) هستند.</p>` : '';
   const by = new Map();
   imgs().forEach(m => {
     if (m.batch)
       by.set(m.batch, (by.get(m.batch) || 0) + 1);
   });
-  $('#pBatch').innerHTML = by.size ? `<p class="muted">پرامپت‌های یک دسته (۱۰ تصویر) با خط رفرنس و اسم خروجی، یک‌جا کپی می‌شن.</p>` + [...by].sort().map(([b, n]) => `<button type="button" class="opt" data-batch="${ b }"><span>دستهٔ <bdi dir="ltr">${ b }</bdi></span><span class="c">${ fa(n) } تصویر</span></button>`).join('') + '<div id="bmsg" class="muted" role="status"></div>' : '<p class="muted">تصویری توی پروژه نیست.</p>';
+  $('#pBatch').innerHTML = notice + (by.size ? `<p class="muted">پرامپت‌های یک دسته (۱۰ تصویر) با خط رفرنس و اسم خروجی، یک‌جا کپی می‌شن.</p>` + [...by].sort().map(([b, n]) => `<button type="button" class="opt" data-batch="${ b }"><span>دستهٔ <bdi dir="ltr">${ b }</bdi></span><span class="c">${ fa(n) } تصویر</span></button>`).join('') + '<div id="bmsg" class="muted" role="status"></div>' : '<p class="muted">تصویری توی پروژه نیست.</p>');
 }
 export async function copyBatch(b) {
   try {
@@ -362,7 +344,9 @@ function buildExport() {
   const P = $('#pExport');
   if (P.querySelector('#exres') && P.querySelector('#exres').dataset.busy === '1')
     return;
-  P.innerHTML = `<h4>تایم‌لاین پریمیر (XML)</h4>
+  const isRefs = S.book === 'refs';
+  const notice = isRefs ? `<p class="muted" style="color:var(--accent,#b55a42);margin-bottom:12px">توجه: ابزارهای خروجی فقط از روی داستان اصلی (story.txt) ساخته می‌شوند.</p>` : '';
+  P.innerHTML = notice + `<h4>تایم‌لاین پریمیر (XML)</h4>
     <p class="muted">خروجی ساده با مسیر نسبی در پوشهٔ <bdi dir="ltr">premiere/</bdi> از روی ترتیب داستان و نسخه‌های تأییدشده.</p>
     <div class="srow act"><button type="button" class="outline" data-ex="px-fa">ساخت XML فارسی</button><button type="button" class="outline" data-ex="px-en">ساخت XML انگلیسی</button><button type="button" class="quiet" data-ex="pchk">بررسی فایل‌های XML</button></div>
     <p id="pxres" class="muted" role="status"></p>
@@ -473,7 +457,6 @@ function build(name) {
   ({
     scenes: buildScenes,
     filter: paintFilter,
-    speed: paintSpeed,
     vers: buildVers,
     undo: buildUndo,
     batch: buildBatch,
@@ -487,7 +470,6 @@ function build(name) {
 export function drawerRefresh() {
   const P = S.P, trail = {
       filter: S.filter !== 'all' || S.q ? 'فعال' : '',
-      speed: `<bdi dir="ltr">${ speedText(S.speed) }</bdi>`,
       refs: P.refs.length ? fa(P.refs.length) : '',
       undo: (P.history || []).length ? fa(P.history.length) : '',
       inbox: ((P.inbox || []).length + (P.triage || []).length) ? fa((P.inbox || []).length + (P.triage || []).length) : ''
@@ -532,13 +514,6 @@ export function boot_drawer() {
       S.filter = d.filter;
       filt(true);
       paintFilter();
-      drawerRefresh();
-    } else if (d.speed) {
-      S.speed = +d.speed;
-      audio.playbackRate = S.speed;
-      if ($('#spdBtn'))
-        $('#spdBtn').textContent = speedText(S.speed);
-      paintSpeed();
       drawerRefresh();
     } else if (d.vpick !== undefined) {
       const c = curImg();

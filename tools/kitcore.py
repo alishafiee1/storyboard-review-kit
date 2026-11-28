@@ -7,6 +7,35 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 STORY = os.path.join(ROOT, "scenario", "story.txt")
+REFS_FILE = os.path.join(ROOT, "scenario", "reference.txt")
+
+
+def book_path(book="story"):
+    return REFS_FILE if book == "refs" else STORY
+
+
+BOOK_RULES = {
+    "story": {
+        "section_re": re.compile(r"^scene-\d{2,3}$"),
+        "section_prefix": "scene",
+        "header_re": re.compile(r"^=== (scene-\d{2,3}) \| (.*?) \| (.*?) ===$"),
+        "item_re": re.compile(r"^IMG\d{3,4}$"),
+        "marker_re": re.compile(r"^\[(IMG\d{3,4})\]$"),
+        "images_rel": "images/scenes",
+        "images_dir": os.path.join(ROOT, "images", "scenes"),
+        "history_dir": os.path.join(ROOT, ".kit", "history"),
+    },
+    "refs": {
+        "section_re": re.compile(r"^ref-\d{2,3}$"),
+        "section_prefix": "ref",
+        "header_re": re.compile(r"^=== (ref-\d{2,3}) \| (.*?) \| (.*?) ===$"),
+        "item_re": re.compile(r"^(?!IMG\d{3,4}$)[A-Z][A-Z0-9_]{1,40}$"),
+        "marker_re": re.compile(r"^\[((?!IMG\d{3,4}\b)[A-Z][A-Z0-9_]{1,40})\]$"),
+        "images_rel": "images/refs",
+        "images_dir": os.path.join(ROOT, "images", "refs"),
+        "history_dir": os.path.join(ROOT, ".kit", "history-refs"),
+    },
+}
 
 
 PROMPTS = os.path.join(ROOT, "prompts", "prompts.txt")
@@ -36,10 +65,10 @@ VID_EXT = (".mp4", ".webm", ".mov", ".m4v")
 LOCK = threading.Lock()
 
 
-HEADER = re.compile(r"^=== (scene-\d{2,3}) \| (.*?) \| (.*?) ===$")
+HEADER = BOOK_RULES["story"]["header_re"]
 
 
-MARKER = re.compile(r"^\[(IMG\d{3,4})\]$")  # three or four digits: IMG045, IMG1000 (IMG0451 is another picture than IMG045)
+MARKER = BOOK_RULES["story"]["marker_re"]  # three or four digits: IMG045, IMG1000 (IMG0451 is another picture than IMG045)
 
 
 KEYLINE = re.compile(r"^([a-z][a-z-]*):\s?(.*)$")

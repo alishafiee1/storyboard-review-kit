@@ -2,7 +2,7 @@
 
 **A free, single-page storyboard and review tool for AI-made videos and animations.** Keep your scenario, picture prompts, generated images and narration in plain text files, review everything on one page, edit it in the browser, and generate voice-over per speaker. No database, no build step, no account: just Python and a browser.
 
-[فارسی](README.fa.md) · [Website](https://alishafiee1.github.io/storyboard-review-kit/) · [Workflow](WORKFLOW.md) · [Changelog](CHANGELOG.md) · License: MIT
+[فارسی](README.fa.md) · [Website](https://alishafiee1.github.io/storyboard-review-kit/) · [Workflow](WORKFLOW.md) · [Changelog](rodo/storyboard-review-kit/CHANGELOG.md) · License: MIT
 
 ## The workflow in one look
 The kit tidies the whole path of an AI video, and your AI coding assistant (such as Claude Code) learns from the guide inside the project how to work with it:
@@ -72,7 +72,7 @@ Open the menu (top right) → **Settings** and paste your OpenRouter key (it is 
 | `.kit/` | undo history and import logs (do not edit) |
 
 ## Development
-The code map, the file format, the API and a checklist for new features are in [ARCHITECTURE.md](ARCHITECTURE.md). The page is `review.html` (shell) + `tools/ui/` (style and scripts) + `tools/*.py` (server, voices, subtitles). Unit tests: `python -m unittest discover -s tools/tests -p "test_*.py"`. Browser tests: `pip install playwright`, then `python tools/tests/run.py` (they run on a temporary copy of a small project; nothing is generated or charged). After changing the page on purpose, refresh the recorded page with `python tools/tests/run.py --update-baseline` and read the diff in `tools/tests/baseline/`.
+The code map, the file format, the API and a checklist for new features are in [rodo/storyboard-review-kit/project/architecture.md](rodo/storyboard-review-kit/project/architecture.md). The page is `review.html` (shell) + `tools/ui/` (style and scripts) + `tools/*.py` (server, voices, subtitles). Unit tests: `python -m unittest discover -s tools/tests -p "test_*.py"`. Browser tests: `pip install playwright`, then `python tools/tests/run.py` (they run on a temporary copy of a small project; nothing is generated or charged). After changing the page on purpose, refresh the recorded page with `python tools/tests/run.py --update-baseline` and read the diff in `tools/tests/baseline/`.
 
 ## Keywords
 storyboard tool, AI video production, text-to-speech voice-over, scenario editor, image prompt manager, animation pipeline, Persian / Farsi RTL, OpenRouter, ElevenLabs, Google Flow, review page, YouTube video planning.
