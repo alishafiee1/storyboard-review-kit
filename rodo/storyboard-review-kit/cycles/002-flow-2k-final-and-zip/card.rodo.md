@@ -1,4 +1,3 @@
-<!-- RODO_ERROR: REF_LINE_INVALID: line 40: write - [title](/path) -->
 ---
 schemaVersion: 2
 title: "ارتقا و جایگزینی کیفیت ۲K تصاویر تاییدشده و مدیریت خودکار زیپ در Flow"
@@ -37,7 +36,7 @@ scope:
 - [طرح معماری](/rodo/storyboard-review-kit/cycles/002-flow-2k-final-and-zip/design.md)
 - [سناریوهای پذیرش](/rodo/storyboard-review-kit/cycles/002-flow-2k-final-and-zip/acceptance.feature)
 - [چرخهٔ فاز A](/rodo/storyboard-review-kit/cycles/001-flow-sync-skeleton-dryrun/simple.md)
-- وابستگی: وابسته به چرخهٔ 016 (depends on cycle 016)
+- [وابسته به چرخهٔ 016](/rodo/storyboard-review-kit/cycles/016-flow-ui-panel-selfheal/simple.md)
 
 ## Checklist: قدم‌ها
 
