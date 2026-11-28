@@ -26,6 +26,7 @@ import {
   showRestored
 } from './versions.js';
 import { sceneNo } from './render.js';
+import { openFlowPanel } from './flow_panel.js';
 /* The paper drawer (menu): scene list, filter and search, speed, subtitles, voices, references, versions and archive, undo, batch prompts, inbox.
    Each row of the menu opens a panel inside the drawer; ‹ goes back. */
 const PANELS = {
@@ -83,6 +84,11 @@ const ROWS = [
     'ورودی‌ها و inbox'
   ],
   [
+    'flow',
+    'image',
+    'ساخت با Flow'
+  ],
+  [
     'export',
     'batch',
     'خروجی برای ادیتور'
@@ -100,7 +106,7 @@ const ROWS = [
 ];
 const GROUPS = [
   ['ناوبری و مرور', ['scenes', 'filter', 'vers']],
-  ['تولید و رسانه', ['spk', 'refs', 'batch', 'inbox']],
+  ['تولید و رسانه', ['spk', 'refs', 'batch', 'inbox', 'flow']],
   ['خروجی و تحویل', ['export']],
   ['سیستم و راهنما', ['undo', 'settings', 'help']]
 ];
@@ -503,6 +509,11 @@ export function boot_drawer() {
       return;
     const d = t.dataset;
     if (d.panel) {
+      if (d.panel === 'flow') {
+        closeDrawer();
+        openFlowPanel();
+        return;
+      }
       showPanel(d.panel);
       drawerRefresh();
     } else if (d.go !== undefined) {

@@ -317,3 +317,94 @@ dialog.ask input[type=number] {
   grid-template-columns:1fr 110px;
   gap:10px;
 }
+
+/* Flow Automation Dashboard Modal */
+dialog.flow-panel {
+  width: min(640px, 92vw);
+  max-height: 88vh;
+}
+
+.flow-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--line-soft);
+  padding-bottom: 8px;
+}
+
+.flow-header h3 {
+  margin: 0;
+}
+
+.flow-sec {
+  margin: 14px 0;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.flow-sec:last-child {
+  border-bottom: none;
+}
+
+.flow-sec-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.flow-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.flow-prog-bar {
+  height: 8px;
+  background: var(--line-soft);
+  border-radius: 4px;
+  overflow: hidden;
+  margin: 8px 0;
+}
+
+.flow-prog-fill {
+  height: 100%;
+  background: var(--accent, #b55a42);
+  transition: width 0.3s ease;
+}
+
+.flow-prog-text {
+  font-weight: 500;
+  font-size: 14px;
+  margin: 4px 0;
+}
+
+.flow-heal-badge {
+  background: var(--paper-shade);
+  border-right: 4px solid #d97706;
+  padding: 8px 12px;
+  margin: 10px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.flow-failed-list {
+  max-height: 200px;
+  overflow-y: auto;
+  margin-top: 8px;
+}
+
+.failed-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+

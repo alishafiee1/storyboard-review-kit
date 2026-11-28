@@ -47,6 +47,10 @@ def process_resubmit_queue(page, resubmit_queue: ResubmitQueue, selectors: dict,
     processed = []
 
     while not resubmit_queue.is_empty():
+        import flow_heal
+        if flow_heal.is_pause_requested():
+            flow_heal.wait_if_paused()
+            selectors = flow_heal.reload_selectors(project_dir=project_dir)
         retry_item = resubmit_queue.queue.pop(0)
         rname = retry_item["output_name"]
 
@@ -210,6 +214,11 @@ def run_download_phase(page, queue: list, selectors: dict, project_dir: str,
         suspicious_in_batch = []
 
         for item_idx, item in enumerate(batch, start=1):
+            import flow_heal
+            if flow_heal.is_pause_requested():
+                flow_heal.wait_if_paused()
+                selectors = flow_heal.reload_selectors(project_dir=project_dir)
+
             name = item["output_name"]
             att_id = item.get("attempt_id") or flow_state.generate_attempt_id()
             item["attempt_id"] = att_id
@@ -224,6 +233,20 @@ def run_download_phase(page, queue: list, selectors: dict, project_dir: str,
 
             outcome = flow_submit.submit_single_prompt(page, item, selectors, sleeper=sleep_fn)
             has_error = is_error_banner_present(page, selectors)
+
+            if outcome == "error":
+                diag_dir, _ = flow_heal.dump_diagnostic_bundle(
+                    page=page,
+                    step_name="submit_single_prompt",
+                    selector_key="prompt_box",
+                    attempted_selector=selectors.get("prompt_box", ""),
+                    output_name=name,
+                    attempt_id=att_id,
+                    project_dir=project_dir,
+                )
+                flow_heal.request_pause()
+                flow_heal.wait_if_paused()
+                selectors = flow_heal.reload_selectors(project_dir=project_dir)
 
             if outcome == "submitted" and not has_error:
                 # Tile completed without error banner -> intercept download

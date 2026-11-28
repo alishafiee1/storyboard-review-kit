@@ -328,6 +328,31 @@ def verify_selectors(page, selectors: dict) -> tuple:
     return all_ok, results
 
 
+def _cleanup_browser(pw, browser):
+    if browser:
+        try:
+            browser.close()
+        except Exception:
+            pass
+    if pw:
+        try:
+            pw.stop()
+        except Exception:
+            pass
+
+
+def _dump_failure_diagnostic(page, sel_results, selectors, queue, project_dir):
+    try:
+        import flow_heal
+        first_missing = next((k for k, v in sel_results.items() if not v.get("found")), "")
+        first_sel = selectors.get(first_missing, "")
+        item_name = queue[0]["output_name"] if queue else ""
+        att_id = queue[0].get("attempt_id", "") if queue else ""
+        flow_heal.dump_diagnostic_bundle(page, "verify_selectors", first_missing, first_sel, item_name, att_id, project_dir)
+    except Exception:
+        pass
+
+
 def run_dry_run(args, project_dir: str) -> int:
     """Execute complete dry-run sequence and report results."""
     timings = []
@@ -372,6 +397,7 @@ def run_dry_run(args, project_dir: str) -> int:
         # 5. Verify selectors (never clicks submit button!)
         all_ok, sel_results = timed_action("verify_selectors", verify_selectors, page, selectors)
         if not all_ok:
+            _dump_failure_diagnostic(page, sel_results, selectors, queue, project_dir)
             sys.stderr.write("Error: One or more required Flow selectors were not found on the page.\n")
             for k, info in sel_results.items():
                 if not info.get("unverified"):
@@ -394,15 +420,7 @@ def run_dry_run(args, project_dir: str) -> int:
         timed_action("save_state", save_state, state, project_dir=project_dir)
 
     finally:
-        try:
-            browser.close()
-        except Exception:
-            pass
-        if pw:
-            try:
-                pw.stop()
-            except Exception:
-                pass
+        _cleanup_browser(pw, browser)
 
     # 7. Print Console Report
     sys.stdout.write("============================================================\n")
@@ -441,19 +459,6 @@ def run_dry_run(args, project_dir: str) -> int:
     return 0
 
 
-def _cleanup_browser(pw, browser):
-    if browser:
-        try:
-            browser.close()
-        except Exception:
-            pass
-    if pw:
-        try:
-            pw.stop()
-        except Exception:
-            pass
-
-
 def _prepare_runner(args, project_dir: str):
     selectors = load_selectors(args.selectors, project_dir)
     try:
@@ -474,6 +479,7 @@ def _prepare_runner(args, project_dir: str):
 
         all_ok, sel_results = verify_selectors(page, selectors)
         if not all_ok:
+            _dump_failure_diagnostic(page, sel_results, selectors, queue, project_dir)
             sys.stderr.write("Error: Required selectors missing on page:\n")
             for k, info in sel_results.items():
                 if not info.get("unverified") and not info["found"]:

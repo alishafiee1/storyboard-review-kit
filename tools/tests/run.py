@@ -531,7 +531,7 @@ def format_issue_flag(proj, page):
 def drawer_panels_filter_search_jump(proj, page):
     """The drawer replaces the old tabs: references, scene list (jump), filter, search, speed, voices; ‹ goes back, Esc and the dimmed page close it."""
     drawer(page)
-    assert page.locator("#dmenu .drow").count() == 11 and page.is_hidden("#dback")
+    assert page.locator("#dmenu .drow").count() == 12 and page.is_hidden("#dback")
     labels = page.locator("#dmenu .rt").all_inner_texts()
     assert labels[:3] == ["فهرست صحنه‌ها", "فیلتر و جست‌وجو", "نسخه‌ها و آرشیو"] and "کپی پرامپت‌های دسته" in labels
     drawer(page, "refs")
@@ -2287,6 +2287,123 @@ def refs_mode_browser(proj, page):
     page.click("#bookPill")
     page.wait_for_function("window.__kit.S.book === 'story'")
     assert page.locator("#bookPill:not(.refs)").count() == 1
+
+
+@test
+def flow_panel_menu_and_controls(proj, page):
+    """Drawer exposes 'ساخت با Flow' under 'تولید و رسانه', opening dedicated modal with Chrome and Flow controls."""
+    flow_calls = {
+        "launch": 0,
+        "start": 0,
+        "pause": 0,
+        "resume": 0,
+        "resend": 0,
+    }
+
+    mock_job = {
+        "state": "idle",
+        "chrome_connected": True,
+        "active_batch": 2,
+        "total_batches": 4,
+        "done": 14,
+        "total": 36,
+        "percent": 38,
+        "progress_text": "Batch 2/4 | 14/36 images generated (38%)",
+        "step_elapsed": 5.2,
+        "current_step": "batch_2",
+        "current_item": "IMG014",
+        "failed_items": [
+            {"output_name": "IMG005", "error": "timed_out", "reason": "خطا در تولید"}
+        ],
+        "self_heal": {
+            "paused": True,
+            "timestamp": "20261128T102500",
+            "diagnostic_dir": ".kit/flow-errors/20261128T102500",
+        },
+    }
+
+    def handle_flow_route(route):
+        url = route.request.url
+        if "/api/flow/status" in url or "/api/flow/job" in url:
+            route.fulfill(
+                status=200,
+                content_type="application/json",
+                body=json.dumps(mock_job),
+            )
+        elif "/api/flow/launch-chrome" in url:
+            flow_calls["launch"] += 1
+            route.fulfill(status=200, content_type="application/json", body=json.dumps({"ok": True, "already_connected": True}))
+        elif "/api/flow/start" in url:
+            flow_calls["start"] += 1
+            mock_job["state"] = "running"
+            route.fulfill(status=200, content_type="application/json", body=json.dumps({"ok": True, "state": "running"}))
+        elif "/api/flow/pause" in url:
+            flow_calls["pause"] += 1
+            mock_job["state"] = "paused"
+            route.fulfill(status=200, content_type="application/json", body=json.dumps({"ok": True, "state": "paused"}))
+        elif "/api/flow/resume" in url:
+            flow_calls["resume"] += 1
+            mock_job["state"] = "running"
+            route.fulfill(status=200, content_type="application/json", body=json.dumps({"ok": True, "state": "running"}))
+        elif "/api/flow/resend" in url:
+            flow_calls["resend"] += 1
+            mock_job["failed_items"] = []
+            route.fulfill(status=200, content_type="application/json", body=json.dumps({"ok": True, "output_name": "IMG005", "status": "queued"}))
+        else:
+            route.continue_()
+
+    page.route("**/api/flow/*", handle_flow_route)
+
+    # 1. Open drawer via top menu button
+    drawer(page)
+    page.wait_for_selector("#dmenu [data-panel=flow]")
+
+    # 2. Click «ساخت با Flow»
+    page.click("#dmenu [data-panel=flow]")
+    page.wait_for_selector("#flowModal[open]")
+
+    # 3. Assert Chrome controls & click Launch Chrome
+    assert page.locator("#flowLaunchChrome").count() == 1
+    assert page.locator("#flowChromeBadge").count() == 1
+    page.click("#flowLaunchChrome")
+    page.wait_for_function("document.querySelector('#flowChromeBadge').textContent.includes('متصل')")
+    assert flow_calls["launch"] >= 1
+
+    # 4. Click Start
+    page.wait_for_selector("#flowStart:not([disabled])")
+    page.click("#flowStart")
+    page.wait_for_function("document.querySelector('#flowJobState').textContent.includes('در حال اجرا')")
+    assert flow_calls["start"] >= 1
+
+    # 5. Click Pause
+    page.wait_for_selector("#flowPause:not([disabled])")
+    page.click("#flowPause")
+    page.wait_for_function("document.querySelector('#flowJobState').textContent.includes('متوقف')")
+    assert flow_calls["pause"] >= 1
+
+    # 6. Click Resume
+    page.wait_for_selector("#flowResume:not([disabled])")
+    page.click("#flowResume")
+    page.wait_for_function("document.querySelector('#flowJobState').textContent.includes('در حال اجرا')")
+    assert flow_calls["resume"] >= 1
+
+    # 7. Assert Progress text & bar
+    page.wait_for_function("document.querySelector('#flowProgText').textContent.includes('Batch 2/4')")
+    assert page.locator("#flowProgFill").count() == 1
+
+    # 8. Assert Failed list and click Resend button
+    page.wait_for_selector("#flowFailedList [data-resend='IMG005']")
+    page.click("#flowFailedList [data-resend='IMG005']")
+    page.wait_for_function("() => true")
+    assert flow_calls["resend"] >= 1
+
+    # 9. Assert Self-heal pause badge
+    page.wait_for_selector("#flowSelfHealBox:not([hidden])")
+    assert "20261128T102500" in page.locator("#flowHealTimestamp").text_content()
+
+    # 10. Close panel
+    page.click("#flowClose")
+    page.wait_for_function("!document.querySelector('#flowModal')?.open")
 
 
 def main():

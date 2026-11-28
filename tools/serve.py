@@ -13,6 +13,7 @@ from project import project
 import batch, watch
 import settings as kitsettings  # (the star imports below bring in another name «settings»)
 from flowname import config
+import flow_api
 
 # Older project scripts do «from serve import ROOT, spoken_lines, ...» (serve.py used to hold everything). Keep those names importable from here.
 from kitcore import *  # noqa: F401,F403,E402
@@ -64,6 +65,11 @@ class H(http.server.SimpleHTTPRequestHandler):
             return self._json(200, dict(kitsettings.get(), watching=WATCHING[0]))
         if p == "/api/job":
             return self._json(200, JOB)
+        if p.startswith("/api/flow/"):
+            res = flow_api.handle_get(p)
+            if res is None or (isinstance(res, dict) and res.get("error") == "not found"):
+                return self._json(404, {"error": "not found"})
+            return self._json(200, res)
         if p == "/api/ping":
             last_ping[0], seen_ping[0] = time.time(), True
             return self._json(200, {"ok": True})
@@ -85,6 +91,8 @@ class H(http.server.SimpleHTTPRequestHandler):
             return self._json(400, {"error": "bad size"})
         try:
             d = json.loads(self.rfile.read(n).decode("utf-8"))
+            if self.path.startswith("/api/flow/"):
+                return self._json(200, flow_api.handle_post(self.path, d))
             if self.path in SLOW:
                 return self._json(200, SLOW[self.path](d))
             with LOCK:

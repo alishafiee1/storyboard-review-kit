@@ -11,6 +11,7 @@ import { boot_prompts } from './prompts.js';
 import { boot_panels } from './panels.js';
 import { boot_player } from './player.js';
 import { boot_gallery } from './gallery.js';
+import { boot_flow_panel } from './flow_panel.js';
 boot_core();
 boot_drawer();
 boot_render();
@@ -20,6 +21,7 @@ boot_prompts();
 boot_panels();
 boot_player();
 boot_gallery();
+boot_flow_panel();
 /* a read-only handle for the browser tests (they wait for the page to finish a reload) */
 window.__kit = {
   S,
