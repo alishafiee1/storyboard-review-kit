@@ -1,7 +1,7 @@
 ---
 schemaVersion: 2
 title: "Phase C: Intercepted downloads, output naming, and resilient retries"
-status: todo
+status: done
 priority: medium
 workflow: standard
 members: []
@@ -27,8 +27,9 @@ scope:
 ## Progress notes
 
 - Updated: 2026-11-28
-- Done: هنوز شروع نشده
-- Remaining: همهٔ قدم‌ها
+- Done: رفع تمام بازخوردهای بازبینی فاز C شامل ذخیره‌سازی اتمیک با O_CREAT|O_EXCL در flow_download بدون رونویسی، پاکسازی ایمپورت‌های بلااستفاده، اعمال سقف قطعی ۲ بازآزمایی بر پایهٔ retries_count در وضعیت، بررسی و طبقه‌بندی مجزای تایل هر آیتم با ثبت وضعیت uncertain برای تایل‌های نامشخص، مستندسازی نام مستعار --download در مشخصات، محدودسازی خطاهای صید شده در _prepare_runner، و افزودن تست‌های واحد اختصاصی.
+- Remaining: ندارد (تکمیل شد)
+- Verified: unit tests (287 tests, only known starter audio/fa failure), browser tests (71 passed, 0 failed), atomic non-overwriting save, retries_count capping, per-item tile recheck.
 
 ## Refs
 
@@ -38,11 +39,11 @@ scope:
 
 ## Checklist: قدم‌ها
 
-- [ ] رهگیری رویداد دانلود مرورگر و ذخیرهٔ مستقیم به مسیر `[OUTPUT NAME]` با قوانین `flowname.py`
-- [ ] جداسازی خروجی‌های نامشخص و ذخیره در `images/_unmatched/` همراه با `manifest.json`
-- [ ] رسیدگی به خطاهای مشکوک با رفرش در پایان هر بسته و اعتبارسنجی مجدد
-- [ ] پیاده‌سازی صف بازآزمایی در پایان اجرا (تایپ مجدد پرامپت و مرجع‌ها، حداکثر ۲ بار)
-- [ ] ذخیرهٔ تصاویر دیررس یا تکراری با پسوند `_alt` بدون حذف هیچ فایلی
-- [ ] اعمال استراحت طولانی (cooldown) پس از ۳ خطای پشت‌سرهم (احتمال rate limit)
-- [ ] تمیزکاری انجام شد؛ تست و رسیدگی به خطا حفظ شد (clean.md)
-- [ ] تست پذیرش پاس شد
+- [x] رهگیری رویداد دانلود مرورگر و ذخیرهٔ مستقیم به مسیر `[OUTPUT NAME]` با قوانین `flowname.py`
+- [x] جداسازی خروجی‌های نامشخص و ذخیره در `images/_unmatched/` همراه با `manifest.json`
+- [x] رسیدگی به خطاهای مشکوک با رفرش در پایان هر بسته و اعتبارسنجی مجدد
+- [x] پیاده‌سازی صف بازآزمایی در پایان اجرا (تایپ مجدد پرامپت و مرجع‌ها، حداکثر ۲ بار)
+- [x] ذخیرهٔ تصاویر دیررس یا تکراری با پسوند `_alt` بدون حذف هیچ فایلی
+- [x] اعمال استراحت طولانی (cooldown) پس از ۳ خطای پشت‌سرهم (احتمال rate limit)
+- [x] تمیزکاری انجام شد؛ تست و رسیدگی به خطا حفظ شد (clean.md)
+- [x] تست پذیرش پاس شد

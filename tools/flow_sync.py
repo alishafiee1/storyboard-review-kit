@@ -15,14 +15,8 @@ import time
 import flowname
 import kitcore
 import story
-from flow_state import (
-    compute_prompt_hash,
-    generate_attempt_id,
-    load_state,
-    record_item_state,
-    save_state,
-    time_step,
-)
+from flow_state import (compute_prompt_hash, generate_attempt_id, load_state,
+                        record_item_state, save_state, time_step)
 
 DEFAULT_CDP_URL = "http://127.0.0.1:9222"
 DEFAULT_SELECTORS_REL = os.path.join("tools", "flow_selectors.json")
@@ -36,11 +30,9 @@ BUILTIN_SELECTORS = {
     "ingredient_search_input": "input[placeholder*=\"Search\"], input[aria-label*=\"Search\"]",
     "ingredient_result_item": "div[role=\"option\"], div[role=\"listbox\"] div[role=\"button\"]",
     "result_tile": "div[data-testid=\"generation-tile\"], div[role=\"img\"][aria-label*=\"Generated\"], div.generation-tile",
-    "_unverified": [
-        "ingredient_search_input",
-        "ingredient_result_item",
-        "result_tile",
-    ],
+    "download_button": "button[aria-label*=\"Download\"], button[data-testid*=\"download\"], div.generation-tile button[aria-label*=\"Download\"]",
+    "failure_banner": "div[role=\"alert\"], div[data-testid*=\"error\"], div.error-banner, div[class*=\"error-message\"]",
+    "_unverified": ["ingredient_search_input", "ingredient_result_item", "result_tile", "download_button", "failure_banner"],
 }
 
 
@@ -317,6 +309,8 @@ def verify_selectors(page, selectors: dict) -> tuple:
         ("ingredient_search_input", selectors.get("ingredient_search_input")),
         ("ingredient_result_item", selectors.get("ingredient_result_item")),
         ("result_tile", selectors.get("result_tile")),
+        ("download_button", selectors.get("download_button")),
+        ("failure_banner", selectors.get("failure_banner")),
     ]
     for key, sel in check_keys:
         if not sel:
@@ -447,6 +441,52 @@ def run_dry_run(args, project_dir: str) -> int:
     return 0
 
 
+def _cleanup_browser(pw, browser):
+    if browser:
+        try:
+            browser.close()
+        except Exception:
+            pass
+    if pw:
+        try:
+            pw.stop()
+        except Exception:
+            pass
+
+
+def _prepare_runner(args, project_dir: str):
+    selectors = load_selectors(args.selectors, project_dir)
+    try:
+        queue, _ = compute_queue(project_dir, args.only)
+    except (FileNotFoundError, ValueError, KeyError) as e:
+        sys.stderr.write(f"Error: {e}\n")
+        return None, None, None, None, None
+
+    pw, browser = connect_cdp(args.cdp_url)
+    if not browser:
+        return None, None, None, None, None
+
+    try:
+        page = find_flow_tab(browser, selectors)
+        if not page:
+            _cleanup_browser(pw, browser)
+            return None, None, None, None, None
+
+        all_ok, sel_results = verify_selectors(page, selectors)
+        if not all_ok:
+            sys.stderr.write("Error: Required selectors missing on page:\n")
+            for k, info in sel_results.items():
+                if not info.get("unverified") and not info["found"]:
+                    sys.stderr.write(f"  [MISSING] {k}: {info['selector']}\n")
+            _cleanup_browser(pw, browser)
+            return None, None, None, None, None
+
+        return page, queue, selectors, pw, browser
+    except Exception:
+        _cleanup_browser(pw, browser)
+        raise
+
+
 def run_submit(args, project_dir: str) -> int:
     """Execute Phase B batch submission with references and natural delays."""
     is_submit = bool(getattr(args, "submit", False) or getattr(args, "mode", None) == "submit")
@@ -456,33 +496,10 @@ def run_submit(args, project_dir: str) -> int:
 
     import flow_submit
 
-    selectors = load_selectors(args.selectors, project_dir)
+    page, queue, selectors, pw, browser = _prepare_runner(args, project_dir)
+    if not page:
+        return 1
     try:
-        queue, summary = compute_queue(project_dir, args.only)
-    except FileNotFoundError as e:
-        sys.stderr.write(f"Error: {e}\n")
-        return 1
-    except (ValueError, KeyError) as e:
-        sys.stderr.write(f"Error: {e}\n")
-        return 1
-
-    pw, browser = connect_cdp(args.cdp_url)
-    if not browser:
-        return 1
-
-    try:
-        page = find_flow_tab(browser, selectors)
-        if not page:
-            return 1
-
-        all_ok, sel_results = verify_selectors(page, selectors)
-        if not all_ok:
-            sys.stderr.write("Error: Required selectors missing on page:\n")
-            for k, info in sel_results.items():
-                if not info.get("unverified") and not info["found"]:
-                    sys.stderr.write(f"  [MISSING] {k}: {info['selector']}\n")
-            return 1
-
         return flow_submit.run_submit_batches(
             page=page,
             queue=queue,
@@ -492,24 +509,47 @@ def run_submit(args, project_dir: str) -> int:
             daily_cap=args.daily_cap,
         )
     finally:
-        try:
-            browser.close()
-        except Exception:
-            pass
-        if pw:
-            try:
-                pw.stop()
-            except Exception:
-                pass
+        _cleanup_browser(pw, browser)
+
+
+def run_download(args, project_dir: str) -> int:
+    """Execute Phase C intercepted download, naming, and resilient retries."""
+    is_download = bool(getattr(args, "download", False) or getattr(args, "mode", None) == "download")
+    if not is_download:
+        sys.stderr.write("Error: Explicit download opt-in required (--download or --mode download).\n")
+        return 1
+
+    from flow_recover import run_download_phase
+
+    page, queue, selectors, pw, browser = _prepare_runner(args, project_dir)
+    if not page:
+        return 1
+    try:
+        return run_download_phase(
+            page=page,
+            queue=queue,
+            selectors=selectors,
+            project_dir=project_dir,
+            batch_size=args.batch_size,
+            max_retries=args.max_retries,
+            unmatched_dir=args.unmatched_dir,
+            cooldown_seconds=args.cooldown_seconds,
+        )
+    finally:
+        _cleanup_browser(pw, browser)
 
 
 def parse_args(argv=None):
-    parser = argparse.ArgumentParser(description="Flow sync automation CLI (Phase A: Dry-run, Phase B: Submit)")
+    parser = argparse.ArgumentParser(description="Flow sync automation CLI (Phase A: Dry-run, Phase B: Submit, Phase C: Download)")
     parser.add_argument("--dry-run", action="store_true", help="Validate selectors and queue without generating")
     parser.add_argument("--submit", action="store_true", help="Execute batch submissions to Flow (Phase B)")
-    parser.add_argument("--mode", default=None, choices=["dry-run", "submit"], help="Execution mode: dry-run or submit")
+    parser.add_argument("--download", action="store_true", help="Execute intercepted download and retries (Phase C)")
+    parser.add_argument("--mode", default=None, choices=["dry-run", "submit", "download"], help="Execution mode: dry-run, submit, or download")
     parser.add_argument("--batch-size", type=int, default=10, help="Batch size for submissions (default: 10)")
     parser.add_argument("--daily-cap", type=int, default=100, help="Daily submission cap (default: 100)")
+    parser.add_argument("--max-retries", type=int, default=2, help="Maximum resubmit attempts per item (default: 2)")
+    parser.add_argument("--unmatched-dir", default=None, help="Directory for unmatched downloads (default: images/_unmatched)")
+    parser.add_argument("--cooldown-seconds", type=float, default=300.0, help="Cooldown in seconds after 3 consecutive failures (default: 300.0)")
     parser.add_argument("--cdp-url", default=DEFAULT_CDP_URL, help=f"CDP URL (default: {DEFAULT_CDP_URL})")
     parser.add_argument("--project", default=".", help="Project directory (default: current directory)")
     parser.add_argument("--verbose", action="store_true", help="Verbose timing output")
@@ -523,21 +563,25 @@ def main(argv=None):
     args = parse_args(argv)
     project_dir = os.path.abspath(args.project)
 
-    is_dry_run = args.dry_run or (args.mode == "dry-run")
-    is_submit = args.submit or (args.mode == "submit")
+    is_dry_run = bool(args.dry_run or (args.mode == "dry-run"))
+    is_submit = bool(args.submit or (args.mode == "submit"))
+    is_download = bool(args.download or (args.mode == "download"))
 
-    if is_dry_run and is_submit:
-        sys.stderr.write("Error: Cannot specify both --dry-run and --submit.\n")
+    active_modes = sum([is_dry_run, is_submit, is_download])
+    if active_modes > 1:
+        sys.stderr.write("Error: Conflicting modes specified. Choose exactly one of --dry-run, --submit, or --download.\n")
         return 1
 
-    if not is_dry_run and not is_submit:
-        sys.stderr.write("Phase A supports only --dry-run, and Phase B adds --submit. Please run with --dry-run or --submit.\n")
+    if active_modes == 0:
+        sys.stderr.write("Phase A supports only --dry-run, Phase B adds --submit, and Phase C adds --download. Please run with --dry-run, --submit, or --download.\n")
         return 1
 
     if is_dry_run:
         return run_dry_run(args, project_dir)
-    else:
+    elif is_submit:
         return run_submit(args, project_dir)
+    else:
+        return run_download(args, project_dir)
 
 
 if __name__ == "__main__":

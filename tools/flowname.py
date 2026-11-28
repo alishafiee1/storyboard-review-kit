@@ -95,6 +95,31 @@ def slugs_match(got, want):
     return g == w
 
 
+def resolve_output_stem(prompt, base):
+    """Full stem requested in prompt via [OUTPUT NAME: ...]; falls back to `base` if absent."""
+    m = OUTPUT_NAME.search(prompt or "")
+    if m:
+        return m.group(1).strip()
+    return base
+
+
+def format_alt_name(stem, index=0, ext=".png"):
+    """Format filename with optional _alt suffix. index=0 -> '{stem}{ext}', index=1 -> '{stem}_alt{ext}', index>1 -> '{stem}_alt{index}{ext}'."""
+    if not ext.startswith("."):
+        ext = "." + ext
+    if index <= 0:
+        return f"{stem}{ext}"
+    if index == 1:
+        return f"{stem}_alt{ext}"
+    return f"{stem}_alt{index}{ext}"
+
+
+def is_alt_name(filename):
+    """True if filename ends with _alt or _alt<N> before extension."""
+    stem, _ = os.path.splitext(filename)
+    return bool(re.search(r"_alt\d*$", stem, re.I))
+
+
 def walk(folder, skip=SKIP_DIRS):
     """Every file under folder (all levels), leaving out archive/, _rejected/ and inbox/. Sorted, so the result does not depend on the disk."""
     out = []

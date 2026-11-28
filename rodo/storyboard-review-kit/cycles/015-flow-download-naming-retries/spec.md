@@ -55,6 +55,7 @@ CLI invocation:
 ```bash
 python tools/flow_sync.py --mode download [--max-retries 2] [--unmatched-dir images/_unmatched]
 ```
+Note: `--download` is supported as a shorthand CLI flag alias for `--mode download`.
 
 ## 5. Screens
 

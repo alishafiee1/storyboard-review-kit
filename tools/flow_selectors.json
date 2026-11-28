@@ -7,9 +7,13 @@
   "ingredient_search_input": "input[placeholder*=\"Search\"], input[aria-label*=\"Search\"]",
   "ingredient_result_item": "div[role=\"option\"], div[role=\"listbox\"] div[role=\"button\"]",
   "result_tile": "div[data-testid=\"generation-tile\"], div[role=\"img\"][aria-label*=\"Generated\"], div.generation-tile",
+  "download_button": "button[aria-label*=\"Download\"], button[data-testid*=\"download\"], div.generation-tile button[aria-label*=\"Download\"]",
+  "failure_banner": "div[role=\"alert\"], div[data-testid*=\"error\"], div.error-banner, div[class*=\"error-message\"]",
   "_unverified": [
     "ingredient_search_input",
     "ingredient_result_item",
-    "result_tile"
+    "result_tile",
+    "download_button",
+    "failure_banner"
   ]
 }

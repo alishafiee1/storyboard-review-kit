@@ -145,7 +145,8 @@ def save_state(state: dict, path: str = None, project_dir: str = None):
 def record_item_state(state: dict, output_name: str, prompt_hash: str, status: str,
                       attempt_id: str = None, refs: list = None,
                       batch_id: int = None, submitted_at: str = None,
-                      now_iso: str = None) -> dict:
+                      now_iso: str = None, retries_count: int = None,
+                      saved_path: str = None, completed_at: str = None) -> dict:
     """Update or insert a queue item record in state."""
     items = state.setdefault("items", {})
     existing = items.get(output_name, {})
@@ -173,6 +174,21 @@ def record_item_state(state: dict, output_name: str, prompt_hash: str, status: s
         record["submitted_at"] = submitted_at
     elif "submitted_at" in existing:
         record["submitted_at"] = existing["submitted_at"]
+
+    if retries_count is not None:
+        record["retries_count"] = retries_count
+    elif "retries_count" in existing:
+        record["retries_count"] = existing["retries_count"]
+
+    if saved_path is not None:
+        record["saved_path"] = saved_path
+    elif "saved_path" in existing:
+        record["saved_path"] = existing["saved_path"]
+
+    if completed_at is not None:
+        record["completed_at"] = completed_at
+    elif "completed_at" in existing:
+        record["completed_at"] = existing["completed_at"]
 
     items[output_name] = record
     state["last_run"] = now_iso
