@@ -26,6 +26,7 @@ Phase A implements the foundational CLI skeleton `tools/flow_sync.py` and config
   ```json
   {
     "version": 1,
+    "flow_url_pattern": "flow\\.google\\.com/project/|labs\\.google/fx/",
     "prompt_box": "div[role=\"textbox\"][aria-label=\"What do you want to create?\"]",
     "submit_button": "button[aria-label=\"Start generation\"]",
     "ingredients_button": "button[aria-label=\"Add ingredients to the prompt box\"]",
@@ -72,6 +73,7 @@ Console output only. Reports:
 ## 6. Files to create or change
 
 - `tools/flow_sync.py` — CLI skeleton with lazy playwright loading and dry-run logic
+- `tools/flow_state.py` — state schema/IO helpers, no playwright
 - `tools/flow_selectors.json` — External selector mapping
 - `tools/tests/test_flow_sync_dryrun.py` — Unit tests for prompt parsing, hash stability, skip rules, and state schema
 - `.kit/flow-state.json` — Generated runtime state in target project (not committed in engine repo)

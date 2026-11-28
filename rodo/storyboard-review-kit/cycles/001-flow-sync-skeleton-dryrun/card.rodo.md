@@ -1,7 +1,7 @@
 ---
 schemaVersion: 2
 title: "Phase A: Flow sync skeleton, CDP tab discovery, and dry-run queue"
-status: todo
+status: done
 priority: medium
 workflow: standard
 members: []
@@ -27,8 +27,8 @@ scope:
 ## Progress notes
 
 - Updated: 2026-11-28
-- Done: هنوز شروع نشده
-- Remaining: همهٔ قدم‌ها
+- Done: پیاده‌سازی اسکلت CLI با واردسازی تنبل Playwright، فایل انتخابگرهای JSON، کشف تب Flow روی CDP، منطق صف skip/generate طبق قوانین R5، لاگ زمان‌بندی قدم‌ها و flow-state.json با شناسهٔ تلاش، به همراه ۲۵ آزمون واحد ایزوله.
+- Remaining: هیچ (همهٔ R-idهای چرخه 001 پاس شدند).
 
 ## Refs
 
@@ -39,12 +39,12 @@ scope:
 
 ## Checklist: قدم‌ها
 
-- [ ] ساخت اسکلت CLI ابزار `tools/flow_sync.py` با واردسازی تنبل (lazy import) برای Playwright
-- [ ] ذخیره و بارگذاری انتخابگرهای Flow از `tools/flow_selectors.json` (داده به‌جای کد)
-- [ ] اتصال CDP به `127.0.0.1:9222` و یافتن تب فعال `flow.google.com/project/`
-- [ ] پارس `prompts/prompts.txt` و محاسبهٔ صف skip/generate بر اساس هش پرامپت، `image-stale` و تصویر تأییدشده
-- [ ] پیاده‌سازی حالت `--dry-run`: بررسی وجود انتخابگرها روی صفحه بدون کلیک Generate
-- [ ] پیاده‌سازی لاگ زمان‌بندی قدم‌ها و ساختار پروندهٔ وضعیت `.kit/flow-state.json` با attempt id
-- [ ] آزمون‌های واحد برای پارس، قوانین پرش، هش و ذخیرهٔ وضعیت (بدون نیاز به Playwright زنده)
-- [ ] تمیزکاری انجام شد؛ تست و رسیدگی به خطا حفظ شد (clean.md)
-- [ ] تست پذیرش پاس شد
+- [x] ساخت اسکلت CLI ابزار `tools/flow_sync.py` با واردسازی تنبل (lazy import) برای Playwright
+- [x] ذخیره و بارگذاری انتخابگرهای Flow از `tools/flow_selectors.json` (داده به‌جای کد)
+- [x] اتصال CDP به `127.0.0.1:9222` و یافتن تب فعال `flow.google.com/project/`
+- [x] پارس `prompts/prompts.txt` و محاسبهٔ صف skip/generate بر اساس هش پرامپت، `image-stale` و تصویر تأییدشده
+- [x] پیاده‌سازی حالت `--dry-run`: بررسی وجود انتخابگرها روی صفحه بدون کلیک Generate
+- [x] پیاده‌سازی لاگ زمان‌بندی قدم‌ها و ساختار پروندهٔ وضعیت `.kit/flow-state.json` با attempt id
+- [x] آزمون‌های واحد برای پارس، قوانین پرش، هش و ذخیرهٔ وضعیت (بدون نیاز به Playwright زنده)
+- [x] تمیزکاری انجام شد؛ تست و رسیدگی به خطا حفظ شد (clean.md)
+- [x] تست پذیرش پاس شد

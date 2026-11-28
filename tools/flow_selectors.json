@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "flow_url_pattern": "flow\\.google\\.com/project/|labs\\.google/fx/",
+  "prompt_box": "div[role=\"textbox\"][aria-label=\"What do you want to create?\"]",
+  "submit_button": "button[aria-label=\"Start generation\"]",
+  "ingredients_button": "button[aria-label=\"Add ingredients to the prompt box\"]",
+  "ingredient_search_input": "input[placeholder*=\"Search\"], input[aria-label*=\"Search\"]"
+}
