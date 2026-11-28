@@ -24,6 +24,8 @@
 - [011-scene-grouped-gallery](cycles/011-scene-grouped-gallery/card.rodo.md) — مرحلهٔ ۶: گروه‌بندی گالری با هدر صحنه و انتخاب‌گر بندانگشتی
 - [012-references-mode](cycles/012-references-mode/card.rodo.md) — مرحلهٔ ۷: حالت مرجع‌ها (refs) با قوانین متمرکز، گوینده‌های مشترک و تاریخچهٔ جدا
 - [013-rodo-spec-migration](cycles/013-rodo-spec-migration/card.rodo.md) — مرحلهٔ ۸: پذیرش rodo-spec به‌عنوان تنها منبع حقیقت توسعه و حذف اسناد قدیمی
+- [001-flow-sync-skeleton-dryrun](cycles/001-flow-sync-skeleton-dryrun/card.rodo.md) — فاز A: اسکلت همگام‌ساز Flow و اجرای آزمایشی (dry-run)
+- [014-flow-batch-submit-refs](cycles/014-flow-batch-submit-refs/card.rodo.md) — فاز B: ارسال دسته‌ای پرامپت‌ها و اتصال مراجع با نام
 
 ## لغوشده
 
@@ -31,8 +33,6 @@
 
 ## بعدی
 
-- [001 فاز A: اسکلت همگام‌ساز Flow و اجرای آزمایشی (dry-run)](cycles/001-flow-sync-skeleton-dryrun/simple.md)
-- [014 فاز B: ارسال دسته‌ای پرامپت‌ها و اتصال مراجع با نام](cycles/014-flow-batch-submit-refs/simple.md)
 - [015 فاز C: دریافت دانلودها، نام‌گذاری دقیق و مدیریت بازآزمایی‌ها](cycles/015-flow-download-naming-retries/simple.md)
 - [016 فاز D: پنل کاربری در بازبینی و خودترمیمی خطاها](cycles/016-flow-ui-panel-selfheal/simple.md)
 - [002 ارتقا و جایگزینی کیفیت ۲K تصاویر تاییدشده و مدیریت خودکار زیپ در Flow (وابسته به 016)](cycles/002-flow-2k-final-and-zip/simple.md)

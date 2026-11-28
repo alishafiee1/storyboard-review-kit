@@ -1,3 +1,4 @@
+<!-- RODO_ERROR: REF_LINE_INVALID: line 40: write - [title](/path) -->
 ---
 schemaVersion: 2
 title: "ارتقا و جایگزینی کیفیت ۲K تصاویر تاییدشده و مدیریت خودکار زیپ در Flow"

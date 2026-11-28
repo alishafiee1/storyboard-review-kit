@@ -71,8 +71,43 @@ def default_state() -> dict:
     return {
         "schemaVersion": SCHEMA_VERSION,
         "last_run": None,
+        "daily_submitted_count": 0,
+        "last_batch_at": None,
         "items": {}
     }
+
+
+def get_daily_submitted_count(state: dict, now: datetime.datetime = None) -> int:
+    """Return submitted count within rolling 24-hour window, resetting if >24h elapsed."""
+    last_batch_at = state.get("last_batch_at")
+    if not last_batch_at:
+        return state.get("daily_submitted_count", 0)
+
+    current_time = now or datetime.datetime.now(datetime.timezone.utc)
+    try:
+        dt = datetime.datetime.fromisoformat(last_batch_at)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=datetime.timezone.utc)
+        if (current_time - dt).total_seconds() > 24 * 3600:
+            return 0
+    except Exception:
+        pass
+    return state.get("daily_submitted_count", 0)
+
+
+def increment_daily_counter(state: dict, count: int = 1, now_iso: str = None, now: datetime.datetime = None) -> int:
+    """Increment daily submitted count and update last_batch_at."""
+    if now is None and now_iso:
+        try:
+            now = datetime.datetime.fromisoformat(now_iso)
+        except Exception:
+            pass
+    curr = get_daily_submitted_count(state, now=now)
+    new_count = curr + count
+    state["daily_submitted_count"] = new_count
+    if now_iso:
+        state["last_batch_at"] = now_iso
+    return new_count
 
 
 def load_state(path: str = None, project_dir: str = None) -> dict:
@@ -89,6 +124,8 @@ def load_state(path: str = None, project_dir: str = None) -> dict:
             data["schemaVersion"] = SCHEMA_VERSION
         if not isinstance(data.get("items"), dict):
             data["items"] = {}
+        data.setdefault("daily_submitted_count", 0)
+        data.setdefault("last_batch_at", None)
         return data
     except (OSError, ValueError):
         return default_state()
@@ -106,12 +143,15 @@ def save_state(state: dict, path: str = None, project_dir: str = None):
 
 
 def record_item_state(state: dict, output_name: str, prompt_hash: str, status: str,
-                      attempt_id: str = None, refs: list = None) -> dict:
+                      attempt_id: str = None, refs: list = None,
+                      batch_id: int = None, submitted_at: str = None,
+                      now_iso: str = None) -> dict:
     """Update or insert a queue item record in state."""
     items = state.setdefault("items", {})
     existing = items.get(output_name, {})
     att_id = attempt_id or existing.get("attempt_id") or generate_attempt_id()
-    now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    if now_iso is None:
+        now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
     record = {
         "output_name": output_name,
         "prompt_hash": prompt_hash,
@@ -123,6 +163,17 @@ def record_item_state(state: dict, output_name: str, prompt_hash: str, status: s
         record["refs"] = list(refs)
     elif "refs" in existing:
         record["refs"] = existing["refs"]
+
+    if batch_id is not None:
+        record["batch_id"] = batch_id
+    elif "batch_id" in existing:
+        record["batch_id"] = existing["batch_id"]
+
+    if submitted_at is not None:
+        record["submitted_at"] = submitted_at
+    elif "submitted_at" in existing:
+        record["submitted_at"] = existing["submitted_at"]
+
     items[output_name] = record
     state["last_run"] = now_iso
     return record

@@ -34,6 +34,13 @@ BUILTIN_SELECTORS = {
     "submit_button": "button[aria-label=\"Start generation\"]",
     "ingredients_button": "button[aria-label=\"Add ingredients to the prompt box\"]",
     "ingredient_search_input": "input[placeholder*=\"Search\"], input[aria-label*=\"Search\"]",
+    "ingredient_result_item": "div[role=\"option\"], div[role=\"listbox\"] div[role=\"button\"]",
+    "result_tile": "div[data-testid=\"generation-tile\"], div[role=\"img\"][aria-label*=\"Generated\"], div.generation-tile",
+    "_unverified": [
+        "ingredient_search_input",
+        "ingredient_result_item",
+        "result_tile",
+    ],
 }
 
 
@@ -297,15 +304,19 @@ def find_flow_tab(browser, selectors: dict):
 def verify_selectors(page, selectors: dict) -> tuple:
     """Verify presence of required selectors in page DOM without clicking anything.
 
-    Returns (all_present_bool, results_dict).
+    Distinguishes verified selectors from unverified best-guesses.
+    Returns (all_verified_ok_bool, results_dict).
     """
     results = {}
     all_ok = True
+    unverified_keys = set(selectors.get("_unverified", []))
     check_keys = [
         ("prompt_box", selectors.get("prompt_box")),
         ("submit_button", selectors.get("submit_button")),
         ("ingredients_button", selectors.get("ingredients_button")),
         ("ingredient_search_input", selectors.get("ingredient_search_input")),
+        ("ingredient_result_item", selectors.get("ingredient_result_item")),
+        ("result_tile", selectors.get("result_tile")),
     ]
     for key, sel in check_keys:
         if not sel:
@@ -315,8 +326,9 @@ def verify_selectors(page, selectors: dict) -> tuple:
             found = el is not None
         except Exception:
             found = False
-        results[key] = {"selector": sel, "found": found}
-        if not found and key in ("prompt_box", "submit_button", "ingredients_button"):
+        is_unverified = key in unverified_keys
+        results[key] = {"selector": sel, "found": found, "unverified": is_unverified}
+        if not is_unverified and not found and key in ("prompt_box", "submit_button", "ingredients_button"):
             all_ok = False
 
     return all_ok, results
@@ -368,8 +380,9 @@ def run_dry_run(args, project_dir: str) -> int:
         if not all_ok:
             sys.stderr.write("Error: One or more required Flow selectors were not found on the page.\n")
             for k, info in sel_results.items():
-                mark = "FOUND" if info["found"] else "MISSING"
-                sys.stderr.write(f"  [{mark}] {k}: {info['selector']}\n")
+                if not info.get("unverified"):
+                    mark = "FOUND" if info["found"] else "MISSING"
+                    sys.stderr.write(f"  [{mark}] {k}: {info['selector']}\n")
             return 1
 
         # 6. Update state
@@ -406,8 +419,16 @@ def run_dry_run(args, project_dir: str) -> int:
 
     sys.stdout.write("Selectors Validation:\n")
     for k, info in sel_results.items():
-        mark = "FOUND" if info["found"] else "MISSING"
-        sys.stdout.write(f"  [{mark}] {k}: {info['selector']}\n")
+        if not info.get("unverified"):
+            mark = "FOUND" if info["found"] else "MISSING"
+            sys.stdout.write(f"  [{mark}] {k}: {info['selector']}\n")
+
+    unverified_items = {k: v for k, v in sel_results.items() if v.get("unverified")}
+    if unverified_items:
+        sys.stdout.write("\nUnverified Selectors:\n")
+        for k, info in unverified_items.items():
+            mark = "UNVERIFIED:FOUND" if info["found"] else "UNVERIFIED:MISSING"
+            sys.stdout.write(f"  [{mark}] {k}: {info['selector']}\n")
 
     sys.stdout.write("\nQueue Summary:\n")
     sys.stdout.write(f"  Total prompts : {summary['total']}\n")
@@ -426,9 +447,69 @@ def run_dry_run(args, project_dir: str) -> int:
     return 0
 
 
+def run_submit(args, project_dir: str) -> int:
+    """Execute Phase B batch submission with references and natural delays."""
+    is_submit = bool(getattr(args, "submit", False) or getattr(args, "mode", None) == "submit")
+    if not is_submit:
+        sys.stderr.write("Error: Explicit submit opt-in required (--submit or --mode submit).\n")
+        return 1
+
+    import flow_submit
+
+    selectors = load_selectors(args.selectors, project_dir)
+    try:
+        queue, summary = compute_queue(project_dir, args.only)
+    except FileNotFoundError as e:
+        sys.stderr.write(f"Error: {e}\n")
+        return 1
+    except (ValueError, KeyError) as e:
+        sys.stderr.write(f"Error: {e}\n")
+        return 1
+
+    pw, browser = connect_cdp(args.cdp_url)
+    if not browser:
+        return 1
+
+    try:
+        page = find_flow_tab(browser, selectors)
+        if not page:
+            return 1
+
+        all_ok, sel_results = verify_selectors(page, selectors)
+        if not all_ok:
+            sys.stderr.write("Error: Required selectors missing on page:\n")
+            for k, info in sel_results.items():
+                if not info.get("unverified") and not info["found"]:
+                    sys.stderr.write(f"  [MISSING] {k}: {info['selector']}\n")
+            return 1
+
+        return flow_submit.run_submit_batches(
+            page=page,
+            queue=queue,
+            selectors=selectors,
+            project_dir=project_dir,
+            batch_size=args.batch_size,
+            daily_cap=args.daily_cap,
+        )
+    finally:
+        try:
+            browser.close()
+        except Exception:
+            pass
+        if pw:
+            try:
+                pw.stop()
+            except Exception:
+                pass
+
+
 def parse_args(argv=None):
-    parser = argparse.ArgumentParser(description="Flow sync automation CLI (Phase A: Dry-run)")
+    parser = argparse.ArgumentParser(description="Flow sync automation CLI (Phase A: Dry-run, Phase B: Submit)")
     parser.add_argument("--dry-run", action="store_true", help="Validate selectors and queue without generating")
+    parser.add_argument("--submit", action="store_true", help="Execute batch submissions to Flow (Phase B)")
+    parser.add_argument("--mode", default=None, choices=["dry-run", "submit"], help="Execution mode: dry-run or submit")
+    parser.add_argument("--batch-size", type=int, default=10, help="Batch size for submissions (default: 10)")
+    parser.add_argument("--daily-cap", type=int, default=100, help="Daily submission cap (default: 100)")
     parser.add_argument("--cdp-url", default=DEFAULT_CDP_URL, help=f"CDP URL (default: {DEFAULT_CDP_URL})")
     parser.add_argument("--project", default=".", help="Project directory (default: current directory)")
     parser.add_argument("--verbose", action="store_true", help="Verbose timing output")
@@ -442,11 +523,21 @@ def main(argv=None):
     args = parse_args(argv)
     project_dir = os.path.abspath(args.project)
 
-    if not args.dry_run:
-        sys.stderr.write("Phase A supports only --dry-run. Please run with --dry-run.\n")
+    is_dry_run = args.dry_run or (args.mode == "dry-run")
+    is_submit = args.submit or (args.mode == "submit")
+
+    if is_dry_run and is_submit:
+        sys.stderr.write("Error: Cannot specify both --dry-run and --submit.\n")
         return 1
 
-    return run_dry_run(args, project_dir)
+    if not is_dry_run and not is_submit:
+        sys.stderr.write("Phase A supports only --dry-run, and Phase B adds --submit. Please run with --dry-run or --submit.\n")
+        return 1
+
+    if is_dry_run:
+        return run_dry_run(args, project_dir)
+    else:
+        return run_submit(args, project_dir)
 
 
 if __name__ == "__main__":
